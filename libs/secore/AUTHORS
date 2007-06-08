@@ -9,3 +9,20 @@ The coverage.py file in the testsuite is Copyright 2001 Gareth Rees and
 Copyright 2004-2006 Ned Batchelder.  See the end of that file for details of
 its licensing.
 
+
+Sample data
+-----------
+
+The "testdata/query_sourcewords.txt" file contains a copy of
+/usr/share/dict/words from the "dictionaries-common" package in a
+Debian installation:
+
+Copyright (C) 1999-2003 Rafael Laboissiere <rafael@debian.org>
+Copyright (C) 2001-2004 Agustín Martín Domingo <agmartin@debian.org>
+Copyright (C) 2003-2004 René Engelhard <rene@debian.org>
+
+dictionaries-common is released under the terms of the GNU GPL, version 2,
+or at your option, any later version. (see /usr/share/common-licenses/GPL).
+
+"testdata/query_sourcewords.txt" also contains a copy of the text of John
+Milton's "Paradise Lost", taken from Project Gutenberg.

@@ -1,3 +1,13 @@
+Fri Jun 08 15:37:21 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* AUTHORS,testdata/query_sourcewords.txt: Add source words for
+	  generating queries to test with, and list the copyright holders
+	  in AUTHORS.
+	* perftest/: Add some routines for performing performance tests,
+	  and analysing the logs of these tests.
+	* perftest/parse_wikipedia/: Add some routines which convert XML
+	  dumps of wikipedia data into scriptindex compatible forms.
+
 Fri Jun 08 11:58:54 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* Initial import into code.google.com repository.
