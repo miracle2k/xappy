@@ -1,0 +1,154 @@
+
+>>> from datastructures import *
+>>> from fieldactions import *
+>>> from indexerconnection import *
+
+
+Open a connection for indexing:
+>>> iconn = IndexerConnection('foo')
+
+>>> iconn.add_field_action('author', FieldActions.STORE_CONTENT)
+>>> iconn.add_field_action('title', FieldActions.STORE_CONTENT)
+>>> iconn.add_field_action('category', FieldActions.STORE_CONTENT)
+>>> iconn.add_field_action('text', FieldActions.STORE_CONTENT)
+
+>>> iconn.add_field_action('author', FieldActions.INDEX_FREETEXT, weight=2)
+>>> iconn.add_field_action('title', FieldActions.INDEX_FREETEXT, weight=5)
+>>> iconn.add_field_action('category', FieldActions.INDEX_EXACT)
+>>> iconn.add_field_action('category', FieldActions.SORTABLE)
+>>> iconn.add_field_action('category', FieldActions.COLLAPSE)
+>>> iconn.add_field_action('text', FieldActions.INDEX_FREETEXT, language='en')
+
+>>> iconn.add_field_action('date', FieldActions.STORE_CONTENT)
+>>> iconn.add_field_action('date', FieldActions.COLLAPSE)
+>>> iconn.add_field_action('date', FieldActions.SORTABLE, type='date')
+>>> iconn.add_field_action('date', FieldActions.COLLAPSE)
+>>> iconn.add_field_action('price', FieldActions.STORE_CONTENT)
+>>> iconn.add_field_action('price', FieldActions.SORTABLE, type='float')
+>>> iconn.add_field_action('price', FieldActions.COLLAPSE)
+
+
+A field can only be sorted according to one type:
+>>> iconn.add_field_action('date', FieldActions.SORTABLE, type='float')
+Traceback (most recent call last):
+...
+IndexerError: Field 'date' is already marked for sorting, with a different sort type
+
+
+If we set the sort type to an unknown value, we get errors when it is used:
+
+>>> iconn.add_field_action('price2', FieldActions.SORTABLE, type='unknown')
+>>> doc = UnprocessedDocument()
+>>> doc.fields.append(Field('price2', '1.0'))
+>>> iconn.process(doc)
+Traceback (most recent call last):
+...
+IndexerError: Unknown sort type 'unknown' for field 'price2'
+
+
+
+Add a set of documents, which dates and prices, to test sorting.:
+
+>>> for i in xrange(200):
+...     doc = UnprocessedDocument()
+...     doc.fields.append(Field('author', 'Richard Boulton'))
+...     doc.fields.append(Field('category', 'Cat %d' % ((i + 5) % 20)))
+...     doc.fields.append(Field('text', 'This document is a basic test document.'))
+...     doc.fields.append(Field('title', 'Test document %d' % i))
+...     doc.fields.append(Field('text', 'More test text about this document.'))
+...     doc.fields.append(Field('date', '2007%02d%02d' % (i % 12 + 1, i / 12 + 1)))
+...     doc.fields.append(Field('price', '%f' % ((float(i) / 7) % 10)))
+...     id = iconn.add(doc)
+>>> iconn.flush()
+
+
+Now, open a search connection:
+>>> sconn = SearchConnection('foo')
+
+>>> q = sconn.query_parse('document')
+>>> results = sconn.search(q, 0, 30)
+>>> [result.unique_id for result in results]
+['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '1a', '1b', '1c', '1d']
+
+>>> results = sconn.search(q, 0, 30, sortby="price")
+>>> prev_price = results[0].data['price']
+>>> for price in (result.data['price'] for result in results):
+...     assert(price >= prev_price)
+...     prev_price = price
+>>> [int(result.unique_id, 16) for result in results]
+[0, 70, 140, 1, 71, 141, 2, 72, 142, 3, 73, 143, 4, 74, 144, 5, 75, 145, 6, 76, 146, 7, 77, 147, 8, 78, 148, 9, 79, 149]
+>>> [result.data['price'] for result in results]
+[['0.000000'], ['0.000000'], ['0.000000'], ['0.142857'], ['0.142857'], ['0.142857'], ['0.285714'], ['0.285714'], ['0.285714'], ['0.428571'], ['0.428571'], ['0.428571'], ['0.571429'], ['0.571429'], ['0.571429'], ['0.714286'], ['0.714286'], ['0.714286'], ['0.857143'], ['0.857143'], ['0.857143'], ['1.000000'], ['1.000000'], ['1.000000'], ['1.142857'], ['1.142857'], ['1.142857'], ['1.285714'], ['1.285714'], ['1.285714']]
+
+>>> results = sconn.search(q, 0, 30, sortby="-price")
+>>> prev_price = results[0].data['price']
+>>> for price in (result.data['price'] for result in results):
+...     assert(price <= prev_price)
+...     prev_price = price
+>>> [int(result.unique_id, 16) for result in results]
+[69, 139, 68, 138, 67, 137, 66, 136, 65, 135, 64, 134, 63, 133, 62, 132, 61, 131, 60, 130, 59, 129, 199, 58, 128, 198, 57, 127, 197, 56]
+
+
+>>> results = sconn.search(q, 0, 30, sortby="date")
+>>> prev_date = results[0].data['date']
+>>> for date in (result.data['date'] for result in results):
+...     assert(date >= prev_date)
+...     prev_date = date
+>>> [int(result.unique_id, 16) for result in results]
+[0, 12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144, 156, 168, 180, 192, 1, 13, 25, 37, 49, 61, 73, 85, 97, 109, 121, 133, 145]
+
+>>> results = sconn.search(q, 0, 30, sortby="-date")
+>>> prev_date = results[0].data['date']
+>>> for date in (result.data['date'] for result in results):
+...     assert(date <= prev_date)
+...     prev_date = date
+>>> [int(result.unique_id, 16) for result in results]
+[191, 179, 167, 155, 143, 131, 119, 107, 95, 83, 71, 59, 47, 35, 23, 11, 190, 178, 166, 154, 142, 130, 118, 106, 94, 82, 70, 58, 46, 34]
+
+
+
+We can also filter the results by a range of the sortable values - for
+example, dates:
+
+>>> fq = sconn.query_filter(q, sconn.query_range('date', '20070205', '20070207'))
+>>> results = sconn.search(fq, 0, 30, sortby="date")
+>>> [int(result.unique_id, 16) for result in results]
+[49, 61, 73]
+>>> for result in results:
+...     print "%r,%r" % (result.data['date'], result.get_value('date'))
+['20070205'],'20070205'
+['20070206'],'20070206'
+['20070207'],'20070207'
+
+
+Or we can restrict by numerical range:
+>>> fq = sconn.query_filter(q, sconn.query_range('price', '0.1428', '0.5'))
+>>> results = sconn.search(fq, 0, 30, sortby="date")
+>>> [int(result.unique_id, 16) for result in results]
+[72, 1, 73, 2, 3, 141, 142, 71, 143]
+>>> [(result.data['price'][0]) for result in results]
+['0.285714', '0.142857', '0.428571', '0.285714', '0.428571', '0.142857', '0.285714', '0.142857', '0.428571']
+
+>>> fq = sconn.query_range('price', '0.1428', '0.5')
+>>> results = sconn.search(fq, 0, 30, sortby="date")
+>>> [int(result.unique_id, 16) for result in results]
+[72, 1, 73, 2, 3, 141, 142, 71, 143]
+
+
+If the end of the range is lower than the start, no results can match
+>>> fq = sconn.query_filter(q, sconn.query_range('price', '0.5', '0.1428'))
+>>> results = sconn.search(fq, 0, 30, sortby="date")
+>>> [int(result.unique_id, 16) for result in results]
+[]
+
+
+If invalid values are supplied to query_range, a SearchError is raised
+>>> sconn.query_range('date', '0.1428', '0.5')
+Traceback (most recent call last):
+...
+SearchError: Value supplied to field 'date' must be a valid date: was '0.1428': error is 'Unrecognised date format'
+
+
+
+Tidy up after ourselves:
+>>> sconn.close()

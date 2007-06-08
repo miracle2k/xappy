@@ -1,0 +1,21 @@
+
+>>> from fieldmappings import FieldMappings
+>>> maps = FieldMappings()
+
+Make a processed document.
+>>> doc = ProcessedDocument(maps)
+
+>>> print doc.unique_id
+None
+>>> doc.unique_id = '1'
+>>> print doc.unique_id
+1
+>>> doc.unique_id = '_'
+>>> print doc.unique_id
+_
+
+>>> print repr(doc.data)
+{}
+>>> doc.data['foo'] = ['1', '2']
+>>> print repr(doc.data)
+{'foo': ['1', '2']}

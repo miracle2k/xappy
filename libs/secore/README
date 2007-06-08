@@ -1,0 +1,41 @@
+README
+======
+
+The name "secore" stands for Search Engine Core.  It implements a
+simple-to-use interface to a search engine (Xapian - http://xapian.org/),
+which allows 
+
+For an introduction to the "secore" module, read the documentation in
+"docs/introduction.html".  (If you have an SVN checkout, you may need to
+generate this documentation by running "./build.py")
+
+You can run the testsuite by running "./testsuite/runtests.py".
+
+All changes are logged in the ChangeLog.
+
+Prerequisites
+-------------
+
+- Python.  Version 2.4 or 2.5 should be suitable.  Earlier versions may not
+  work correctly, and versions earlier than 2.2 will certainly not work
+  (since they are not supported by Xapian).
+
+- Xapian (core library and python bindings).  Currently, you will need a
+  snapshot release of Xapian (available from
+  http://www.oligarchy.co.uk/xapian/trunk/), but when 1.0 is released in
+  early May 2007 that version should be suitable.
+
+- rst2html and epydoc.  These are used to format the documentation - you
+  should be able to use the "secore" module without them, but it won't be
+  so easy to know _how_ to use it!
+
+- Python docutils.  This is needed for generating the documentation - most
+  Python installations will already have docutils included, but you may
+  need to install it specifically in some cases.
+
+Building
+--------
+
+The secore module is pure Python, and thus doesn't really need to be built.
+However, there is a "build.py" script at the top level of the project -
+this will generate all the documentation.

@@ -1,0 +1,11 @@
+Authors
+=======
+
+The secore module and accompanying documentation and testsuite (excluding
+coverage.py) is Copyright (C) 2007 Lemur Consulting Ltd.  It is released under
+the GPL license; see the file COPYING_GPL in this directory for details.
+
+The coverage.py file in the testsuite is Copyright 2001 Gareth Rees and
+Copyright 2004-2006 Ned Batchelder.  See the end of that file for details of
+its licensing.
+
