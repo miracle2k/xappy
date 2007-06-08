@@ -2,8 +2,7 @@ README
 ======
 
 The name "secore" stands for Search Engine Core.  It implements a
-simple-to-use interface to a search engine (Xapian - http://xapian.org/),
-which allows 
+simple-to-use interface to a search engine (Xapian - http://xapian.org/).
 
 For an introduction to the "secore" module, read the documentation in
 "docs/introduction.html".  (If you have an SVN checkout, you may need to
