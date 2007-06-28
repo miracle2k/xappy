@@ -173,6 +173,14 @@ class Highlighter(object):
         if not blocks[-1][4]:
             words2.append('..')
 
+        # trim down to maxlen
+        l = 0
+        for i in xrange (len (words2)):
+            l += len (words2[i])
+            if l >= maxlen:
+                words2[i:] = ['..']
+                break
+
         if hl is None:
             return ''.join(words2)
         else:
