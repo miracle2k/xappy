@@ -43,7 +43,8 @@ def _act_index_exact(fieldname, doc, value, context):
     doc.add_term(fieldname, value, 0)
 
 def _act_index_freetext(fieldname, doc, value, context, weight=1, 
-                        language=None, stop=None, noprefix=False):
+                        language=None, stop=None, spell=False,
+                        nopos=False, noprefix=False):
     """Perform the INDEX_FREETEXT action.
     
     """
@@ -56,16 +57,27 @@ def _act_index_freetext(fieldname, doc, value, context, weight=1,
         for term in stop:
             stopper.add (term)
         termgen.set_stopper (stopper)
+
+    if spell:
+        termgen.set_flags(termgen.FLAG_SPELLING)
     
     termgen.set_document(doc._doc)
     termgen.set_termpos(context.current_position)
-    termgen.index_text(value, weight, '')
-    
+    if nopos:
+        termgen.index_text_without_positions(value, weight, '')
+    else:
+        termgen.index_text(value, weight, '')
+
     if not noprefix:
+        # Store a second copy of the term with a prefix, for field-specific
+        # searches.
         prefix = doc._fieldmappings.get_prefix(fieldname)
         if len(prefix) != 0:
             termgen.set_termpos(context.current_position)
-            termgen.index_text(value, weight, prefix)
+            if nopos:
+                termgen.index_text_without_positions(value, weight, prefix)
+            else:
+                termgen.index_text(value, weight, prefix)
 
     # Add a gap between each field instance, so that phrase searches don't
     # match across instances.
@@ -174,12 +186,16 @@ class FieldActions(object):
       - 'language' is the language to use when processing the field.  This can
         be expressed as an ISO 2-letter language code.  The supported languages
         are those supported by the xapian core in use.
-      - 'stop' is an iterable of stopwords to filter out of the generated terms.
-        Note that due to Xapian design, only non-positional terms are affected, 
-        so this is of limited use.
-      - 'noprefix', if True, prevents terms with the field prefix being generated.
-        This means that searches specific to this field will not work, and thus
-        should only be used for special cases.
+      - 'stop' is an iterable of stopwords to filter out of the generated
+        terms.  Note that due to Xapian design, only non-positional terms are
+        affected, so this is of limited use.
+      - 'spell' is a boolean flag - if true, the contents of the field will be
+        used for spelling correction.
+      - 'nopos' is a boolean flag - if true, positional information is not
+        stored.
+      - 'noprefix' is a boolean flag - if true, prevents terms with the field
+        prefix being generated.  This means that searches specific to this
+        field will not work, and thus should only be used for special cases.
 
     - `SORTABLE`: index the content of the field such that it can be used to
       sort result sets.  It also allows result sets to be restricted to those
@@ -328,7 +344,7 @@ class FieldActions(object):
     _action_info = {
         STORE_CONTENT: ('STORE_CONTENT', (), _act_store_content, (), ),
         INDEX_EXACT: ('INDEX_EXACT', (), _act_index_exact, (NEED_PREFIX,), ),
-        INDEX_FREETEXT: ('INDEX_FREETEXT', ('weight', 'language', 'stop', 'noprefix'), 
+        INDEX_FREETEXT: ('INDEX_FREETEXT', ('weight', 'language', 'stop', 'spell', 'nopos', 'noprefix', ), 
             _act_index_freetext, (NEED_PREFIX, ), ),
         SORTABLE: ('SORTABLE', ('type', ), None, (NEED_SLOT,), ),
         COLLAPSE: ('COLLAPSE', (), None, (NEED_SLOT,), ),

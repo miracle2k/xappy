@@ -78,7 +78,7 @@ Now, open a new search connection - we can see the document:
 >>> result.summarise('text')
 'This <b>document</b> is a basic test <b>document</b>.\nMore test text about this <b>document</b>.'
 >>> result.summarise('text', maxlen=20)
-'This <b>document</b> is a basic test <b>document</b>...'
+'This <b>document</b> is a ..'
 >>> result.summarise('title', maxlen=20)
 'Test <b>document</b> 0'
 

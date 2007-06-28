@@ -1,7 +1,20 @@
+Thu Jun 28 23:33:06 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/introduction.rst: Fix documentation of parameters to
+	  INDEX_FREETEXT, and adjust an example to give expected output
+	  after recent fix to highlighting.
+	* secore/fieldactions.py: Add an option allowing indexing without
+	  positional information, and an option allowing indexing with
+	  spelling correction.
+	* secore/highlight.py,secore/searchconnection_doctest1.txt: Update
+	  output of examples to match recent fix to highlighting.
+
 Thu Jun 28 15:26:36 BST 2007  Tom Mortimer <tom@lemurconsulting.com>
 
-	* Added `stop` and `noprefix` params to freetext indexing.
-	* Fixed maxlen overrun bug in summariser.
+	* secore/fieldactions.py: Add stopwording, and an option not to
+	  store prefixed terms, to freetext indexing.
+	* secore/highlight.py: Fix a bug causing the requested maxlength to
+	  be exceeded if the derived blocks were too big.
 
 Fri Jun 08 15:37:21 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 

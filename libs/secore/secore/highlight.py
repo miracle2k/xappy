@@ -287,7 +287,7 @@ __test__ = {
 
     >>> hl = Highlighter('en')
     >>> hl.makeSample("A boring start.  Hello world indeed.  A boring end.", ['hello'], 20, ('<', '>'))
-    '..  <Hello> world indeed...'
+    '..  <Hello> world ..'
     >>> hl.makeSample("A boring start.  Hello world indeed.  A boring end.", ['hello'], 40, ('<', '>'))
     'A boring start.  <Hello> world indeed...'
     >>> hl.makeSample("A boring start.  Hello world indeed.  A boring end.", ['boring'], 40, ('<', '>'))
@@ -298,7 +298,7 @@ __test__ = {
     'apostrophes': r'''
 
     >>> hl = Highlighter('en')
-    >>> hl.makeSample("A boring start.  Hello world's indeed.  A boring end.", ['world'], 20, ('<', '>'))
+    >>> hl.makeSample("A boring start.  Hello world's indeed.  A boring end.", ['world'], 40, ('<', '>'))
     "A boring start.  Hello <world's> indeed..."
 
     ''',

@@ -102,15 +102,42 @@ change will not be reflected in any documents which have already been added to
 the database.
 
 Fields which contain plain text should be added with the ``INDEX_FREETEXT``
-action.  This action takes two optional parameters, ``weight`` and
-``language``.  If ``weight`` is supplied, the frequency information for all
-terms in the specified field will be multiplied by the given factor; this can
-be used for fields which are often a better indication of the subject matter
-than other fields (eg, title fields).  If ``language`` is supplied, it
-indicates the language that the supplied text is written in: this is used to
-perform language specific term normalising (to allow, for example, plural and
-singular forms to be matched).  The language may be specified as a 2 character
-ISO-639 language code.
+action.  This action takes various optional parameters:
+
+ - ``weight``: if this is supplied, the frequency information for all terms in
+   the specified field will be multiplied by the given factor; this can be used
+   for fields which are often a better indication of the subject matter than
+   other fields (eg, title fields).
+
+ - ``language``: if this is supplied, it indicates the language that the
+   supplied text is written in: this is used to perform language specific term
+   normalising (to allow, for example, plural and singular forms to be
+   matched).  The language may be specified as a 2 character ISO-639 language
+   code.
+
+ - ``stop``: if this is supplied, it must contain an sequence or other iterable
+   which returns a list of stopwords, which will be filtered out of the index.
+   This may reduce index size and improve search and indexing speed, but will
+   reduce the flexibility of the search.  Note that some information on the
+   terms in the stoplist will still be stored, to allow phrase searches to be
+   performed.
+
+ - ``spell``: this is a boolean flag; if supplied, and true, the contents of
+   the field will be used for spelling correction.
+
+ - ``nopos``: this is a boolean flag; if supplied, and true, the positions of
+   words in the field will not be stored.  These are used for performing phrase
+   and proximity searches, so this kind of search will not be possible on the
+   field.  On the other hand, the amount of data indexed for the field will be
+   reduced, resulting in a lower database size, faster indexing, and
+   potentially faster searching.
+
+ - ``noprefix``: this is a boolean flag; if supplied and true, the contents of
+   the field will be indexed only for a general, non-field-specific search.
+   This should only be used in special cases to reduce the index size with very
+   large datasets, and will probably be removed in future when new Xapian
+   features are developed which remove the overhead of performing field
+   specific searches.
 
 All text passed to the interface is assumed to be UTF-8 encoded Unicode.
 
@@ -323,7 +350,7 @@ summarised version of a field to be displayed::
   >>> results.get_hit(0).highlight('text')[0]
   "This is <b>a</b> <b>paragraph</b> of text.  It's quite short."
   >>> results.get_hit(0).summarise('text', maxlen=20)
-  'This is <b>a</b> <b>paragraph</b> of text...'
+  'This is <b>a</b> <b>paragraph</b>..'
 
 (Note that the highlight() method returns a list of field instances, as stored
 in the document data, so we've asked for it to only return the first of these,
