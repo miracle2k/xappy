@@ -10,7 +10,7 @@ Open a connection for indexing:
 We have to wipe out any old actions on the field to change the actions:
 >>> iconn.add_field_action('author', FieldActions.STORE_CONTENT)
 >>> iconn.add_field_action('title', FieldActions.STORE_CONTENT)
->>> iconn.add_field_action('title', FieldActions.INDEX_FREETEXT, weight=5, language='en')
+>>> iconn.add_field_action('title', FieldActions.INDEX_FREETEXT, weight=5, language='en', nopos=True)
 >>> iconn.add_field_action('category', FieldActions.INDEX_EXACT)
 >>> iconn.add_field_action('category', FieldActions.SORTABLE)
 >>> iconn.add_field_action('category', FieldActions.COLLAPSE)
@@ -62,7 +62,7 @@ double check that this document has been indexed as we wanted:
 >>> cPickle.loads(xdoc.get_data()) == pdoc.data
 True
 >>> [(term.term, term.wdf, [pos for pos in term.positer]) for term in xdoc.termlist()]
-[('1', 5, [3]), ('XA1', 5, [3]), ('XAdocument', 5, [2]), ('XAtest', 5, [1]), ('XB:Test document', 0, []), ('XCa', 1, [17]), ('XCbasic', 1, [18]), ('XCdocument', 2, [15, 20]), ('XCis', 1, [16]), ('XCtest', 1, [19]), ('XCthis', 1, [14]), ('ZXAdocument', 5, []), ('ZXAtest', 5, []), ('ZXCa', 1, []), ('ZXCbasic', 1, []), ('ZXCdocument', 2, []), ('ZXCis', 1, []), ('ZXCtest', 1, []), ('ZXCthis', 1, []), ('Za', 1, []), ('Zbasic', 1, []), ('Zdocument', 7, []), ('Zis', 1, []), ('Ztest', 6, []), ('Zthis', 1, []), ('a', 1, [17]), ('basic', 1, [18]), ('document', 7, [2, 15, 20]), ('is', 1, [16]), ('test', 6, [1, 19]), ('this', 1, [14])]
+[('1', 5, []), ('XA1', 5, []), ('XAdocument', 5, []), ('XAtest', 5, []), ('XB:Test document', 0, []), ('XCa', 1, [14]), ('XCbasic', 1, [15]), ('XCdocument', 2, [12, 17]), ('XCis', 1, [13]), ('XCtest', 1, [16]), ('XCthis', 1, [11]), ('ZXAdocument', 5, []), ('ZXAtest', 5, []), ('ZXCa', 1, []), ('ZXCbasic', 1, []), ('ZXCdocument', 2, []), ('ZXCis', 1, []), ('ZXCtest', 1, []), ('ZXCthis', 1, []), ('Za', 1, []), ('Zbasic', 1, []), ('Zdocument', 7, []), ('Zis', 1, []), ('Ztest', 6, []), ('Zthis', 1, []), ('a', 1, [14]), ('basic', 1, [15]), ('document', 7, [12, 17]), ('is', 1, [13]), ('test', 6, [16]), ('this', 1, [11])]
 >>> [(value.num, value.value) for value in xdoc.values()]
 [(0, 'Test document')]
 
@@ -70,7 +70,7 @@ We can add terms directly to the processed document, specifying the wdf and posi
 >>> pdoc.add_term('text', 'newterm1', wdfinc=17, positions=200)
 >>> pdoc.add_term('text', 'newterm2', wdfinc=17, positions=(201, 202))
 >>> [(term.term, term.wdf, [pos for pos in term.positer]) for term in xdoc.termlist()]
-[('1', 5, [3]), ('XA1', 5, [3]), ('XAdocument', 5, [2]), ('XAtest', 5, [1]), ('XB:Test document', 0, []), ('XCa', 1, [17]), ('XCbasic', 1, [18]), ('XCdocument', 2, [15, 20]), ('XCis', 1, [16]), ('XCnewterm1', 17, [200]), ('XCnewterm2', 17, [201, 202]), ('XCtest', 1, [19]), ('XCthis', 1, [14]), ('ZXAdocument', 5, []), ('ZXAtest', 5, []), ('ZXCa', 1, []), ('ZXCbasic', 1, []), ('ZXCdocument', 2, []), ('ZXCis', 1, []), ('ZXCtest', 1, []), ('ZXCthis', 1, []), ('Za', 1, []), ('Zbasic', 1, []), ('Zdocument', 7, []), ('Zis', 1, []), ('Ztest', 6, []), ('Zthis', 1, []), ('a', 1, [17]), ('basic', 1, [18]), ('document', 7, [2, 15, 20]), ('is', 1, [16]), ('test', 6, [1, 19]), ('this', 1, [14])]
+[('1', 5, []), ('XA1', 5, []), ('XAdocument', 5, []), ('XAtest', 5, []), ('XB:Test document', 0, []), ('XCa', 1, [14]), ('XCbasic', 1, [15]), ('XCdocument', 2, [12, 17]), ('XCis', 1, [13]), ('XCnewterm1', 17, [200]), ('XCnewterm2', 17, [201, 202]), ('XCtest', 1, [16]), ('XCthis', 1, [11]), ('ZXAdocument', 5, []), ('ZXAtest', 5, []), ('ZXCa', 1, []), ('ZXCbasic', 1, []), ('ZXCdocument', 2, []), ('ZXCis', 1, []), ('ZXCtest', 1, []), ('ZXCthis', 1, []), ('Za', 1, []), ('Zbasic', 1, []), ('Zdocument', 7, []), ('Zis', 1, []), ('Ztest', 6, []), ('Zthis', 1, []), ('a', 1, [14]), ('basic', 1, [15]), ('document', 7, [12, 17]), ('is', 1, [13]), ('test', 6, [16]), ('this', 1, [11])]
 
 We can set the data directly too, as long as we set it to a dictionary:
 >>> pdoc.data = {'Empty': 'nothing'}
