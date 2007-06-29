@@ -77,6 +77,10 @@ Check that spelling correction works:
 'document'
 >>> sconn.spell_correct('document')
 'document'
+>>> sconn.spell_correct(u'docment')
+'document'
+>>> sconn.spell_correct(u'document')
+'document'
 
 Check that stopwording worked:
 >>> q = sconn.query_parse('basic')

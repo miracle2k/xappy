@@ -529,6 +529,10 @@ class SearchConnection(object):
         qp.parse_query(string, qp.FLAG_PHRASE|qp.FLAG_BOOLEAN|qp.FLAG_LOVEHATE|qp.FLAG_SPELLING_CORRECTION)
         corrected = qp.get_corrected_query_string()
         if len(corrected) == 0:
+            if isinstance(string, unicode):
+                # Encode as UTF-8 for consistency - this happens automatically
+                # to values passed to Xapian.
+                return string.encode('utf-8')
             return string
         return corrected
 

@@ -1,3 +1,10 @@
+Fri Jun 29 09:36:49 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/searchconnection.py: Encode correctly spelt queries in UTF8,
+	  for consistency with output of Xapian.
+	* secore/searchconnection_doctest2.txt: Test spelling correction
+	  with unicode strings.
+
 Fri Jun 29 09:00:14 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* secore/indexerconnection_doctest3.txt,
