@@ -409,24 +409,9 @@ class SearchConnection(object):
         slot = self._field_mappings.get_slot(field)
         return _xapian.Query(_xapian.Query.OP_VALUE_RANGE, slot, begin, end)
 
-    def query_parse(self, string, allow=None, deny=None, default_op=OP_AND):
-        """Parse a query string.
-
-        This is intended for parsing queries entered by a user.  If you wish to
-        combine structured queries, it is generally better to use the other
-        query building methods, such as `query_composite`.
-
-        - `string`: The string to parse.
-        - `allow`: A list of fields to allow in the query.
-        - `deny`: A list of fields not to allow in the query.
-
-        Only one of `allow` and `deny` may be specified.
-
-        If any of the entries in `allow` or `deny` are not present in the
-        configuration for the database, an exception will be raised.
-
-        Returns a Query object, which may be passed to the search() method, or
-        combined with other queries.
+    def _prepare_queryparser(self, allow, deny, default_op):
+        """Prepare (and return) a query parser using the specified fields and
+        operator.
 
         """
         if self._index is None:
@@ -458,7 +443,29 @@ class SearchConnection(object):
                             qp.set_stemming_strategy(qp.STEM_SOME)
                         except KeyError:
                             pass
+        return qp
 
+    def query_parse(self, string, allow=None, deny=None, default_op=OP_AND):
+        """Parse a query string.
+
+        This is intended for parsing queries entered by a user.  If you wish to
+        combine structured queries, it is generally better to use the other
+        query building methods, such as `query_composite`.
+
+        - `string`: The string to parse.
+        - `allow`: A list of fields to allow in the query.
+        - `deny`: A list of fields not to allow in the query.
+
+        Only one of `allow` and `deny` may be specified.
+
+        If any of the entries in `allow` or `deny` are not present in the
+        configuration for the database, an exception will be raised.
+
+        Returns a Query object, which may be passed to the search() method, or
+        combined with other queries.
+
+        """
+        qp = self._prepare_queryparser(allow, deny, default_op)
         try:
             return qp.parse_query(string)
         except _xapian.QueryParserError, e:
@@ -502,6 +509,28 @@ class SearchConnection(object):
                                       prefix)
 
         return _xapian.Query()
+
+    def spell_correct(self, string, allow=None, deny=None):
+        """Correct a query spelling.
+
+        This returns a version of the query string with any misspelt words
+        corrected.
+
+        - `allow`: A list of fields to allow in the query.
+        - `deny`: A list of fields not to allow in the query.
+
+        Only one of `allow` and `deny` may be specified.
+
+        If any of the entries in `allow` or `deny` are not present in the
+        configuration for the database, an exception will be raised.
+
+        """
+        qp = self._prepare_queryparser(allow, deny, self.OP_AND)
+        qp.parse_query(string, qp.FLAG_PHRASE|qp.FLAG_BOOLEAN|qp.FLAG_LOVEHATE|qp.FLAG_SPELLING_CORRECTION)
+        corrected = qp.get_corrected_query_string()
+        if len(corrected) == 0:
+            return string
+        return corrected
 
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None):

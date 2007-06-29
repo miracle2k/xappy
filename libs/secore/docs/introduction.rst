@@ -144,7 +144,7 @@ All text passed to the interface is assumed to be UTF-8 encoded Unicode.
 ::
 
   >>> conn.add_field_action('title', secore.FieldActions.INDEX_FREETEXT, weight=5, language='en')
-  >>> conn.add_field_action('text', secore.FieldActions.INDEX_FREETEXT, language='en')
+  >>> conn.add_field_action('text', secore.FieldActions.INDEX_FREETEXT, language='en', spell=True)
 
 
 Any fields which contain exact values which we want to search for (such as a
@@ -364,6 +364,15 @@ a search term can be restricted to a specified field by writing
 "fieldname:term", and in which boolean operators can be used in the search.
 The full syntax is described in the `Xapian QueryParser documentation`_.
 (Note that the wildcard option is currently disabled by default.)
+
+If a field has been indexed with the "spell" option turned on, the
+``spell_correct()`` method can return a version of the query string with the
+spelling corrected.  This method takes similar arguments to ``query_parse()``,
+but instead of performing a search, it returns the corrected query string (or
+the original query string, if no spelling corrections were found).
+
+  >>> conn.spell_correct('teext')
+  'text'
 
 In addition, two queries may be combined (with an AND or OR operator) using the
 ``query_composite()`` method, or a query can be "filtered" with another query

@@ -59,6 +59,7 @@ def _act_index_freetext(fieldname, doc, value, context, weight=1,
         termgen.set_stopper (stopper)
 
     if spell:
+        termgen.set_database(context.index)
         termgen.set_flags(termgen.FLAG_SPELLING)
     
     termgen.set_document(doc._doc)
@@ -160,9 +161,10 @@ class ActionContext(object):
     around.
 
     """
-    def __init__(self):
+    def __init__(self, index):
         self.current_language = None
         self.current_position = 0
+        self.index = index
 
 class FieldActions(object):
     """An object describing the actions to be performed on a field.

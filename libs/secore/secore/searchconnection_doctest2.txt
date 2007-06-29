@@ -17,7 +17,8 @@ Open a connection for indexing:
 >>> iconn.add_field_action('category', FieldActions.INDEX_EXACT)
 >>> iconn.add_field_action('category', FieldActions.SORTABLE)
 >>> iconn.add_field_action('category', FieldActions.COLLAPSE)
->>> iconn.add_field_action('text', FieldActions.INDEX_FREETEXT, language='en')
+>>> iconn.add_field_action('text', FieldActions.INDEX_FREETEXT, language='en',
+...                        spell=True)
 
 >>> iconn.add_field_action('date', FieldActions.STORE_CONTENT)
 >>> iconn.add_field_action('date', FieldActions.COLLAPSE)
@@ -69,6 +70,11 @@ Now, open a search connection:
 >>> results = sconn.search(q, 0, 30)
 >>> [result.unique_id for result in results]
 ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '1a', '1b', '1c', '1d']
+
+>>> sconn.spell_correct('docment')
+'document'
+>>> sconn.spell_correct('document')
+'document'
 
 >>> results = sconn.search(q, 0, 30, sortby="price")
 >>> prev_price = results[0].data['price']

@@ -151,7 +151,7 @@ class IndexerConnection(object):
             raise _errors.IndexerError("IndexerConnection has been closed")
         result = ProcessedDocument(self._field_mappings)
         result.unique_id = document.unique_id
-        context = ActionContext()
+        context = ActionContext(self._index)
 
         for field in document.fields:
             try:
