@@ -510,6 +510,12 @@ class SearchConnection(object):
 
         return _xapian.Query()
 
+    def query_all(self):
+        """A query which matches all the documents in the database.
+
+        """
+        return _xapian.Query('')
+
     def spell_correct(self, string, allow=None, deny=None):
         """Correct a query spelling.
 
