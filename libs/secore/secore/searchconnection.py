@@ -266,6 +266,7 @@ class SearchConnection(object):
         # class.  Move it to a shared location.
         config_file = _os.path.join(self._indexpath, 'config')
         if not _os.path.exists(config_file):
+            self._field_mappings = _fieldmappings.FieldMappings()
             return
         fd = open(config_file)
         config_str = fd.read()
@@ -599,7 +600,7 @@ class SearchConnection(object):
         maxitems = max(endrank - startrank, 0)
         # Always check for at least one more result, so we can report whether
         # there are more matches.
-        checkatleast = min(checkatleast, endrank + 1)
+        checkatleast = max(checkatleast, endrank + 1)
 
         enq.set_docid_order(enq.DONT_CARE)
 
