@@ -216,7 +216,7 @@ Note that the ``add`` method returned a value ``'0'``.  This is a unique
 identifier for the document which was added, and may be used later to delete or
 replace the document.  If we have externally generated unique identifiers, we
 can specify that the system should use them instead of generating its own, by
-setting the ``unique_id`` property on the processed or unprocessed document
+setting the ``id`` property on the processed or unprocessed document
 before adding it to the database.
 
 
@@ -228,7 +228,7 @@ in some way, but this isn't generally necessary::
   >>> doc.fields.append(secore.Field("title", "Our second document"))
   >>> doc.fields.append(secore.Field("text", "In the beginning God created the heaven and the earth."))
   >>> doc.fields.append(secore.Field("category", "Bible"))
-  >>> doc.unique_id='Bible1'
+  >>> doc.id='Bible1'
   >>> pdoc = conn.process(doc)
   >>> conn.add(pdoc)
   'Bible1'
@@ -240,7 +240,7 @@ in some way, but this isn't generally necessary::
   >>> doc.fields.append(secore.Field("category", "Bible"))
   >>> doc.fields.append(secore.Field("date", "17501225"))
   >>> doc.fields.append(secore.Field("price", "16.56"))
-  >>> doc.unique_id='Bible2'
+  >>> doc.id='Bible2'
   >>> pdoc = conn.process(doc)
   >>> conn.add(pdoc)
   'Bible2'
@@ -340,7 +340,7 @@ idiom.  Both of these will return ``SearchResult`` objects, which is a subclass
 of ``ProcessedDocument``, but has the additional property of `rank`::
 
   >>> for result in results:
-  ...     print result.rank, result.unique_id, result.data['category']
+  ...     print result.rank, result.id, result.data['category']
   0 0 ['Test documents']
   1 Bible1 ['Bible']
 
@@ -434,7 +434,7 @@ indexing::
 
   >>> results = conn.search(q, 0, 10, sortby='category')
   >>> for result in results:
-  ...     print result.rank, result.unique_id, result.data['category']
+  ...     print result.rank, result.id, result.data['category']
   0 Bible1 ['Bible']
   1 0 ['Test documents']
 
@@ -444,7 +444,7 @@ requested by preceding the field name with a "-" sign::
 
   >>> results = conn.search(q, 0, 10, sortby='-category')
   >>> for result in results:
-  ...     print result.rank, result.unique_id, result.data['category']
+  ...     print result.rank, result.id, result.data['category']
   0 0 ['Test documents']
   1 Bible1 ['Bible']
 
@@ -466,9 +466,9 @@ used by adding a ``COLLAPSE`` action to the field before indexing, and then
 setting the collapse parameter of the ``search()`` method to the field name::
 
   >>> q = conn.query_field('title', 'document')
-  >>> [result.unique_id for result in conn.search(q, 0, 10)]
+  >>> [result.id for result in conn.search(q, 0, 10)]
   ['Bible1', '0', 'Bible2']
-  >>> [result.unique_id for result in conn.search(q, 0, 10, collapse='category')]
+  >>> [result.id for result in conn.search(q, 0, 10, collapse='category')]
   ['Bible1', '0']
 
 Other documentation

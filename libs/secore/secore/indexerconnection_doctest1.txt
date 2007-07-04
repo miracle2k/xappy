@@ -111,7 +111,7 @@ We can access the xapian document representation of the processed document:
 [('XAboulton', 5, [2]), ('XAcharlie', 5, [13]), ('XAhull', 5, [14]), ('XArichard', 5, [1]), ('XB:Test document', 0, []), ('ZXAboulton', 5, []), ('ZXAcharli', 5, []), ('ZXAhull', 5, []), ('ZXArichard', 5, []), ('Zboulton', 5, []), ('Zcharli', 5, []), ('Zhull', 5, []), ('Zrichard', 5, []), ('boulton', 5, [2]), ('charlie', 5, [13]), ('hull', 5, [14]), ('richard', 5, [1])]
 
 
-Adding the same document multiple times is fine if it doesn't have a unique_id
+Adding the same document multiple times is fine if it doesn't have an id
 assigned to it: a new ID will be allocated for each addition:
 >>> conn.add(doc)
 '0'
@@ -123,10 +123,10 @@ assigned to it: a new ID will be allocated for each addition:
 3
 
 We can set the unique ID ourselves, if we want:
->>> print repr(doc.unique_id)
+>>> print repr(doc.id)
 None
->>> doc.unique_id = '4'
->>> print repr(doc.unique_id)
+>>> doc.id = '4'
+>>> print repr(doc.id)
 '4'
 >>> conn.add(doc)
 '4'
@@ -136,8 +136,8 @@ None
 
 If we try adding a document with a unique ID which already exists we get an
 error:
->>> doc.unique_id = '1'
->>> print repr(doc.unique_id)
+>>> doc.id = '1'
+>>> print repr(doc.id)
 '1'
 >>> conn.add(doc)
 Traceback (most recent call last):
@@ -147,9 +147,9 @@ IndexerError: Document ID of document supplied to add() is not unique.
 4
 
 
-If we remove the unique_id, it works again:
->>> doc.unique_id = None
->>> print repr(doc.unique_id)
+If we remove the id, it works again:
+>>> doc.id = None
+>>> print repr(doc.id)
 None
 >>> conn.add(doc)
 '3'
@@ -163,8 +163,8 @@ But it skips ID 4 because we manually added a document with that ID.
 6
 
 Unique IDs don't have to be numbers: we can set them to anything we like.
->>> doc.unique_id = 'SuperFoo'
->>> print repr(doc.unique_id)
+>>> doc.id = 'SuperFoo'
+>>> print repr(doc.id)
 'SuperFoo'
 >>> conn.add(doc)
 'SuperFoo'
@@ -181,7 +181,7 @@ Finally, we have to flush to apply the changes:
 >>> conn.flush()
 
 We can add more documents after the flush:
->>> doc.unique_id = None
+>>> doc.id = None
 >>> conn.add(doc)
 '6'
 >>> conn.get_doccount()

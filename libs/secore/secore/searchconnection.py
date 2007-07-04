@@ -105,7 +105,7 @@ class SearchResult(ProcessedDocument):
 
     def __repr__(self):
         return ('<SearchResult(rank=%d, id=%r, data=%r)>' %
-                (self.rank, self.unique_id, self.data))
+                (self.rank, self.id, self.data))
 
 
 class SearchResultIter(object):
@@ -327,7 +327,7 @@ class SearchConnection(object):
             raise _errors.SearchError("SearchConnection has been closed")
         return self._index.get_doccount()
 
-    def get_document(self, unique_id):
+    def get_document(self, id):
         """Get the document with the specified unique ID.
 
         Raises a KeyError if there is no such document.  Otherwise, it returns
@@ -336,12 +336,12 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
-        postlist = self._index.postlist('Q' + unique_id)
+        postlist = self._index.postlist('Q' + id)
         try:
             plitem = postlist.next()
         except StopIteration:
             # Unique ID not found
-            raise KeyError('Unique ID %r not found' % unique_id)
+            raise KeyError('Unique ID %r not found' % id)
         try:
             postlist.next()
             raise _errors.SearchError("Multiple documents " #pragma: no cover
@@ -351,7 +351,7 @@ class SearchConnection(object):
             pass
 
         result = ProcessedDocument(self._field_mappings)
-        result.unique_id = unique_id
+        result.id = id
         result._doc = self._index.get_document(plitem.docid)
         return result
 

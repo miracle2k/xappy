@@ -59,11 +59,11 @@ True
 Regression test: if we called add with a ProcessedDocument which didn't have a
 unique ID, the generated ID used to get assigned to the ProcessedDocument.
 This shouldn't happen.
->>> print pdoc.unique_id
+>>> print pdoc.id
 None
 >>> iconn.add(pdoc)
 '1'
->>> pdoc.unique_id = 'B'
+>>> pdoc.id = 'B'
 >>> iconn.add(pdoc)
 'B'
 >>> iconn.get_doccount()
@@ -314,7 +314,7 @@ We can get the details of the hit at a given rank:
 >>> hit = results1.get_hit(2)
 >>> hit.rank
 2
->>> hit.unique_id
+>>> hit.id
 'B'
 >>> hit.data
 {'title': ['Test document 1'], 'author': ['Richard Boulton']}
@@ -329,7 +329,7 @@ We can change a document in the index, and the old result is still available:
 >>> newdoc = UnprocessedDocument(fields=(Field('author', 'Fred Bloggs'),
 ...                                      Field('category', 'Sleeping'),
 ...                                      Field('text', 'This is different text to before'),),
-...                              unique_id=results2.get_hit(49).unique_id)
+...                              id=results2.get_hit(49).id)
 >>> iconn.replace(newdoc)
 
 (If we don't set an ID, we get an error.

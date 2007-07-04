@@ -150,7 +150,7 @@ class IndexerConnection(object):
         if self._index is None:
             raise _errors.IndexerError("IndexerConnection has been closed")
         result = ProcessedDocument(self._field_mappings)
-        result.unique_id = document.unique_id
+        result.id = document.id
         context = ActionContext(self._index)
 
         for field in document.fields:
@@ -166,11 +166,11 @@ class IndexerConnection(object):
     def add(self, document):
         """Add a new document to the search engine index.
 
-        If the document has a unique_id set, and the unique_id already exists in
+        If the document has a id set, and the id already exists in
         the database, an exception will be raised.  Use the replace() method
         instead if you wish to overwrite documents.
 
-        Returns the unique_id of the newly added document (making up a new
+        Returns the id of the newly added document (making up a new
         unique ID if no id was set).
 
         The supplied document may be an instance of UnprocessedDocument, or an
@@ -183,31 +183,31 @@ class IndexerConnection(object):
             # It's not a processed document.
             document = self.process(document)
 
-        # Ensure that we have a unique_id
-        orig_unique_id = document.unique_id
-        if orig_unique_id is None:
-            unique_id = self._allocate_id()
-            document.unique_id = unique_id
+        # Ensure that we have a id
+        orig_id = document.id
+        if orig_id is None:
+            id = self._allocate_id()
+            document.id = id
         else:
-            unique_id = orig_unique_id
-            if self._index.term_exists('Q' + unique_id):
+            id = orig_id
+            if self._index.term_exists('Q' + id):
                 raise _errors.IndexerError("Document ID of document supplied to add() is not unique.")
             
         # Add the document.
         xapdoc = document.prepare()
         self._index.add_document(xapdoc)
 
-        if unique_id is not orig_unique_id:
-            document.unique_id = orig_unique_id
-        return unique_id
+        if id is not orig_id:
+            document.id = orig_id
+        return id
 
     def replace(self, document):
         """Replace a document in the search engine index.
 
-        If the document does not have a unique_id set, an exception will be
+        If the document does not have a id set, an exception will be
         raised.
 
-        If the document has a unique_id set, and the unique_id does not already
+        If the document has a id set, and the id does not already
         exist in the database, this method will have the same effect as add().
 
         """
@@ -217,23 +217,23 @@ class IndexerConnection(object):
             # It's not a processed document.
             document = self.process(document)
 
-        # Ensure that we have a unique_id
-        unique_id = document.unique_id
-        if unique_id is None:
+        # Ensure that we have a id
+        id = document.id
+        if id is None:
             raise _errors.IndexerError("No document ID set for document supplied to replace().")
 
-        self._index.replace_document('Q' + unique_id, document._doc)
+        self._index.replace_document('Q' + id, document._doc)
 
-    def delete(self, unique_id):
+    def delete(self, id):
         """Delete a document from the search engine index.
 
-        If the unique_id does not already exist in the database, this method
+        If the id does not already exist in the database, this method
         will have no effect (and will not report an error).
 
         """
         if self._index is None:
             raise _errors.IndexerError("IndexerConnection has been closed")
-        self._index.delete_document('Q' + unique_id)
+        self._index.delete_document('Q' + id)
 
     def flush(self):
         """Apply recent changes to the database.
@@ -293,7 +293,7 @@ class IndexerConnection(object):
         return self._index.get_doccount()
 
     def iterids(self):
-        """Get an iterator which returns all the unique_ids in the database.
+        """Get an iterator which returns all the ids in the database.
 
         The unqiue_ids are currently returned in binary lexicographical sort
         order, but this should not be relied on.
@@ -303,7 +303,7 @@ class IndexerConnection(object):
             raise _errors.IndexerError("IndexerConnection has been closed")
         return PrefixedTermIter('Q', self._index.allterms())
 
-    def get_document(self, unique_id):
+    def get_document(self, id):
         """Get the document with the specified unique ID.
 
         Raises a KeyError if there is no such document.  Otherwise, it returns
@@ -312,12 +312,12 @@ class IndexerConnection(object):
         """
         if self._index is None:
             raise _errors.IndexerError("IndexerConnection has been closed")
-        postlist = self._index.postlist('Q' + unique_id)
+        postlist = self._index.postlist('Q' + id)
         try:
             plitem = postlist.next()
         except StopIteration:
             # Unique ID not found
-            raise KeyError('Unique ID %r not found' % unique_id)
+            raise KeyError('Unique ID %r not found' % id)
         try:
             postlist.next()
             raise _errors.IndexerError("Multiple documents " #pragma: no cover
@@ -327,7 +327,7 @@ class IndexerConnection(object):
             pass
 
         result = ProcessedDocument(self._field_mappings)
-        result.unique_id = unique_id
+        result.id = id
         result._doc = self._index.get_document(plitem.docid)
         return result
 

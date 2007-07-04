@@ -128,7 +128,7 @@ def index_file(iconn, dbdir, dumpfd, logfd, flushspeed):
         else:
             doc.fields.append(secore.Field(line[:equals], line[equals + 1:]))
             if doc.fields[-1].name == 'id':
-                doc.unique_id = doc.fields[-1].value
+                doc.id = doc.fields[-1].value
             elif doc.fields[-1].name == 'text':
                 doclen = len(doc.fields[-1].value)
 

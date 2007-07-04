@@ -49,22 +49,22 @@ class UnprocessedDocument(object):
     An unprocessed document is a simple container with two attributes:
 
      - `fields` is a list of Field objects.
-     - `unique_id` is a string holding a unique identifier for the document (or
+     - `id` is a string holding a unique identifier for the document (or
        None to get the database to allocate a unique identifier automatically
        when the document is added).
 
     """
 
-    __slots__ = 'unique_id', 'fields',
-    def __init__(self, unique_id=None, fields=None):
-        self.unique_id = unique_id
+    __slots__ = 'id', 'fields',
+    def __init__(self, id=None, fields=None):
+        self.id = id
         if fields is None:
             self.fields = []
         else:
             self.fields = fields
 
     def __repr__(self):
-        return 'UnprocessedDocument(%r, %r)' % (self.unique_id, self.fields)
+        return 'UnprocessedDocument(%r, %r)' % (self.id, self.fields)
 
 class ProcessedDocument(object):
     """A processed document, as stored in the index.
@@ -184,7 +184,7 @@ class ProcessedDocument(object):
 
     """)
 
-    def _get_unique_id(self):
+    def _get_id(self):
         tl = self._doc.termlist()
         try:
             term = tl.skip_to('Q').term
@@ -193,7 +193,7 @@ class ProcessedDocument(object):
         except StopIteration:
             return None
         return term[1:]
-    def _set_unique_id(self, unique_id):
+    def _set_id(self, id):
         tl = self._doc.termlist()
         try:
             term = tl.skip_to('Q').term
@@ -201,15 +201,15 @@ class ProcessedDocument(object):
             term = ''
         if len(term) != 0 and term[0] == 'Q':
             self._doc.remove_term(term)
-        if unique_id is not None:
-            self._doc.add_term('Q' + unique_id, 0)
-    unique_id = property(_get_unique_id, _set_unique_id, doc=
+        if id is not None:
+            self._doc.add_term('Q' + id, 0)
+    id = property(_get_id, _set_id, doc=
     """The unique ID for this document.
 
     """)
 
     def __repr__(self):
-        return '<ProcessedDocument(%r)>' % (self.unique_id)
+        return '<ProcessedDocument(%r)>' % (self.id)
 
 if __name__ == '__main__':
     import doctest, sys

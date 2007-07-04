@@ -5,13 +5,13 @@
 Make a processed document.
 >>> doc = ProcessedDocument(maps)
 
->>> print doc.unique_id
+>>> print doc.id
 None
->>> doc.unique_id = '1'
->>> print doc.unique_id
+>>> doc.id = '1'
+>>> print doc.id
 1
->>> doc.unique_id = '_'
->>> print doc.unique_id
+>>> doc.id = '_'
+>>> print doc.id
 _
 
 >>> print repr(doc.data)

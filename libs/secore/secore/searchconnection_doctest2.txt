@@ -85,13 +85,13 @@ Check that spelling correction works:
 Check that stopwording worked:
 >>> q = sconn.query_parse('basic')
 >>> results = sconn.search(q, 0, 30)
->>> [result.unique_id for result in results]
+>>> [result.id for result in results]
 []
 
 Now, parse a simple query.
 >>> q = sconn.query_parse('document')
 >>> results = sconn.search(q, 0, 30)
->>> [result.unique_id for result in results]
+>>> [result.id for result in results]
 ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '1a', '1b', '1c', '1d']
 
 >>> results = sconn.search(q, 0, 30, sortby="price")
@@ -99,7 +99,7 @@ Now, parse a simple query.
 >>> for price in (result.data['price'] for result in results):
 ...     assert(price >= prev_price)
 ...     prev_price = price
->>> [int(result.unique_id, 16) for result in results]
+>>> [int(result.id, 16) for result in results]
 [0, 70, 140, 1, 71, 141, 2, 72, 142, 3, 73, 143, 4, 74, 144, 5, 75, 145, 6, 76, 146, 7, 77, 147, 8, 78, 148, 9, 79, 149]
 >>> [result.data['price'] for result in results]
 [['0.000000'], ['0.000000'], ['0.000000'], ['0.142857'], ['0.142857'], ['0.142857'], ['0.285714'], ['0.285714'], ['0.285714'], ['0.428571'], ['0.428571'], ['0.428571'], ['0.571429'], ['0.571429'], ['0.571429'], ['0.714286'], ['0.714286'], ['0.714286'], ['0.857143'], ['0.857143'], ['0.857143'], ['1.000000'], ['1.000000'], ['1.000000'], ['1.142857'], ['1.142857'], ['1.142857'], ['1.285714'], ['1.285714'], ['1.285714']]
@@ -109,7 +109,7 @@ Now, parse a simple query.
 >>> for price in (result.data['price'] for result in results):
 ...     assert(price <= prev_price)
 ...     prev_price = price
->>> [int(result.unique_id, 16) for result in results]
+>>> [int(result.id, 16) for result in results]
 [69, 139, 68, 138, 67, 137, 66, 136, 65, 135, 64, 134, 63, 133, 62, 132, 61, 131, 60, 130, 59, 129, 199, 58, 128, 198, 57, 127, 197, 56]
 
 
@@ -118,7 +118,7 @@ Now, parse a simple query.
 >>> for date in (result.data['date'] for result in results):
 ...     assert(date >= prev_date)
 ...     prev_date = date
->>> [int(result.unique_id, 16) for result in results]
+>>> [int(result.id, 16) for result in results]
 [0, 12, 24, 36, 48, 60, 72, 84, 96, 108, 120, 132, 144, 156, 168, 180, 192, 1, 13, 25, 37, 49, 61, 73, 85, 97, 109, 121, 133, 145]
 
 >>> results = sconn.search(q, 0, 30, sortby="-date")
@@ -126,7 +126,7 @@ Now, parse a simple query.
 >>> for date in (result.data['date'] for result in results):
 ...     assert(date <= prev_date)
 ...     prev_date = date
->>> [int(result.unique_id, 16) for result in results]
+>>> [int(result.id, 16) for result in results]
 [191, 179, 167, 155, 143, 131, 119, 107, 95, 83, 71, 59, 47, 35, 23, 11, 190, 178, 166, 154, 142, 130, 118, 106, 94, 82, 70, 58, 46, 34]
 
 
@@ -136,7 +136,7 @@ example, dates:
 
 >>> fq = sconn.query_filter(q, sconn.query_range('date', '20070205', '20070207'))
 >>> results = sconn.search(fq, 0, 30, sortby="date")
->>> [int(result.unique_id, 16) for result in results]
+>>> [int(result.id, 16) for result in results]
 [49, 61, 73]
 >>> for result in results:
 ...     print "%r,%r" % (result.data['date'], result.get_value('date'))
@@ -148,21 +148,21 @@ example, dates:
 Or we can restrict by numerical range:
 >>> fq = sconn.query_filter(q, sconn.query_range('price', '0.1428', '0.5'))
 >>> results = sconn.search(fq, 0, 30, sortby="date")
->>> [int(result.unique_id, 16) for result in results]
+>>> [int(result.id, 16) for result in results]
 [72, 1, 73, 2, 3, 141, 142, 71, 143]
 >>> [(result.data['price'][0]) for result in results]
 ['0.285714', '0.142857', '0.428571', '0.285714', '0.428571', '0.142857', '0.285714', '0.142857', '0.428571']
 
 >>> fq = sconn.query_range('price', '0.1428', '0.5')
 >>> results = sconn.search(fq, 0, 30, sortby="date")
->>> [int(result.unique_id, 16) for result in results]
+>>> [int(result.id, 16) for result in results]
 [72, 1, 73, 2, 3, 141, 142, 71, 143]
 
 
 If the end of the range is lower than the start, no results can match
 >>> fq = sconn.query_filter(q, sconn.query_range('price', '0.5', '0.1428'))
 >>> results = sconn.search(fq, 0, 30, sortby="date")
->>> [int(result.unique_id, 16) for result in results]
+>>> [int(result.id, 16) for result in results]
 []
 
 
