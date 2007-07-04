@@ -173,6 +173,14 @@ Traceback (most recent call last):
 SearchError: Value supplied to field 'date' must be a valid date: was '0.1428': error is 'Unrecognised date format'
 
 
+Do a search which matches all documents:
+>>> q = sconn.query_all()
+>>> str(q)
+'Xapian::Query(<alldocuments>)'
+>>> results = sconn.search(q, 0, 30)
+>>> results
+<SearchResults(startrank=0, endrank=30, more_matches=True, matches_lower_bound=200, matches_upper_bound=200, matches_estimated=200, estimate_is_exact=True)>
+
 
 Tidy up after ourselves:
 >>> sconn.close()
