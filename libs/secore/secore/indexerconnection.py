@@ -222,7 +222,8 @@ class IndexerConnection(object):
         if id is None:
             raise _errors.IndexerError("No document ID set for document supplied to replace().")
 
-        self._index.replace_document('Q' + id, document._doc)
+        xapdoc = document.prepare()
+        self._index.replace_document('Q' + id, xapdoc)
 
     def delete(self, id):
         """Delete a document from the search engine index.
