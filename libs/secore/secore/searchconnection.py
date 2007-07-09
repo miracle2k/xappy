@@ -366,7 +366,7 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
-        return _xapian.Query(operator, queries)
+        return _xapian.Query(operator, list(queries))
 
     def query_filter(self, query, filter):
         """Filter a query with another query.
