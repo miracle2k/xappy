@@ -145,6 +145,23 @@ example, dates:
 ['20070207'],'20070207'
 
 
+We can use a filter to exclude results which match a particular sub-query,
+instead of to include only those which match.
+
+>>> fq = sconn.query_filter(q, sconn.query_range('date', '20070105', '20071214'), exclude=True)
+>>> results = sconn.search(fq, 0, 30, sortby="date")
+>>> [int(result.id, 16) for result in results]
+[0, 12, 24, 36, 179, 191]
+>>> for result in results:
+...     print "%r,%r" % (result.data['date'], result.get_value('date'))
+['20070101'],'20070101'
+['20070102'],'20070102'
+['20070103'],'20070103'
+['20070104'],'20070104'
+['20071215'],'20071215'
+['20071216'],'20071216'
+
+
 Or we can restrict by numerical range:
 >>> fq = sconn.query_filter(q, sconn.query_range('price', '0.1428', '0.5'))
 >>> results = sconn.search(fq, 0, 30, sortby="date")

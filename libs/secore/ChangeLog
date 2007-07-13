@@ -1,3 +1,11 @@
+Fri Jul 13 16:39:50 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/searchconnection.py: Add an option to query_filter to
+	  return only those documents which _don't_ match the filter,
+	  instead of those which do.
+	* secore/searchconnection_doctest2.txt: Add a test for using a
+	  filter with exclude=True.
+
 Mon Jul 09 11:23:56 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* secore/searchconnection.py: Convert supplied sequence of queries

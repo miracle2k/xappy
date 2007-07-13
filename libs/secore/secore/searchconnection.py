@@ -118,8 +118,7 @@ class SearchResultIter(object):
 
     def next(self):
         msetitem = self._iter.next()
-        return SearchResult(msetitem,
-                            self._results)
+        return SearchResult(msetitem, self._results)
 
 
 class SearchResults(object):
@@ -368,21 +367,35 @@ class SearchConnection(object):
             raise _errors.SearchError("SearchConnection has been closed")
         return _xapian.Query(operator, list(queries))
 
-    def query_filter(self, query, filter):
+    def query_filter(self, query, filter, exclude=False):
         """Filter a query with another query.
 
-        Documents will only match the resulting query if they match both
-        queries, but will be weighted according to only the first query.
+        If exclude is False (or not specified), documents will only match the
+        resulting query if they match the both the first and second query: the
+        results of the first query are "filtered" to only include those which
+        also match the second query.
+
+        If exclude is True, documents will only match the resulting query if
+        they match the first query, but not the second query: the results of
+        the first query are "filtered" to only include those which do not match
+        the second query.
+        
+        Documents will always be weighted according to only the first query.
 
         - `query`: The query to filter.
         - `filter`: The filter to apply to the query.
+        - `exclude`: If True, the sense of the filter is reversed - only
+          documents which do not match the second query will be returned. 
 
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
         if not isinstance(filter, _xapian.Query):
             raise _errors.SearchError("Filter must be a Xapian Query object")
-        return _xapian.Query(_xapian.Query.OP_FILTER, query, filter)
+        if exclude:
+            return _xapian.Query(_xapian.Query.OP_AND_NOT, query, filter)
+        else:
+            return _xapian.Query(_xapian.Query.OP_FILTER, query, filter)
 
     def query_range(self, field, begin, end):
         """Create a query for a range search.
