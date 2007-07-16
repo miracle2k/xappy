@@ -42,7 +42,10 @@ class SearchResult(ProcessedDocument):
         """Get the language that should be used for a given field.
 
         """
-        actions = self._results._conn._field_actions[field]._actions
+        try:
+            actions = self._results._conn._field_actions[field]._actions
+        except KeyError:
+            actions = {}
         for action, kwargslist in actions.iteritems():
             if action == FieldActions.INDEX_FREETEXT:
                 for kwargs in kwargslist:
@@ -251,7 +254,10 @@ class SearchConnection(object):
         """Get the sort type that should be used for a given field.
 
         """
-        actions = self._field_actions[field]._actions
+        try:
+            actions = self._field_actions[field]._actions
+        except KeyError:
+            actions = {}
         for action, kwargslist in actions.iteritems():
             if action == FieldActions.SORT_AND_COLLAPSE:
                 for kwargs in kwargslist:
@@ -442,7 +448,10 @@ class SearchConnection(object):
             allow = [key for key in allow if key not in deny]
 
         for field in allow:
-            actions = self._field_actions[field]._actions
+            try:
+                actions = self._field_actions[field]._actions
+            except KeyError:
+                actions = {}
             for action, kwargslist in actions.iteritems():
                 if action == FieldActions.INDEX_EXACT:
                     # FIXME - need patched version of xapian to add exact prefixes
