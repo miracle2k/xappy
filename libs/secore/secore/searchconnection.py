@@ -426,7 +426,10 @@ class SearchConnection(object):
         begin = fn(field, begin)
         end = fn(field, end)
 
-        slot = self._field_mappings.get_slot(field)
+        try:
+            slot = self._field_mappings.get_slot(field)
+        except KeyError:
+            return _xapian.Query()
         return _xapian.Query(_xapian.Query.OP_VALUE_RANGE, slot, begin, end)
 
     def _prepare_queryparser(self, allow, deny, default_op):
