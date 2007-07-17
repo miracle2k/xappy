@@ -178,12 +178,18 @@ category)::
 
   >>> conn.add_field_action('category', secore.FieldActions.COLLAPSE)
 
-Finally, if we want to be able to retrieve data from the document when it is
+If we want to be able to retrieve data from the document when it is
 the result of a search, we need to set the ``STORE_CONTENT`` action::
 
   >>> conn.add_field_action('text', secore.FieldActions.STORE_CONTENT)
   >>> conn.add_field_action('title', secore.FieldActions.STORE_CONTENT)
   >>> conn.add_field_action('category', secore.FieldActions.STORE_CONTENT)
+
+If we want to use the contents of a field as "tags", which can be counted at
+search time (possibly, in order to build a tag-cloud, or other such
+visualisation), we need to set the ``TAG`` action::
+
+  >>> conn.add_field_action('tag', secore.FieldActions.TAG)
 
 Indexing
 --------
@@ -204,6 +210,8 @@ the ``fields`` member::
   >>> doc.fields.append(secore.Field("text", "We can create another paragraph of text.  "
   ...                                "We can have as many of these as we like."))
   >>> doc.fields.append(secore.Field("category", "Test documents"))
+  >>> doc.fields.append(secore.Field("tag", "Tag1"))
+  >>> doc.fields.append(secore.Field("tag", "Test document"))
 
 We can add the document directly to the database: if we do this, the connection
 will process the document to generate a ``ProcessedDocument`` behind the
@@ -397,6 +405,25 @@ method, to filter the results of an existing query::
   Xapian::Query(((ZXBcreat:(pos=1) OR ZXBa:(pos=2) OR ZXBparagraph:(pos=3)) FILTER VALUE_RANGE 1 20000101 20010101))
 
 .. Note:: the implementation of sorting and range filtering for floating point values uses terms which typically contain non-printable characters.  Don't panic if you call ``print`` on a query generated with ``query_range()`` and odd control-characters are displayed; it's probably normal.)
+
+
+To get a list of the tags which are contained in the result set, we have to
+specify the gettags parameter to the search() method::
+
+  >>> results = conn.search(q, 0, 10, gettags='tag')
+  >>> results.get_top_tags('tag', 10)
+  [('tag1', 1), ('test document', 1)]
+
+FIXME - add note about checkatleast parameter.
+
+To search for only those documents containing a given tag, we can use the
+query_field() method::
+
+  >>> results = conn.search(conn.query_field('tag', 'tag1'), 0, 10)
+  >>> results.matches_estimated, results.estimate_is_exact
+  (1, True)
+  >>> results.get_hit(0).highlight('text')[0]
+  "This is a paragraph of text.  It's quite short."
 
 
 Concurrent update limitations

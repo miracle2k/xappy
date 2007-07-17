@@ -243,10 +243,10 @@ class SearchResults(object):
         if self._tagspy is None:
             raise _errors.SearchError("Field %r was not specified for getting tags" % field)
         try:
-            prefix = self._field_mappings.get_prefix(field)
+            prefix = self._conn._field_mappings.get_prefix(field)
         except KeyError:
             raise _errors.SearchError("Field %r was not indexed for tagging" % field)
-        return self._tagspy.get_top_terms(prefix)
+        return self._tagspy.get_top_terms(prefix, maxtags)
 
 class SearchConnection(object):
     """A connection to the search engine for searching.
@@ -666,7 +666,7 @@ class SearchConnection(object):
                 gettags = [gettags]
         tagspy = None
         if gettags is not None and len(gettags) != 0:
-            tagspy = xapian.TermCountMatchSpy()
+            tagspy = _xapian.TermCountMatchSpy()
             for field in gettags:
                 try:
                     prefix = self._field_mappings.get_prefix(field)
@@ -683,7 +683,7 @@ class SearchConnection(object):
         elif len(matchspies) == 1:
             matchspy = matchspies[0]
         else:
-            matchspy = xapian.MultipleMatchSpy()
+            matchspy = _xapian.MultipleMatchSpy()
             for spy in matchspies:
                 matchspy.append(spy)
 

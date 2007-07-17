@@ -46,7 +46,7 @@ def _act_tag(fieldname, doc, value, context):
     """Perform the TAG action.
     
     """
-    doc.add_term(fieldname, value, 0)
+    doc.add_term(fieldname, value.lower(), 0)
 
 def _act_index_freetext(fieldname, doc, value, context, weight=1, 
                         language=None, stop=None, spell=False,
