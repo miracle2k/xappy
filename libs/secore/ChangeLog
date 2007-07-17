@@ -1,3 +1,8 @@
+Tue Jul 17 13:25:10 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/fieldactions.py,secore/searchconnection.py: Add support
+	  for tagging - as yet, undocumented, and minimally tested.
+
 Mon Jul 16 11:32:18 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* secore/searchconnection.py: Check for KeyError when getting a

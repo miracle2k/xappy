@@ -128,12 +128,13 @@ class SearchResults(object):
     """A set of results of a search.
 
     """
-    def __init__(self, conn, enq, query, mset, fieldmappings):
+    def __init__(self, conn, enq, query, mset, fieldmappings, tagspy):
         self._conn = conn
         self._enq = enq
         self._query = query
         self._mset = mset
         self._fieldmappings = fieldmappings
+        self._tagspy = tagspy
 
     def __repr__(self):
         return ("<SearchResults(startrank=%d, "
@@ -226,6 +227,26 @@ class SearchResults(object):
 
         """
         return SearchResultIter(self)
+
+    def get_top_tags(self, field, maxtags):
+        """Get the most frequent tags in a given field.
+
+         - `field` - the field to get tags for.  This must have been specified
+           in the "gettags" argument of the search() call.
+         - `maxtags` - the maximum number of tags to return.
+
+        Returns a sequence of 2-item tuples, in which the first item in the
+        tuple is the tag, and the second is the frequency of the tag in the
+        matches seen (as an integer).
+
+        """
+        if self._tagspy is None:
+            raise _errors.SearchError("Field %r was not specified for getting tags" % field)
+        try:
+            prefix = self._field_mappings.get_prefix(field)
+        except KeyError:
+            raise _errors.SearchError("Field %r was not indexed for tagging" % field)
+        return self._tagspy.get_top_terms(prefix)
 
 class SearchConnection(object):
     """A connection to the search engine for searching.
@@ -484,8 +505,11 @@ class SearchConnection(object):
 
         Only one of `allow` and `deny` may be specified.
 
-        If any of the entries in `allow` or `deny` are not present in the
-        configuration for the database, an exception will be raised.
+        If any of the entries in `allow` are not present in the configuration
+        for the database, or are not specified for indexing (either as
+        INDEX_EXACT or INDEX_FREETEXT), they will be ignored.  If any of the
+        entries in `deny` are not present in the configuration for the
+        database, they will be ignored.
 
         Returns a Query object, which may be passed to the search() method, or
         combined with other queries.
@@ -512,7 +536,7 @@ class SearchConnection(object):
 
         # need to check on field type, and stem / split as appropriate
         for action, kwargslist in actions.iteritems():
-            if action == FieldActions.INDEX_EXACT:
+            if action == FieldActions.INDEX_EXACT or action == FieldActions.TAG:
                 prefix = self._field_mappings.get_prefix(field)
                 if len(value) > 0:
                     chval = ord(value[0])
@@ -553,8 +577,11 @@ class SearchConnection(object):
 
         Only one of `allow` and `deny` may be specified.
 
-        If any of the entries in `allow` or `deny` are not present in the
-        configuration for the database, an exception will be raised.
+        If any of the entries in `allow` are not present in the configuration
+        for the database, or are not specified for indexing (either as
+        INDEX_EXACT or INDEX_FREETEXT), they will be ignored.  If any of the
+        entries in `deny` are not present in the configuration for the
+        database, they will be ignored.
 
         """
         qp = self._prepare_queryparser(allow, deny, self.OP_AND)
@@ -569,7 +596,8 @@ class SearchConnection(object):
         return corrected
 
     def search(self, query, startrank, endrank,
-               checkatleast=0, sortby=None, collapse=None):
+               checkatleast=0, sortby=None, collapse=None,
+               gettags=None):
         """Perform a search, for documents matching a query.
 
         - `query` is the query to perform.
@@ -589,6 +617,8 @@ class SearchConnection(object):
         - `collapse` is the name of a field to collapse the result documents
           on.  If this is specified, there will be at most one result in the
           result set for each value of the field.
+        - `gettags` is the name of a field to count tag occurrences in, or a
+          list of fields to do so.
 
         """
         if self._index is None:
@@ -627,16 +657,48 @@ class SearchConnection(object):
         # there are more matches.
         checkatleast = max(checkatleast, endrank + 1)
 
+        # Build the matchspy.
+        matchspies = []
+
+        # First, add a matchspy for any gettags fields
+        if isinstance(gettags, basestring):
+            if len(gettags) != 0:
+                gettags = [gettags]
+        tagspy = None
+        if gettags is not None and len(gettags) != 0:
+            tagspy = xapian.TermCountMatchSpy()
+            for field in gettags:
+                try:
+                    prefix = self._field_mappings.get_prefix(field)
+                    tagspy.add_prefix(prefix)
+                except KeyError:
+                    raise _errors.SearchError("Field %r was not indexed for tagging" % field)
+            matchspies.append(tagspy)
+
+        # FIXME - add a matchspy for facet selection here.
+
+        # Finally, build a single matchspy to pass to get_mset().
+        if len(matchspies) == 0:
+            matchspy = None
+        elif len(matchspies) == 1:
+            matchspy = matchspies[0]
+        else:
+            matchspy = xapian.MultipleMatchSpy()
+            for spy in matchspies:
+                matchspy.append(spy)
+
         enq.set_docid_order(enq.DONT_CARE)
 
         # Repeat the search until we don't get a DatabaseModifiedError
         while True:
             try:
-                mset = enq.get_mset(startrank, maxitems, checkatleast)
+                mset = enq.get_mset(startrank, maxitems, checkatleast, None,
+                                    None, matchspy)
                 break
             except _xapian.DatabaseModifiedError, e:
                 self.reopen()
-        return SearchResults(self, enq, query, mset, self._field_mappings)
+        return SearchResults(self, enq, query, mset, self._field_mappings,
+                             tagspy)
 
 if __name__ == '__main__':
     import doctest, sys

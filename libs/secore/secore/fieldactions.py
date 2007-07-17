@@ -42,6 +42,12 @@ def _act_index_exact(fieldname, doc, value, context):
     """
     doc.add_term(fieldname, value, 0)
 
+def _act_tag(fieldname, doc, value, context):
+    """Perform the TAG action.
+    
+    """
+    doc.add_term(fieldname, value, 0)
+
 def _act_index_freetext(fieldname, doc, value, context, weight=1, 
                         language=None, stop=None, spell=False,
                         nopos=False, noprefix=False):
@@ -221,6 +227,11 @@ class FieldActions(object):
       "collapse" result sets, such that only the highest result with each value
       of the field will be returned.
 
+    - `TAG`: the field contains tags; these are strings, which will be matched
+      in a case insensitive way, but otherwise must be exact matches.  Tag
+      fields can be searched for by making an explict query (ie, using
+      query_field(), but not with query_parse()).
+
     """
 
     # See the class docstring for the meanings of the following constants.
@@ -229,6 +240,7 @@ class FieldActions(object):
     INDEX_FREETEXT = 3
     SORTABLE = 4 
     COLLAPSE = 5
+    TAG = 6
 
     # Sorting and collapsing store the data in a value, but the format depends
     # on the sort type.  Easiest way to implement is to treat them as the same
@@ -253,7 +265,9 @@ class FieldActions(object):
                           FieldActions.INDEX_EXACT,
                           FieldActions.INDEX_FREETEXT,
                           FieldActions.SORTABLE,
-                          FieldActions.COLLAPSE,):
+                          FieldActions.COLLAPSE,
+                          FieldActions.TAG,
+                         ):
             raise _errors.IndexerError("Unknown field action: %r" % action)
 
         info = self._action_info[action]
@@ -312,7 +326,7 @@ class FieldActions(object):
                     raise _errors.IndexerError("Field %r is already marked for "
                                                "sorting, with a different "
                                                "sort type" % self._fieldname)
-        
+
         if self.NEED_PREFIX in info[3]:
             field_mappings.add_prefix(self._fieldname)
         if self.NEED_SLOT in info[3]:
@@ -351,6 +365,7 @@ class FieldActions(object):
         SORTABLE: ('SORTABLE', ('type', ), None, (NEED_SLOT,), ),
         COLLAPSE: ('COLLAPSE', (), None, (NEED_SLOT,), ),
         SORT_AND_COLLAPSE: ('SORT_AND_COLLAPSE', ('type', ), _act_sort_and_collapse, (NEED_SLOT,), ),
+        TAG: ('TAG', (), _act_tag, (NEED_PREFIX,), ),
     }
 
 if __name__ == '__main__':
