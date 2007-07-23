@@ -20,14 +20,16 @@ r"""searchconnection.py: A connection to the search engine for searching.
 """
 __docformat__ = "restructuredtext en"
 
+import os as _os
+import cPickle as _cPickle
+
 import xapian as _xapian
 from datastructures import *
 from fieldactions import *
 import fieldmappings as _fieldmappings
 import highlight as _highlight 
 import errors as _errors
-import os as _os
-import cPickle as _cPickle
+import indexerconnection as _indexerconnection
 
 class SearchResult(ProcessedDocument):
     """A result from a search.
@@ -254,6 +256,12 @@ class SearchConnection(object):
     The connection will access a view of the database.
 
     """
+    _qp_flags_std = (_xapian.QueryParser.FLAG_PHRASE |
+                     _xapian.QueryParser.FLAG_BOOLEAN |
+                     _xapian.QueryParser.FLAG_LOVEHATE |
+                     _xapian.QueryParser.FLAG_AUTO_SYNONYMS |
+                     _xapian.QueryParser.FLAG_AUTO_MULTIWORD_SYNONYMS)
+    _qp_flags_nobool = (_qp_flags_std | _xapian.QueryParser.FLAG_BOOLEAN) ^ _xapian.QueryParser.FLAG_BOOLEAN
 
     def __init__(self, indexpath):
         """Create a new connection to the index for searching.
@@ -517,11 +525,11 @@ class SearchConnection(object):
         """
         qp = self._prepare_queryparser(allow, deny, default_op)
         try:
-            return qp.parse_query(string)
+            return qp.parse_query(string, self._qp_flags_std)
         except _xapian.QueryParserError, e:
             # If we got a parse error, retry without boolean operators (since
             # these are the usual cause of the parse error).
-            return qp.parse_query(string, 0)
+            return qp.parse_query(string, self._qp_flags_nobool)
 
     def query_field(self, field, value, default_op=OP_AND):
         """A query for a single field.
@@ -554,9 +562,7 @@ class SearchConnection(object):
                         qp.set_stemming_strategy(qp.STEM_SOME)
                     except KeyError:
                         pass
-                return qp.parse_query(value,
-                                      qp.FLAG_PHRASE | qp.FLAG_BOOLEAN | qp.FLAG_LOVEHATE,
-                                      prefix)
+                return qp.parse_query(value, self._qp_flags_std, prefix)
 
         return _xapian.Query()
 
@@ -585,7 +591,7 @@ class SearchConnection(object):
 
         """
         qp = self._prepare_queryparser(allow, deny, self.OP_AND)
-        qp.parse_query(string, qp.FLAG_PHRASE|qp.FLAG_BOOLEAN|qp.FLAG_LOVEHATE|qp.FLAG_SPELLING_CORRECTION)
+        qp.parse_query(string, self._qp_flags_std | qp.FLAG_SPELLING_CORRECTION)
         corrected = qp.get_corrected_query_string()
         if len(corrected) == 0:
             if isinstance(string, unicode):
@@ -699,6 +705,34 @@ class SearchConnection(object):
                 self.reopen()
         return SearchResults(self, enq, query, mset, self._field_mappings,
                              tagspy)
+
+    def iter_synonyms(self, prefix=""):
+        """Get an iterator over the synonyms.
+
+         - `prefix`: if specified, only synonym keys with this prefix will be
+           returned.
+
+        The iterator returns 2-tuples, in which the first item is the key (ie,
+        a 2-tuple holding the term or terms which will be synonym expanded,
+        followed by the fieldname specified (or None if no fieldname)), and the
+        second item is a tuple of strings holding the synonyms for the first
+        item.
+
+        These return values are suitable for the dict() builtin, so you can
+        write things like:
+
+         >>> conn = _indexerconnection.IndexerConnection('foo')
+         >>> conn.add_synonym('foo', 'bar')
+         >>> conn.add_synonym('foo bar', 'baz')
+         >>> conn.add_synonym('foo bar', 'foo baz')
+         >>> conn.flush()
+         >>> conn = SearchConnection('foo')
+         >>> dict(conn.iter_synonyms())
+         {('foo', None): ('bar',), ('foo bar', None): ('baz', 'foo baz')}
+
+        """
+        return _indexerconnection.SynonymIter(self._index, self._field_mappings, prefix)
+
 
 if __name__ == '__main__':
     import doctest, sys

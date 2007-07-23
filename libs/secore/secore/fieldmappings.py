@@ -76,6 +76,17 @@ class FieldMappings(object):
             num = num // 26
         return 'X' + ''.join(res)
 
+    def get_fieldname_from_prefix(self, prefix):
+        """Get a fieldname from a prefix.
+
+        If the prefix is not found, return None.
+
+        """
+        for key, val in self._prefixes.iteritems():
+            if val == prefix:
+                return key
+        return None
+
     def get_prefix(self, fieldname):
         """Get the prefix used for a given field name.
 

@@ -225,6 +225,56 @@ class IndexerConnection(object):
         xapdoc = document.prepare()
         self._index.replace_document('Q' + id, xapdoc)
 
+    def _make_synonym_key(self, original, field):
+        """Make a synonym key (ie, the term or group of terms to store in
+        xapian).
+
+        """
+        if field is not None:
+            prefix = self._field_mappings.get_prefix(field)
+        else:
+            prefix = ''
+        original = original.lower()
+        # Add the prefix to the start of each word.
+        return ' '.join((prefix + word for word in original.split(' ')))
+
+    def add_synonym(self, original, synonym, field=None):
+        """Add a synonym to the index.
+
+         - `original` is the word or words which will be synonym expanded in
+           searches (if multiple words are specified, each word should be
+           separated by a single space).
+         - `synonym` is a synonym for `original`.
+         - `field` is the field which this synonym is specific to.  If no field
+           is specified, the synonym will be used for searches which are not
+           specific to any particular field.
+
+        """
+        key = self._make_synonym_key(original, field)
+        self._index.add_synonym(key, synonym.lower())
+
+    def remove_synonym(self, original, synonym, field=None):
+        """Remove a synonym from the index.
+
+         - `field` is the field which this synonym is specific to.  If no field
+           is specified, the synonym will be used for searches which are not
+           specific to any particular field.
+
+        """
+        key = self._make_synonym_key(original, field)
+        self._index.remove_synonym(key, synonym)
+
+    def clear_synonyms(self, original, field=None):
+        """Remove all synonyms for a word (or phrase).
+
+         - `field` is the field which this synonym is specific to.  If no field
+           is specified, the synonym will be used for searches which are not
+           specific to any particular field.
+
+        """
+        key = self._make_synonym_key(original, field)
+        self._index.clear_synonyms(key)
+
     def delete(self, id):
         """Delete a document from the search engine index.
 
@@ -332,6 +382,32 @@ class IndexerConnection(object):
         result._doc = self._index.get_document(plitem.docid)
         return result
 
+    def iter_synonyms(self, prefix=""):
+        """Get an iterator over the synonyms.
+
+         - `prefix`: if specified, only synonym keys with this prefix will be
+           returned.
+
+        The iterator returns 2-tuples, in which the first item is the key (ie,
+        a 2-tuple holding the term or terms which will be synonym expanded,
+        followed by the fieldname specified (or None if no fieldname)), and the
+        second item is a tuple of strings holding the synonyms for the first
+        item.
+
+        These return values are suitable for the dict() builtin, so you can
+        write things like:
+
+         >>> conn = IndexerConnection('foo')
+         >>> conn.add_synonym('foo', 'bar')
+         >>> conn.add_synonym('foo bar', 'baz')
+         >>> conn.add_synonym('foo bar', 'foo baz')
+         >>> dict(conn.iter_synonyms())
+         {('foo', None): ('bar',), ('foo bar', None): ('baz', 'foo baz')}
+
+        """
+        return SynonymIter(self._index, self._field_mappings, prefix)
+
+
 class PrefixedTermIter(object):
     """Iterate through all the terms with a given prefix.
 
@@ -340,7 +416,7 @@ class PrefixedTermIter(object):
         """Initialise the prefixed term iterator.
 
         - `prefix` is the prefix to return terms for.
-        - `termiter` is a xapian TermIterator, which should be at it's start.
+        - `termiter` is a xapian TermIterator, which should be at its start.
 
         """
 
@@ -364,7 +440,6 @@ class PrefixedTermIter(object):
     def next(self):
         """Get the next term with the specified prefix.
 
-
         """
         if not self._started:
             term = self._termiter.skip_to(self._prefix).term
@@ -374,6 +449,45 @@ class PrefixedTermIter(object):
         if len(term) < self._prefixlen or term[:self._prefixlen] != self._prefix:
             raise StopIteration
         return term[self._prefixlen:]
+
+
+class SynonymIter(object):
+    """Iterate through a list of synonyms.
+
+    """
+    def __init__(self, index, field_mappings, prefix):
+        """Initialise the synonym iterator.
+
+         - `index` is the index to get the synonyms from.
+         - `field_mappings` is the FieldMappings object for the iterator.
+         - `prefix` is the prefix to restrict the returned synonyms to.
+
+        """
+        self._index = index
+        self._field_mappings = field_mappings
+        self._syniter = self._index.synonym_keys(prefix)
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        """Get the next synonym.
+
+        """
+        synkey = self._syniter.next()
+        pos = 0
+        for char in synkey:
+            if char.isupper(): pos += 1
+            else: break
+        if pos == 0:
+            fieldname = None
+            terms = synkey
+        else:
+            prefix = synkey[:pos]
+            fieldname = self._field_mappings.get_fieldname_from_prefix(prefix)
+            terms = ' '.join((term[pos:] for term in synkey.split(' ')))
+        synval = tuple(self._index.synonyms(synkey))
+        return ((terms, fieldname), synval)
 
 if __name__ == '__main__':
     import doctest, sys
