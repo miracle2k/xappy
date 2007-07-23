@@ -1,3 +1,10 @@
+Mon Jul 23 10:59:58 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/introduction.rst,secore/searchconnection.py: Add special
+	  value of -1 for checkatleast parameter, to check all matches, and
+	  document it (and the general reason for setting the checkatleast
+	  parameter when using get_top_tags()).
+
 Mon Jul 23 10:40:22 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* secore/: Add missing synonym stuff.

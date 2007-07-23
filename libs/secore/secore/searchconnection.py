@@ -615,7 +615,10 @@ class SearchConnection(object):
           be returned.
         - `checkatleast` is the minimum number of results to check for: the
           estimate of the total number of matches will always be exact if
-          the number of matches is less than `checkatleast`.
+          the number of matches is less than `checkatleast`.  A value of ``-1``
+          can be specified for the checkatleast parameter - this has the
+          special meaning of "check all matches", and is equivalent to passing
+          the result of get_doccount().
         - `sortby` is the name of a field to sort by.  It may be preceded by a
           '+' or a '-' to indicate ascending or descending order
           (respectively).  If the first character is neither '+' or '-', the
@@ -629,6 +632,9 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
+        if checkatleast == -1:
+            checkatleast = self._index.get_doccount()
+
         enq = _xapian.Enquire(self._index)
         enq.set_query(query)
 

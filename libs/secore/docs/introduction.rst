@@ -404,7 +404,7 @@ method, to filter the results of an existing query::
   >>> print filtered_query
   Xapian::Query(((ZXBcreat:(pos=1) OR ZXBa:(pos=2) OR ZXBparagraph:(pos=3)) FILTER VALUE_RANGE 1 20000101 20010101))
 
-.. Note:: the implementation of sorting and range filtering for floating point values uses terms which typically contain non-printable characters.  Don't panic if you call ``print`` on a query generated with ``query_range()`` and odd control-characters are displayed; it's probably normal.)
+.. Note:: The implementation of sorting and range filtering for floating point values uses terms which typically contain non-printable characters.  Don't panic if you call ``print`` on a query generated with ``query_range()`` and odd control-characters are displayed; it's probably normal.)
 
 
 To get a list of the tags which are contained in the result set, we have to
@@ -414,7 +414,7 @@ specify the gettags parameter to the search() method::
   >>> results.get_top_tags('tag', 10)
   [('tag1', 1), ('test document', 1)]
 
-FIXME - add note about checkatleast parameter.
+.. Note:: When the result set is being generated, various optimisations are performed to avoid wasting time looking at documents which can't possibly get into the portion of the result set which has been requested.  These are normally desirable optimisations because they can speed up searches considerably, but if information about the tags in the result set as a whole is desired, the optimisations can cause inaccurate values to be returned.  Therefore, it is possible to force the search engine to look at at least a minimum number of results, by setting the "checkatleast" parameter of the search() method.  As a special case, a value of -1 forces all matches to be examined, regardless of database size: this should be used with care, because it can result in slow searches.
 
 To search for only those documents containing a given tag, we can use the
 query_field() method::
