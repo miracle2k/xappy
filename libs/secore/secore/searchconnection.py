@@ -130,13 +130,16 @@ class SearchResults(object):
     """A set of results of a search.
 
     """
-    def __init__(self, conn, enq, query, mset, fieldmappings, tagspy):
+    def __init__(self, conn, enq, query, mset, fieldmappings, tagspy,
+                 facetspy, facetfields):
         self._conn = conn
         self._enq = enq
         self._query = query
         self._mset = mset
         self._fieldmappings = fieldmappings
         self._tagspy = tagspy
+        self._facetspy = facetspy
+        self._facetfields = facetfields
 
     def __repr__(self):
         return ("<SearchResults(startrank=%d, "
@@ -249,6 +252,41 @@ class SearchResults(object):
         except KeyError:
             raise _errors.SearchError("Field %r was not indexed for tagging" % field)
         return self._tagspy.get_top_terms(prefix, maxtags)
+
+    def get_suggested_facets(self, maxfacets=5, desired_num_of_categories=7):
+        """Get a suggested set of facets, to present to the user.
+
+        This returns a list, in descending order of the usefulness of the
+        facet, in which each item is a tuple holding:
+
+         - fieldname
+         - 
+
+        """
+        if self._facetspy is None:
+            return []
+        scores = []
+        for field, slot, kwargslist in self._facetfields:
+            type = None
+            for kwargs in kwargslist:
+                type = kwargs.get('type', None)
+                if type is not None: break
+
+            if type == 'float':
+                print field, slot, type
+                self._facetspy.build_numeric_ranges(slot, desired_num_of_categories)
+            score = self._facetspy.score_categorisation(slot,
+                                                        desired_num_of_categories)
+            scores.append((score, field, slot))
+        scores.sort()
+        scores = scores[:maxfacets]
+
+        result = []
+        for score, field, slot in scores:
+            values = self._facetspy.get_values_as_dict(slot)
+            result.append((field, values))
+        return result
+        
 
 class SearchConnection(object):
     """A connection to the search engine for searching.
@@ -544,7 +582,9 @@ class SearchConnection(object):
 
         # need to check on field type, and stem / split as appropriate
         for action, kwargslist in actions.iteritems():
-            if action == FieldActions.INDEX_EXACT or action == FieldActions.TAG:
+            if action in (FieldActions.INDEX_EXACT,
+                          FieldActions.TAG,
+                          FieldActions.FACET,):
                 prefix = self._field_mappings.get_prefix(field)
                 if len(value) > 0:
                     chval = ord(value[0])
@@ -603,7 +643,8 @@ class SearchConnection(object):
 
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
-               gettags=None):
+               gettags=None,
+               getfacets=None, allowfacets=None, denyfacets=None):
         """Perform a search, for documents matching a query.
 
         - `query` is the query to perform.
@@ -628,6 +669,14 @@ class SearchConnection(object):
           result set for each value of the field.
         - `gettags` is the name of a field to count tag occurrences in, or a
           list of fields to do so.
+        - `getfacets` is a boolean - if True, the matching documents will be
+          examined to build up a list of the facet values contained in them.
+        - `allowfacets` is a list of the fieldnames of facets to consider.
+        - `denyfacets` is a list of fieldnames of facets which will not be
+          considered.
+
+        If neither 'allowfacets' or 'denyfacets' is specified, all fields
+        holding facets will be considered.
 
         """
         if self._index is None:
@@ -687,7 +736,34 @@ class SearchConnection(object):
                     raise _errors.SearchError("Field %r was not indexed for tagging" % field)
             matchspies.append(tagspy)
 
-        # FIXME - add a matchspy for facet selection here.
+
+        # add a matchspy for facet selection here.
+        facetspy = None
+        facetfields = []
+        if getfacets:
+            if allowfacets is not None and denyfacets is not None:
+                raise _errors.SearchError("Cannot specify both `allowfacets` and `denyfacets`")
+            if allowfacets is None:
+                allowfacets = [key for key in self._field_actions]
+            if denyfacets is not None:
+                allowfacets = [key for key in allowfacets if key not in denyfacets]
+
+            for field in allowfacets:
+                try:
+                    actions = self._field_actions[field]._actions
+                except KeyError:
+                    actions = {}
+                for action, kwargslist in actions.iteritems():
+                    if action == FieldActions.FACET:
+                        slot = self._field_mappings.get_slot(field)
+                        if facetspy is None:
+                            facetspy = _xapian.CategorySelectMatchSpy()
+                        facetspy.add_slot(slot)
+                        facetfields.append((field, slot,
+                                            kwargslist))
+        if facetspy is not None:
+            matchspies.append(facetspy)
+
 
         # Finally, build a single matchspy to pass to get_mset().
         if len(matchspies) == 0:
@@ -695,7 +771,7 @@ class SearchConnection(object):
         elif len(matchspies) == 1:
             matchspy = matchspies[0]
         else:
-            matchspy = _xapian.MultipleMatchSpy()
+            matchspy = _xapian.MultipleMatchDecider()
             for spy in matchspies:
                 matchspy.append(spy)
 
@@ -710,7 +786,7 @@ class SearchConnection(object):
             except _xapian.DatabaseModifiedError, e:
                 self.reopen()
         return SearchResults(self, enq, query, mset, self._field_mappings,
-                             tagspy)
+                             tagspy, facetspy, facetfields)
 
     def iter_synonyms(self, prefix=""):
         """Get an iterator over the synonyms.

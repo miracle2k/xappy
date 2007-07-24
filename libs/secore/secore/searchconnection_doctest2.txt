@@ -17,6 +17,7 @@ Open a connection for indexing:
 >>> iconn.add_field_action('category', FieldActions.INDEX_EXACT)
 >>> iconn.add_field_action('category', FieldActions.SORTABLE)
 >>> iconn.add_field_action('category', FieldActions.COLLAPSE)
+>>> iconn.add_field_action('category', FieldActions.FACET)
 >>> iconn.add_field_action('text', FieldActions.INDEX_FREETEXT, language='en',
 ...                        spell=True, stop=('basic',))
 
@@ -27,6 +28,15 @@ Open a connection for indexing:
 >>> iconn.add_field_action('price', FieldActions.STORE_CONTENT)
 >>> iconn.add_field_action('price', FieldActions.SORTABLE, type='float')
 >>> iconn.add_field_action('price', FieldActions.COLLAPSE)
+>>> iconn.add_field_action('price', FieldActions.FACET, type='float')
+
+>>> iconn.add_field_action('facet1', FieldActions.FACET)
+>>> iconn.add_field_action('facet2', FieldActions.FACET)
+>>> iconn.add_field_action('facet3', FieldActions.FACET)
+>>> iconn.add_field_action('facet4', FieldActions.FACET, type='float')
+>>> iconn.add_field_action('facet5', FieldActions.FACET)
+
+>>> iconn.add_field_action('tag', FieldActions.TAG)
 
 
 A field can only be sorted according to one type:
@@ -57,8 +67,16 @@ Add a set of documents, which dates and prices, to test sorting:
 ...     doc.fields.append(Field('text', 'This document is a basic test document.'))
 ...     doc.fields.append(Field('title', 'Test document %d' % i))
 ...     doc.fields.append(Field('text', 'More test text about this document.'))
-...     doc.fields.append(Field('date', '2007%02d%02d' % (i % 12 + 1, i / 12 + 1)))
+...     doc.fields.append(Field('date', '2007%02d%02d' % (i % 12 + 1, i // 12 + 1)))
 ...     doc.fields.append(Field('price', '%f' % ((float(i) / 7) % 10)))
+...     doc.fields.append(Field('facet1', '%d' % (i // 40)))
+...     doc.fields.append(Field('facet2', '%d' % (i // 20)))
+...     doc.fields.append(Field('facet3', '%d' % (i // 12)))
+...     doc.fields.append(Field('facet4', '%d' % (i // 8)))
+...     doc.fields.append(Field('facet5', '%d' % (i // 5)))
+...     doc.fields.append(Field('tag', '%d' % (i % 5)))
+...     doc.fields.append(Field('tag', '%d' % (i % 9)))
+...     doc.fields.append(Field('tag', '%d' % (i // 5)))
 ...     id = iconn.add(doc)
 
 
@@ -165,6 +183,19 @@ Now, parse a simple query.
 >>> [int(result.id, 16) for result in results]
 [191, 179, 167, 155, 143, 131, 119, 107, 95, 83, 71, 59, 47, 35, 23, 11, 190, 178, 166, 154, 142, 130, 118, 106, 94, 82, 70, 58, 46, 34]
 
+
+
+Get a list of the facets and tags relevant for the search
+>>> results2 = sconn.search(q, 0, 30, sortby="-date", gettags=('tag'),
+...                         getfacets=True)
+>>> [int(result.id, 16) for result in results2]
+[191, 179, 167, 155, 143, 131, 119, 107, 95, 83, 71, 59, 47, 35, 23, 11, 190, 178, 166, 154, 142, 130, 118, 106, 94, 82, 70, 58, 46, 34]
+>>> results2.get_top_tags('tag', 8)
+[('1', 32), ('2', 31), ('0', 30), ('3', 30), ('4', 30), ('5', 16), ('8', 16), ('7', 14)]
+>>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=10)]
+[('facet1', 5), ('facet2', 10), ('facet3', 16), ('category', 20), ('facet4', 20), ('facet5', 29), ('price', 66)]
+>>> [(facet[0], facet[1]) for facet in results2.get_suggested_facets(maxfacets=10)]
+>>> [(facet[0], facet[1]) for facet in results2.get_suggested_facets(maxfacets=10)]
 
 
 We can also filter the results by a range of the sortable values - for
