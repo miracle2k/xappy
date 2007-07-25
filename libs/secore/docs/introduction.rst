@@ -191,6 +191,24 @@ visualisation), we need to set the ``TAG`` action::
 
   >>> conn.add_field_action('tag', secore.FieldActions.TAG)
 
+
+Secore also supports "faceted browsing": this means attaching "facets" to
+documents, where a facet is a values representing one aspect of information
+about a document: for example, the price of an object would be a facet of a
+document representing that object.  Secore supports storing many facets about a
+document, restricting the search results to only those documents which contain
+that facet, and automatically selecting a set of facets which are relevant to
+the set of results returned by a search (so that the facets can be presented to
+the user to be used to refine their search).
+
+If we want to use a field as a facet, we simply add the ``FACET`` action to it.
+Facets can be of two types - "string" (which are just exact string matches), or
+"float" (which will automatically be grouped into ranges when returning a
+suggested list of facets).  The default is "string"::
+
+  >>> conn.add_field_action('price', secore.FieldActions.FACET, type='float')
+  >>> conn.add_field_action('category', secore.FieldActions.FACET, type='string')
+
 Indexing
 --------
 
@@ -212,6 +230,8 @@ the ``fields`` member::
   >>> doc.fields.append(secore.Field("category", "Test documents"))
   >>> doc.fields.append(secore.Field("tag", "Tag1"))
   >>> doc.fields.append(secore.Field("tag", "Test document"))
+  >>> doc.fields.append(secore.Field("tag", "Test document"))
+  >>> doc.fields.append(secore.Field("price", "20.56"))
 
 We can add the document directly to the database: if we do this, the connection
 will process the document to generate a ``ProcessedDocument`` behind the
@@ -424,6 +444,23 @@ query_field() method::
   (1, True)
   >>> results.get_hit(0).highlight('text')[0]
   "This is a paragraph of text.  It's quite short."
+
+
+To get a list of facets which are relevant to the result set, we have to
+specify the getfacets parameter to the search() method.  We can also specify
+the allowfacets or denyfacets parameters to control the set of facets which are
+considered for display (this may be useful to reduce work if we've already
+restricted to a particular facet value, for example).  Note that as with the
+gettags option, it may be advisable to specify a reasonably high value for the
+"checkatleast" parameter::
+
+  >>> results = conn.search(q, 0, 10, checkatleast=1000, getfacets=True)
+  >>> results.get_suggested_facets()
+  [('category', [('Bible', 1), ('Test documents', 1)]), ('price', [((20.559999999999999, 20.559999999999999), 1)])]
+
+Note that the values for the suggested facets contain the string for facets of
+type "string", but contain a pair of numbers for facets of type "float" - these
+numbers define an automatically suggested range of values to use for the facet.
 
 
 Concurrent update limitations
