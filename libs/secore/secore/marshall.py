@@ -21,50 +21,14 @@ r"""marshall.py: Marshal values into strings
 __docformat__ = "restructuredtext en"
 
 import math
-
-def _long_to_base256_array(value, length, flip):
-    result = []
-    for i in xrange(length):
-        n = value % 256
-        if flip: n = 255 - n
-        result.insert(0, chr(n))
-        value /= 256
-    return result
+import xapian
 
 def float_to_string(value):
     """Marshall a floating point number to a string which sorts in the
     appropriate manner.
 
     """
-    mantissa, exponent = math.frexp(value)
-    sign = '1'
-    if mantissa < 0:
-        mantissa = -mantissa
-        sign = '0'
-
-    # IEEE representation of doubles uses 11 bits for the exponent, with a bias
-    # of 1023.  There's then another 52 bits in the mantissa, so we need to
-    # add 1075 to be sure that the exponent won't be negative.
-    # Even then, we check that the exponent isn't negative, and consider the
-    # value to be equal to zero if it is.
-    exponent += 1075
-    if exponent < 0: # Note - this can't happen on most architectures #pragma: no cover
-        exponent = 0
-        mantissa = 0
-    elif mantissa == 0:
-        exponent = 0
-
-    # IEEE representation of doubles uses 52 bits for the mantissa.  Convert it
-    # to a 7 character string, and convert the exponent to a 2 character
-    # string.
-
-    mantissa = long(mantissa * (2**52))
-
-    digits = [sign]
-    digits.extend(_long_to_base256_array(exponent, 2, sign == '0'))
-    digits.extend(_long_to_base256_array(mantissa, 7, sign == '0'))
-
-    return ''.join(digits)
+    return xapian.sortable_serialise(value)
 
 def date_to_string(date):
     """Marshall a date to a string which sorts in the appropriate manner.

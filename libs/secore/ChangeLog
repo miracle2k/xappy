@@ -1,3 +1,13 @@
+Wed Jul 25 01:53:51 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/: Change string marshalling to use xapian's stuff; cuts
+	  down code, uses a more compact representation, and is compatible
+	  with the facet range calculation stuff.  Update tests to cover
+	  the facet calculation stuff in more detail (but still need more
+	  coverage).  Fix bug with converting string range to a numeric
+	  range more than once if get_suggested_facets is called
+	  repeatedly.
+
 Tue Jul 24 10:32:56 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* secore/fieldactions.py,secore/searchconnection.py,

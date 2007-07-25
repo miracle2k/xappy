@@ -140,6 +140,7 @@ class SearchResults(object):
         self._tagspy = tagspy
         self._facetspy = facetspy
         self._facetfields = facetfields
+        self._numeric_ranges_built = {}
 
     def __repr__(self):
         return ("<SearchResults(startrank=%d, "
@@ -259,22 +260,35 @@ class SearchResults(object):
         This returns a list, in descending order of the usefulness of the
         facet, in which each item is a tuple holding:
 
-         - fieldname
-         - 
+         - fieldname of facet.
+         - sequence of 2-tuples holding the suggested values or ranges for that
+           field:
+
+           For facets of type 'string', the first item in the 2-tuple will
+           simply be the string supplied when the facet value was added to its
+           document.  For facets of type 'float', it will be a 2-tuple, holding
+           floats giving the start and end of the suggested value range.
+
+           The second item in the 2-tuple will be the frequency of the facet
+           value or range in the result set.
 
         """
         if self._facetspy is None:
             return []
         scores = []
+        facettypes = {}
         for field, slot, kwargslist in self._facetfields:
             type = None
             for kwargs in kwargslist:
                 type = kwargs.get('type', None)
                 if type is not None: break
+            if type is None: type = 'string'
 
             if type == 'float':
-                print field, slot, type
-                self._facetspy.build_numeric_ranges(slot, desired_num_of_categories)
+                if field not in self._numeric_ranges_built:
+                    field, self._facetspy.build_numeric_ranges(slot, desired_num_of_categories)
+                    self._numeric_ranges_built[field] = None
+            facettypes[field] = type
             score = self._facetspy.score_categorisation(slot,
                                                         desired_num_of_categories)
             scores.append((score, field, slot))
@@ -284,7 +298,24 @@ class SearchResults(object):
         result = []
         for score, field, slot in scores:
             values = self._facetspy.get_values_as_dict(slot)
-            result.append((field, values))
+            newvalues = []
+            if facettypes[field] == 'float':
+                # Convert numbers to python numbers, and number ranges to a
+                # python tuple of two numbers.
+                for value, frequency in values.iteritems():
+                    if len(value) <= 9:
+                        value1 = _xapian.sortable_unserialise(value)
+                        value2 = value1
+                    else:
+                        value1 = _xapian.sortable_unserialise(value[:9])
+                        value2 = _xapian.sortable_unserialise(value[9:])
+                    newvalues.append(((value1, value2), frequency))
+            else:
+                for value, frequency in values.iteritems():
+                    newvalues.append((value, frequency))
+                
+            newvalues.sort()
+            result.append((field, newvalues))
         return result
         
 

@@ -1,27 +1,27 @@
 
 
 >>> float_to_string(0)
-'1\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+'\x80'
 >>> float_to_string(-0)
-'1\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+'\x80'
 
 >>> float_to_string(2 ** -1023)
-'1\x005\x08\x00\x00\x00\x00\x00\x00'
+'\x8f\xe4'
 >>> float_to_string(2 ** -1024)
-'1\x004\x08\x00\x00\x00\x00\x00\x00'
+'\x8f\xe0'
 >>> float_to_string(2 ** -1074)
-'1\x00\x02\x08\x00\x00\x00\x00\x00\x00'
+'\x8f\x18'
 >>> float_to_string(2 ** -1075)
-'1\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+'\x80'
 
 >>> float_to_string(-(2 ** -1024))
-'0\xff\xcb\xf7\xff\xff\xff\xff\xff\xff'
+'p\x1e'
 >>> float_to_string(-(2 ** -1023))
-'0\xff\xca\xf7\xff\xff\xff\xff\xff\xff'
+'p\x1a'
 >>> float_to_string(-(2 ** -1074))
-'0\xff\xfd\xf7\xff\xff\xff\xff\xff\xff'
+'p\xe6'
 >>> float_to_string(-(2 ** -1075))
-'1\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+'\x80'
 
 Check that the values in test_vals sort in the right order.  And then test with their negations.
 >>> pos_test_vals = (0, 2 ** -1075, 2 ** -1074, 2 ** -1023, 0.000001, 0.000002, 0.000005, 0.1, 0.2, 0.5, 1, 1.1, 1.8, 2, 1024.5, 2 ** 1022)
