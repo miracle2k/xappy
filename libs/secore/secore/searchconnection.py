@@ -369,6 +369,7 @@ class SearchConnection(object):
         # class.  Move it to a shared location.
         config_file = _os.path.join(self._indexpath, 'config')
         if not _os.path.exists(config_file):
+            self._field_actions = {}
             self._field_mappings = _fieldmappings.FieldMappings()
             return
         fd = open(config_file)
