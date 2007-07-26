@@ -20,6 +20,7 @@ r"""datastructures.py: Datastructures for search engine core.
 """
 __docformat__ = "restructuredtext en"
 
+import errors as _errors
 import xapian as _xapian
 import cPickle as _cPickle
 
@@ -117,6 +118,13 @@ class ProcessedDocument(object):
             # of our locale.
             if ord(term[0]) >= ord('A') and ord(term[0]) <= ord('Z'):
                 prefix = prefix + ':'
+
+        if len(prefix + term) > 220:
+            raise _errors.IndexerError("Field %r is too long: maximum length "
+                                       "220 - was %d (%r)" %
+                                       (field, len(prefix + term),
+                                        prefix + term))
+
         if positions is None:
             self._doc.add_term(prefix + term, wdfinc)
         elif isinstance(positions, int):

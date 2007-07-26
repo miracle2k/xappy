@@ -1,3 +1,9 @@
+Thu Jul 26 17:02:33 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/datastructures.py: Warn early if a field is too long:
+	  we might be able to replace this by hashing if necessary, but
+	  this is better than waiting for the xapian error in this case.
+
 Wed Jul 25 08:37:51 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* docs/introduction.rst: Add documentation on indexing and
