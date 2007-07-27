@@ -1,3 +1,8 @@
+Fri Jul 27 02:04:27 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/fieldactions.py,secore/searchconnection.py: Add facet
+	  searching.
+
 Fri Jul 27 01:13:27 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* secore/searchconnection.py: For facet selection - don't return

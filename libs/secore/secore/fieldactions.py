@@ -54,7 +54,7 @@ def _act_facet(fieldname, doc, value, context, type=None):
     """
     marshaller = SortableMarshaller()
     fn = marshaller.get_marshall_function(fieldname, type)
-    doc.add_term(fieldname, value, 0)
+    doc.add_term(fieldname, value.lower(), 0)
     value = fn(fieldname, value)
     doc.add_value(fieldname, value)
 

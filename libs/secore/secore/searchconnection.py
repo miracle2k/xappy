@@ -534,6 +534,55 @@ class SearchConnection(object):
             return _xapian.Query()
         return _xapian.Query(_xapian.Query.OP_VALUE_RANGE, slot, begin, end)
 
+    def query_facet(self, field, val):
+        """Create a query for a facet value.
+        
+        This creates a query which matches only those documents which have a
+        facet value in the specified range.
+
+        For a numeric range facet, val should be a tuple holding the start and
+        end of the range.  For other facets, val should be the value to look
+        for.
+
+        The start and end values are both inclusive - any documents with a
+        value equal to start or end will be returned (unless end is less than
+        start, in which case no documents will be returned).
+
+        """
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
+
+        try:
+            actions = self._field_actions[field]._actions
+        except KeyError:
+            actions = {}
+        facettype = None
+        for action, kwargslist in actions.iteritems():
+            if action == FieldActions.FACET:
+                for kwargs in kwargslist:
+                    facettype = kwargs.get('type', None)
+                    if facettype is not None:
+                        break
+            if facettype is not None:
+                break
+
+        if facettype == 'float':
+            assert(len(val) == 2)
+            try:
+                slot = self._field_mappings.get_slot(field)
+            except KeyError:
+                return _xapian.Query()
+            marshaller = SortableMarshaller(False)
+            fn = marshaller.get_marshall_function(field, sorttype)
+            begin = fn(field, val[0])
+            end = fn(field, val[1])
+            return _xapian.Query(_xapian.Query.OP_VALUE_RANGE, slot, begin, end)
+        else:
+            assert(facettype == 'string' or facettype is None)
+            prefix = self._field_mappings.get_prefix(field)
+            return _xapian.Query(prefix + val.lower())
+
+
     def _prepare_queryparser(self, allow, deny, default_op):
         """Prepare (and return) a query parser using the specified fields and
         operator.
