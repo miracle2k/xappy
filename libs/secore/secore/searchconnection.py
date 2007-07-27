@@ -293,11 +293,12 @@ class SearchResults(object):
                                                         desired_num_of_categories)
             scores.append((score, field, slot))
         scores.sort()
-        scores = scores[:maxfacets]
 
         result = []
         for score, field, slot in scores:
             values = self._facetspy.get_values_as_dict(slot)
+            if len(values) <= 1:
+                continue
             newvalues = []
             if facettypes[field] == 'float':
                 # Convert numbers to python numbers, and number ranges to a
@@ -316,6 +317,8 @@ class SearchResults(object):
                 
             newvalues.sort()
             result.append((field, newvalues))
+            if len(result) >= maxfacets:
+                break
         return result
         
 
