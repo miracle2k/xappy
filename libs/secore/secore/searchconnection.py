@@ -567,11 +567,14 @@ class SearchConnection(object):
                 break
 
         if facettype == 'float':
+            if isinstance(val, basestring):
+                val = [float(v) for v in val.split(',', 2)]
             assert(len(val) == 2)
             try:
                 slot = self._field_mappings.get_slot(field)
             except KeyError:
                 return _xapian.Query()
+            sorttype = self._get_sort_type(field)
             marshaller = SortableMarshaller(False)
             fn = marshaller.get_marshall_function(field, sorttype)
             begin = fn(field, val[0])
