@@ -119,6 +119,18 @@ class ProcessedDocument(object):
             if ord(term[0]) >= ord('A') and ord(term[0]) <= ord('Z'):
                 prefix = prefix + ':'
 
+        # Note - xapian currently restricts term lengths to about 248
+        # characters - except that zero bytes are encoded in two bytes, so
+        # in practice a term of length 125 characters could be too long.
+        # Xapian will give an error when commit() is called after such
+        # documents have been added to the database.
+        # As a simple workaround, we give an error here for terms over 220
+        # characters, which will catch most occurrences of the error early.
+        #
+        # In future, it might be good to change to a hashing scheme in this
+        # situation (or for terms over, say, 64 characters), where the
+        # characters after position 64 are hashed (we obviously need to do this
+        # hashing at search time, too).
         if len(prefix + term) > 220:
             raise _errors.IndexerError("Field %r is too long: maximum length "
                                        "220 - was %d (%r)" %

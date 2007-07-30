@@ -1,3 +1,9 @@
+Mon Jul 30 16:10:52 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/datastructures.py,secore/datastructures_doctest1.txt:
+	  Add test for terms which are too long, and note in the code about
+	  why this restriction exists, and how it could be removed.
+
 Mon Jul 30 14:29:51 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* docs/introduction.rst: Update test for displaying a facet range.

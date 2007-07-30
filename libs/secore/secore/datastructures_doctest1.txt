@@ -19,3 +19,12 @@ _
 >>> doc.data['foo'] = ['1', '2']
 >>> print repr(doc.data)
 {'foo': ['1', '2']}
+
+
+Adding terms which are too long gives an error straight-away.
+
+>>> maps.add_prefix('foo')
+>>> doc.add_term('foo', 'a' * 250)
+Traceback (most recent call last):
+...
+IndexerError: Field 'foo' is too long: maximum length 220 - was 252 ('XAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
