@@ -541,7 +541,8 @@ class SearchConnection(object):
         facet value in the specified range.
 
         For a numeric range facet, val should be a tuple holding the start and
-        end of the range.  For other facets, val should be the value to look
+        end of the range, or a comma separated string holding two floating
+        point values.  For other facets, val should be the value to look
         for.
 
         The start and end values are both inclusive - any documents with a
