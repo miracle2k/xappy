@@ -256,6 +256,7 @@ in some way, but this isn't generally necessary::
   >>> doc.fields.append(secore.Field("title", "Our second document"))
   >>> doc.fields.append(secore.Field("text", "In the beginning God created the heaven and the earth."))
   >>> doc.fields.append(secore.Field("category", "Bible"))
+  >>> doc.fields.append(secore.Field("price", "12.20"))
   >>> doc.id='Bible1'
   >>> pdoc = conn.process(doc)
   >>> conn.add(pdoc)
@@ -456,7 +457,7 @@ gettags option, it may be advisable to specify a reasonably high value for the
 
   >>> results = conn.search(q, 0, 10, checkatleast=1000, getfacets=True)
   >>> results.get_suggested_facets()
-  [('category', [('Bible', 1), ('Test documents', 1)]), ('price', [((20.559999999999999, 20.559999999999999), 1)])]
+  [('category', [('Bible', 1), ('Test documents', 1)]), ('price', [((12.199999999999999, 12.199999999999999), 1), ((20.559999999999999, 20.559999999999999), 1)])]
 
 Note that the values for the suggested facets contain the string for facets of
 type "string", but contain a pair of numbers for facets of type "float" - these
