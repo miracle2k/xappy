@@ -417,6 +417,10 @@ SearchError: SearchConnection has been closed
 Traceback (most recent call last):
 ...
 SearchError: SearchConnection has been closed
+>>> sconn1.query_facet('author', 'richard')
+Traceback (most recent call last):
+...
+SearchError: SearchConnection has been closed
 >>> sconn1.search(q, 0, 10)
 Traceback (most recent call last):
 ...

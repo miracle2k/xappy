@@ -43,11 +43,10 @@ class SearchResult(ProcessedDocument):
     def _get_language(self, field):
         """Get the language that should be used for a given field.
 
+        Raises a KeyError if the field is not known.
+
         """
-        try:
-            actions = self._results._conn._field_actions[field]._actions
-        except KeyError:
-            actions = {}
+        actions = self._results._conn._field_actions[field]._actions
         for action, kwargslist in actions.iteritems():
             if action == FieldActions.INDEX_FREETEXT:
                 for kwargs in kwargslist:
@@ -77,6 +76,8 @@ class SearchResult(ProcessedDocument):
         Any XML or HTML style markup tags in the field will be stripped before
         the summarisation algorithm is applied.
 
+        Raises KeyError if the field is not known.
+
         """
         highlighter = _highlight.Highlighter(language_code=self._get_language(field))
         field = self.data[field]
@@ -99,6 +100,8 @@ class SearchResult(ProcessedDocument):
 
         If `strip_tags` is True, any XML or HTML style markup tags in the field
         will be stripped before highlighting is applied.
+
+        Raises KeyError if the field is not known.
 
         """
         highlighter = _highlight.Highlighter(language_code=self._get_language(field))
@@ -131,13 +134,17 @@ class SearchResults(object):
 
     """
     def __init__(self, conn, enq, query, mset, fieldmappings, tagspy,
-                 facetspy, facetfields):
+                 tagfields, facetspy, facetfields):
         self._conn = conn
         self._enq = enq
         self._query = query
         self._mset = mset
         self._fieldmappings = fieldmappings
         self._tagspy = tagspy
+        if tagfields is None:
+            self._tagfields = None
+        else:
+            self._tagfields = set(tagfields)
         self._facetspy = facetspy
         self._facetfields = facetfields
         self._numeric_ranges_built = {}
@@ -168,6 +175,7 @@ class SearchResults(object):
     """Check whether there are further matches after those in this result set.
 
     """)
+
     def _get_startrank(self):
         return self._mset.get_firstitem()
     startrank = property(_get_startrank, doc=
@@ -176,6 +184,7 @@ class SearchResults(object):
     This corresponds to the "startrank" parameter passed to the search() method.
 
     """)
+
     def _get_endrank(self):
         return self._mset.get_firstitem() + len(self._mset)
     endrank = property(_get_endrank, doc=
@@ -185,24 +194,28 @@ class SearchResults(object):
     "endrank" parameter passed to the search() method.
 
     """)
+
     def _get_lower_bound(self):
         return self._mset.get_matches_lower_bound()
     matches_lower_bound = property(_get_lower_bound, doc=
     """Get a lower bound on the total number of matching documents.
 
     """)
+
     def _get_upper_bound(self):
         return self._mset.get_matches_upper_bound()
     matches_upper_bound = property(_get_upper_bound, doc=
     """Get an upper bound on the total number of matching documents.
 
     """)
+
     def _get_estimated(self):
         return self._mset.get_matches_estimated()
     matches_estimated = property(_get_estimated, doc=
     """Get an estimate for the total number of matching documents.
 
     """)
+
     def _estimate_is_exact(self):
         return self._mset.get_matches_lower_bound() == \
                self._mset.get_matches_upper_bound()
@@ -246,12 +259,9 @@ class SearchResults(object):
         matches seen (as an integer).
 
         """
-        if self._tagspy is None:
+        if self._tagspy is None or field not in self._tagfields:
             raise _errors.SearchError("Field %r was not specified for getting tags" % field)
-        try:
-            prefix = self._conn._field_mappings.get_prefix(field)
-        except KeyError:
-            raise _errors.SearchError("Field %r was not indexed for tagging" % field)
+        prefix = self._conn._field_mappings.get_prefix(field)
         return self._tagspy.get_top_terms(prefix, maxtags)
 
     def get_suggested_facets(self, maxfacets=5, desired_num_of_categories=7):
@@ -274,7 +284,7 @@ class SearchResults(object):
 
         """
         if self._facetspy is None:
-            return []
+            raise _errors.SearchError("Facet selection wasn't enabled when the search was run")
         scores = []
         facettypes = {}
         for field, slot, kwargslist in self._facetfields:
@@ -874,7 +884,7 @@ class SearchConnection(object):
             except _xapian.DatabaseModifiedError, e:
                 self.reopen()
         return SearchResults(self, enq, query, mset, self._field_mappings,
-                             tagspy, facetspy, facetfields)
+                             tagspy, gettags, facetspy, facetfields)
 
     def iter_synonyms(self, prefix=""):
         """Get an iterator over the synonyms.
