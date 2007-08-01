@@ -31,6 +31,7 @@ Open a connection for indexing:
 >>> iconn.add_field_action('price', FieldActions.FACET, type='float')
 >>> iconn.add_field_action('price3', FieldActions.SORTABLE, type='float')
 >>> iconn.add_field_action('price3', FieldActions.FACET, type='float')
+>>> iconn.add_field_action('price3', FieldActions.STORE_CONTENT)
 
 >>> iconn.add_field_action('facet1', FieldActions.FACET)
 >>> iconn.add_field_action('facet2', FieldActions.FACET)
@@ -199,6 +200,31 @@ Get a list of the facets and tags relevant for the search
 [('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('price', 4), ('facet3', 16), ('category', 20), ('facet5', 29)]
 >>> [(facet[0], facet[1]) for facet in results2.get_suggested_facets(maxfacets=5)]
 [('price3', [((0.0, 194.30000000000001), 30), ((201.0, 395.30000000000001), 24), ((442.19999999999999, 556.10000000000002), 11), ((609.70000000000005, 797.29999999999995), 13), ((864.29999999999995, 958.10000000000002), 6), ((1025.0999999999999, 1199.3), 9), ((1273.0, 1279.7), 2)]), ('facet1', [('0', 38), ('1', 23), ('2', 17), ('3', 9), ('4', 8)]), ('facet4', [((0.0, 4.0), 38), ((5.0, 9.0), 23), ((10.0, 14.0), 17), ((16.0, 19.0), 9), ((20.0, 23.0), 8)]), ('facet2', [('0', 20), ('1', 18), ('2', 16), ('3', 7), ('4', 9), ('5', 8), ('6', 3), ('7', 6), ('8', 6), ('9', 2)]), ('price', [((0.0, 2.4285709999999998), 31), ((2.5714290000000002, 4.8571429999999998), 26), ((5.0, 7.4285709999999998), 24), ((7.5714290000000002, 9.8571430000000007), 14)])]
+
+
+We can use a facet to restrict the search results:
+
+>>> results3 = sconn.search(sconn.query_facet('price3', (0.0, 200.0)), 0, 30,
+...                         checkatleast=200, getfacets=True)
+
+
+Check that the restriction was satisfied by all the results:
+
+>>> False in [float(result.data['price3'][0]) <= 200 for result in results3]
+False
+
+
+Getting the list of facets when there is a facet restriction in place will
+return a different selection (based on the documents satisfying the
+restriction):
+
+>>> [(facet[0], len(facet[1])) for facet in results3.get_suggested_facets(maxfacets=5)]
+[('facet5', 6), ('price', 5), ('price3', 4), ('facet4', 4), ('facet3', 3)]
+
+The suggestions for the facet we've already restricted by are for sub-values
+within the range:
+>>> results3.get_suggested_facets(maxfacets=5)[2]
+('price3', [((0.0, 46.899999999999999), 8), ((53.600000000000001, 93.799999999999997), 7), ((100.5, 147.40000000000001), 8), ((154.09999999999999, 194.30000000000001), 7)])
 
 
 We can also filter the results by a range of the sortable values - for
