@@ -857,10 +857,15 @@ class SearchConnection(object):
                         if facetspy is None:
                             facetspy = _xapian.CategorySelectMatchSpy()
                         facetspy.add_slot(slot)
-                        facetfields.append((field, slot,
-                                            kwargslist))
-        if facetspy is not None:
-            matchspies.append(facetspy)
+                        facetfields.append((field, slot, kwargslist))
+            if facetspy is None:
+                # Set facetspy to False, to distinguish from no facet
+                # calculation being performed.  (This will prevent an
+                # error being thrown when the list of suggested facets is
+                # requested - instead, an empty list will be returned.)
+                facetspy = False
+            else:
+                matchspies.append(facetspy)
 
 
         # Finally, build a single matchspy to pass to get_mset().

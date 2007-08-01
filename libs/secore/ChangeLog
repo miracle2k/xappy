@@ -1,3 +1,10 @@
+Wed Aug 01 12:28:48 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/searchconnection.py: Fix bug when facet calculation is
+	  requested, but no facet fields are present in the database (used
+	  to throw an exception when the list of suggested facets was
+	  requested in this case - now it just returns an empty list).
+
 Tue Jul 31 08:34:49 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* secore/indexerconnection_doctest2.txt,secore/searchconnection.py,
