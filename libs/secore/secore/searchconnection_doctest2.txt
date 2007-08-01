@@ -39,6 +39,8 @@ Open a connection for indexing:
 >>> iconn.add_field_action('facet4', FieldActions.FACET, type='float')
 >>> iconn.add_field_action('facet5', FieldActions.FACET)
 >>> iconn.add_field_action('facet6', FieldActions.FACET)
+>>> iconn.add_field_action('facet7', FieldActions.FACET)
+>>> iconn.add_field_action('facet8', FieldActions.FACET, type='float')
 
 >>> iconn.add_field_action('tag', FieldActions.TAG)
 
@@ -85,6 +87,12 @@ Add a set of documents, which dates and prices, to test sorting:
 ...     doc.fields.append(Field('facet4', '%d' % (i // 8)))
 ...     doc.fields.append(Field('facet5', '%d' % (i // 5)))
 ...     doc.fields.append(Field('facet6', '0'))
+...     doc.fields.append(Field('facet7', '2000'))
+...     doc.fields.append(Field('facet7', '2001'))
+...     doc.fields.append(Field('facet7', '%d' % (i % 2)))
+...     doc.fields.append(Field('facet8', '2000'))
+...     doc.fields.append(Field('facet8', '2001'))
+...     doc.fields.append(Field('facet8', '%d' % (i % 2)))
 ...     doc.fields.append(Field('tag', '%d' % (i % 5)))
 ...     doc.fields.append(Field('tag', '%d' % (i % 9)))
 ...     doc.fields.append(Field('tag', '%d' % (i // 5)))
@@ -208,7 +216,7 @@ Get a list of the facets and tags relevant for the search
 >>> results2.get_top_tags('tag', 8)
 [('1', 32), ('2', 31), ('0', 30), ('3', 30), ('4', 30), ('5', 16), ('8', 16), ('7', 14)]
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=10)]
-[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('price', 4), ('facet3', 16), ('category', 20), ('facet5', 29)]
+[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('price', 4), ('facet7', 2), ('facet8', 2), ('facet3', 16), ('category', 20), ('facet5', 29)]
 >>> [(facet[0], facet[1]) for facet in results2.get_suggested_facets(maxfacets=5)]
 [('price3', [((0.0, 194.30000000000001), 30), ((201.0, 395.30000000000001), 24), ((442.19999999999999, 556.10000000000002), 11), ((609.70000000000005, 797.29999999999995), 13), ((864.29999999999995, 958.10000000000002), 6), ((1025.0999999999999, 1199.3), 9), ((1273.0, 1279.7), 2)]), ('facet1', [('0', 38), ('1', 23), ('2', 17), ('3', 9), ('4', 8)]), ('facet4', [((0.0, 4.0), 38), ((5.0, 9.0), 23), ((10.0, 14.0), 17), ((16.0, 19.0), 9), ((20.0, 23.0), 8)]), ('facet2', [('0', 20), ('1', 18), ('2', 16), ('3', 7), ('4', 9), ('5', 8), ('6', 3), ('7', 6), ('8', 6), ('9', 2)]), ('price', [((0.0, 2.4285709999999998), 31), ((2.5714290000000002, 4.8571429999999998), 26), ((5.0, 7.4285709999999998), 24), ((7.5714290000000002, 9.8571430000000007), 14)])]
 
@@ -248,6 +256,18 @@ returned as a suggestion::
 5
 >>> results3.get_suggested_facets()
 []
+
+
+Facet fields may contain multiple values in a single document, unless the type
+is "float" (in which case, only the final value specified in a given document
+will be stored).  Therefore, we expect facet8 to _not_ include the 2000 and
+2001 values, but facet7 should include them:
+
+>>> results3 = sconn.search(sconn.query_all(), 0, 30,
+...                         checkatleast=200, getfacets=True,
+...                         allowfacets=('facet7', 'facet8'))
+>>> results3.get_suggested_facets()
+[('facet7', [('0', 100), ('1', 100), ('2000', 200), ('2001', 200)]), ('facet8', [((0.0, 0.0), 100), ((1.0, 1.0), 100)])]
 
 
 Even if the database doesn't contain any facets, getting the list of suggested
