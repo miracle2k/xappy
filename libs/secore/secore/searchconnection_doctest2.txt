@@ -38,6 +38,7 @@ Open a connection for indexing:
 >>> iconn.add_field_action('facet3', FieldActions.FACET)
 >>> iconn.add_field_action('facet4', FieldActions.FACET, type='float')
 >>> iconn.add_field_action('facet5', FieldActions.FACET)
+>>> iconn.add_field_action('facet6', FieldActions.FACET)
 
 >>> iconn.add_field_action('tag', FieldActions.TAG)
 
@@ -60,6 +61,11 @@ Traceback (most recent call last):
 IndexerError: Unknown sort type 'unknown' for field 'price2'
 
 
+Make another database which doesn't have any facet fields::
+
+>>> iconn2 = IndexerConnection('foo2')
+>>> iconn2.add_field_action('author', FieldActions.STORE_CONTENT)
+
 
 Add a set of documents, which dates and prices, to test sorting:
 
@@ -78,10 +84,12 @@ Add a set of documents, which dates and prices, to test sorting:
 ...     doc.fields.append(Field('facet3', '%d' % (i // 12)))
 ...     doc.fields.append(Field('facet4', '%d' % (i // 8)))
 ...     doc.fields.append(Field('facet5', '%d' % (i // 5)))
+...     doc.fields.append(Field('facet6', '0'))
 ...     doc.fields.append(Field('tag', '%d' % (i % 5)))
 ...     doc.fields.append(Field('tag', '%d' % (i % 9)))
 ...     doc.fields.append(Field('tag', '%d' % (i // 5)))
 ...     id = iconn.add(doc)
+...     id = iconn2.add(doc)
 
 
 Add some synonyms:
@@ -103,8 +111,11 @@ Add some synonyms:
 {}
 
 
+
+
 Now, open a search connection:
 >>> sconn = SearchConnection('foo')
+>>> sconn2 = SearchConnection('foo2')
 
 First, check the fallback handling for queries with invalid boolean
 operations:
@@ -225,6 +236,28 @@ The suggestions for the facet we've already restricted by are for sub-values
 within the range:
 >>> results3.get_suggested_facets(maxfacets=5)[2]
 ('price3', [((0.0, 46.899999999999999), 8), ((53.600000000000001, 93.799999999999997), 7), ((100.5, 147.40000000000001), 8), ((154.09999999999999, 194.30000000000001), 7)])
+
+
+A facet which only contains one value in the matching documents will never be
+returned as a suggestion::
+
+>>> results3 = sconn.search(sconn.query_facet('facet5', '5'), 0, 30,
+...                         checkatleast=200, getfacets=True,
+...                         allowfacets=('facet5', 'facet6'))
+>>> results3.matches_estimated
+5
+>>> results3.get_suggested_facets()
+[]
+
+
+Even if the database doesn't contain any facets, getting the list of suggested
+facets should return an empty list (this is a regression test - this used to
+raise an exception).
+
+>>> results3 = sconn2.search(sconn2.query_all(), 0, 30,
+...                          checkatleast=200, getfacets=True)
+>>> results3.get_suggested_facets()
+[]
 
 
 We can also filter the results by a range of the sortable values - for
