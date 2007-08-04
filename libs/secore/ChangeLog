@@ -1,3 +1,8 @@
+Sat Aug 04 08:16:01 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/searchconnection.py: Add convenience methods for checking
+	  if a particular field can be collapsed or sorted on.
+
 Sat Aug 04 03:09:32 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* docs/introduction.rst,secore/: Reorganise field structures,

@@ -739,6 +739,30 @@ class SearchConnection(object):
             return string
         return corrected
 
+    def can_collapse_on(self, field):
+        """Check if this database supports collapsing on a specified field.
+
+        """
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
+        try:
+            self._field_mappings.get_slot(field, 'collsort')
+        except KeyError:
+            return False
+        return True
+
+    def can_sort_on(self, field):
+        """Check if this database supports sorting on a specified field.
+
+        """
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
+        try:
+            self._field_mappings.get_slot(field, 'collsort')
+        except KeyError:
+            return False
+        return True
+
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
                gettags=None,
