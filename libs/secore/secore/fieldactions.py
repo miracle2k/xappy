@@ -52,11 +52,16 @@ def _act_facet(fieldname, doc, value, context, type=None):
     """Perform the FACET action.
     
     """
-    marshaller = SortableMarshaller()
-    fn = marshaller.get_marshall_function(fieldname, type)
-    doc.add_term(fieldname, value.lower(), 0)
-    value = fn(fieldname, value)
-    doc.add_value(fieldname, value)
+    if type is None or type == 'string':
+        value = value.lower()
+        doc.add_term(fieldname, value, 0)
+        serialiser = _xapian.StringListSerialiser(doc.get_value(fieldname, 'facet'))
+        serialiser.append(value)
+        doc.add_value(fieldname, serialiser.get(), 'facet')
+    else:
+        marshaller = SortableMarshaller()
+        fn = marshaller.get_marshall_function(fieldname, type)
+        doc.add_value(fieldname, fn(fieldname, value), 'facet')
 
 def _act_index_freetext(fieldname, doc, value, context, weight=1, 
                         language=None, stop=None, spell=False,
@@ -168,7 +173,7 @@ def _act_sort_and_collapse(fieldname, doc, value, context, type=None):
     marshaller = SortableMarshaller()
     fn = marshaller.get_marshall_function(fieldname, type)
     value = fn(fieldname, value)
-    doc.add_value(fieldname, value)
+    doc.add_value(fieldname, value, 'collsort')
 
 class ActionContext(object):
     """The context in which an action is performed.
@@ -270,11 +275,6 @@ class FieldActions(object):
     # action.
     SORT_AND_COLLAPSE = -1
 
-    # NEED_SLOT is a flag used to indicate that an action needs a slot number
-    NEED_SLOT = 1
-    # NEED_PREFIX is a flag used to indicate that an action needs a prefix
-    NEED_PREFIX = 2
-
     def __init__(self, fieldname):
         # Dictionary of actions, keyed by type.
         self._actions = {}
@@ -351,10 +351,20 @@ class FieldActions(object):
                                                "sorting, with a different "
                                                "sort type" % self._fieldname)
 
-        if self.NEED_PREFIX in info[3]:
+        if 'prefix' in info[3]:
             field_mappings.add_prefix(self._fieldname)
-        if self.NEED_SLOT in info[3]:
-            field_mappings.add_slot(self._fieldname)
+        if 'slot' in info[3]:
+            purposes = info[3]['slot']
+            if isinstance(purposes, basestring):
+                field_mappings.add_slot(self._fieldname, purposes)
+            else:
+                slotnum = None
+                for purpose in purposes:
+                    slotnum = field_mappings.get_slot(self._fieldname, purpose)
+                    if slotnum is not None:
+                        break
+                for purpose in purposes:
+                    field_mappings.add_slot(self._fieldname, purpose, slotnum=slotnum)
 
         # Make an entry for the action
         if action not in self._actions:
@@ -382,15 +392,16 @@ class FieldActions(object):
                 info[2](self._fieldname, doc, value, context, **kwargs)
 
     _action_info = {
-        STORE_CONTENT: ('STORE_CONTENT', (), _act_store_content, (), ),
-        INDEX_EXACT: ('INDEX_EXACT', (), _act_index_exact, (NEED_PREFIX,), ),
+        STORE_CONTENT: ('STORE_CONTENT', (), _act_store_content, {}, ),
+        INDEX_EXACT: ('INDEX_EXACT', (), _act_index_exact, {'prefix': True}, ),
         INDEX_FREETEXT: ('INDEX_FREETEXT', ('weight', 'language', 'stop', 'spell', 'nopos', 'noprefix', ), 
-            _act_index_freetext, (NEED_PREFIX, ), ),
-        SORTABLE: ('SORTABLE', ('type', ), None, (NEED_SLOT,), ),
-        COLLAPSE: ('COLLAPSE', (), None, (NEED_SLOT,), ),
-        SORT_AND_COLLAPSE: ('SORT_AND_COLLAPSE', ('type', ), _act_sort_and_collapse, (NEED_SLOT,), ),
-        TAG: ('TAG', (), _act_tag, (NEED_PREFIX,), ),
-        FACET: ('FACET', ('type', ), _act_facet, (NEED_PREFIX, NEED_SLOT,), ),
+            _act_index_freetext, {'prefix': True, }, ),
+        SORTABLE: ('SORTABLE', ('type', ), None, {'slot': 'collsort',}, ),
+        COLLAPSE: ('COLLAPSE', (), None, {'slot': 'collsort',}, ),
+        TAG: ('TAG', (), _act_tag, {'prefix': True,}, ),
+        FACET: ('FACET', ('type', ), _act_facet, {'prefix': True, 'slot': 'facet',}, ),
+
+        SORT_AND_COLLAPSE: ('SORT_AND_COLLAPSE', ('type', ), _act_sort_and_collapse, {'slot': 'collsort',}, ),
     }
 
 if __name__ == '__main__':

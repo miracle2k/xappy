@@ -146,7 +146,7 @@ class ProcessedDocument(object):
             for pos in positions:
                 self._doc.add_posting(prefix + term, pos, 0)
 
-    def add_value(self, field, value):
+    def add_value(self, field, value, purpose=''):
         """Add a value to the document.
 
         Values are additional units of information used when performing
@@ -162,14 +162,14 @@ class ProcessedDocument(object):
         the last value added will be stored.
 
         """
-        slot = self._fieldmappings.get_slot(field)
+        slot = self._fieldmappings.get_slot(field, purpose)
         self._doc.add_value(slot, value)
 
-    def get_value(self, field):
+    def get_value(self, field, purpose=''):
         """Get a value from the document.
 
         """
-        slot = self._fieldmappings.get_slot(field)
+        slot = self._fieldmappings.get_slot(field, purpose)
         return self._doc.get_value(slot)
 
     def prepare(self):

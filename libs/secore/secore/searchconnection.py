@@ -539,7 +539,7 @@ class SearchConnection(object):
         end = fn(field, end)
 
         try:
-            slot = self._field_mappings.get_slot(field)
+            slot = self._field_mappings.get_slot(field, 'collsort')
         except KeyError:
             return _xapian.Query()
         return _xapian.Query(_xapian.Query.OP_VALUE_RANGE, slot, begin, end)
@@ -582,7 +582,7 @@ class SearchConnection(object):
                 val = [float(v) for v in val.split(',', 2)]
             assert(len(val) == 2)
             try:
-                slot = self._field_mappings.get_slot(field)
+                slot = self._field_mappings.get_slot(field, 'facet')
             except KeyError:
                 return _xapian.Query()
             sorttype = self._get_sort_type(field)
@@ -794,7 +794,7 @@ class SearchConnection(object):
                 sortby = sortby[1:]
 
             try:
-                slotnum = self._field_mappings.get_slot(sortby)
+                slotnum = self._field_mappings.get_slot(sortby, 'collsort')
             except KeyError:
                 raise _errors.SearchError("Field %r was not indexed for sorting" % sortby)
 
@@ -806,7 +806,7 @@ class SearchConnection(object):
 
         if collapse is not None:
             try:
-                slotnum = self._field_mappings.get_slot(collapse)
+                slotnum = self._field_mappings.get_slot(collapse, 'collsort')
             except KeyError:
                 raise _errors.SearchError("Field %r was not indexed for collapsing" % collapse)
             enq.set_collapse_key(slotnum)
@@ -853,10 +853,18 @@ class SearchConnection(object):
                     actions = {}
                 for action, kwargslist in actions.iteritems():
                     if action == FieldActions.FACET:
-                        slot = self._field_mappings.get_slot(field)
+                        slot = self._field_mappings.get_slot(field, 'facet')
                         if facetspy is None:
                             facetspy = _xapian.CategorySelectMatchSpy()
-                        facetspy.add_slot(slot)
+                        facettype = None
+                        for kwargs in kwargslist:
+                            facettype = kwargs.get('type', None)
+                            if facettype is not None:
+                                break
+                        if facettype is None or facettype == 'string':
+                            facetspy.add_slot(slot, True)
+                        else:
+                            facetspy.add_slot(slot)
                         facetfields.append((field, slot, kwargslist))
             if facetspy is None:
                 # Set facetspy to False, to distinguish from no facet

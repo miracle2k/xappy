@@ -93,11 +93,11 @@ class FieldMappings(object):
         """
         return self._prefixes[fieldname]
 
-    def get_slot(self, fieldname):
-        """Get the slot number used for a given field name.
+    def get_slot(self, fieldname, purpose):
+        """Get the slot number used for a given field name and purpose.
 
         """
-        return self._slots[fieldname]
+        return self._slots[(fieldname, purpose)]
 
     def add_prefix(self, fieldname):
         """Allocate a prefix for the given field.
@@ -109,16 +109,34 @@ class FieldMappings(object):
             return
         self._prefixes[fieldname] = self._genPrefix()
 
-    def add_slot(self, fieldname):
-        """Allocate a slot number for the given field.
+    def add_slot(self, fieldname, purpose, slotnum=None):
+        """Allocate a slot number for the given field and purpose.
 
-        If a slot number is already allocated for this field, this has no effect.
+        If a slot number is already allocated for this field and purpose, this
+        has no effect.
+
+        Returns the slot number allocated for the field and purpose (whether
+        newly allocated, or previously allocated).
+
+        If `slotnum` is supplied, the number contained in it is used to
+        allocate the new slot, instead of allocating a new number.  No checks
+        will be made to ensure that the slot number doesn't collide with
+        existing (or later allocated) numbers: the main purpose of this
+        parameter is to share allocations - ie, to collide deliberately.
 
         """
-        if fieldname in self._slots:
-            return
-        self._slots[fieldname] = self._slotcount
-        self._slotcount += 1
+        try:
+            return self._slots[(fieldname, purpose)]
+        except KeyError:
+            pass
+
+        if slotnum is None:
+            self._slots[(fieldname, purpose)] = self._slotcount
+            self._slotcount += 1
+            return self._slotcount - 1
+        else:
+            self._slots[(fieldname, purpose)] = slotnum
+            return slotnum
 
     def serialise(self):
         """Serialise the field mappings to a string.
