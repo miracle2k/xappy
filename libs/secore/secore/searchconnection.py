@@ -22,6 +22,7 @@ __docformat__ = "restructuredtext en"
 
 import os as _os
 import cPickle as _cPickle
+import math
 
 import xapian as _xapian
 from datastructures import *
@@ -139,31 +140,44 @@ def _get_significant_digits(value, lower, upper):
     >>> _get_significant_digits(15,15,15)
     15
     >>> _get_significant_digits(15,15,17)
-    10
+    20
     >>> _get_significant_digits(4777,208,6000)
-    4000
+    5000
     >>> _get_significant_digits(4777,4755,4790)
-    4700
+    4800
     >>> _get_significant_digits(4707,4695,4710)
     4700
+    >>> _get_significant_digits(4719,4717,4727)
+    4720
     >>> _get_significant_digits(0,0,0)
     0
+    >>> _get_significant_digits(9,9,10)
+    9
+    >>> _get_significant_digits(9,9,100)
+    9
 
     """
     assert(lower <= value)
     assert(value <= upper)
     diff = upper - lower
-    pos_pow_10 = 1
 
-    while True:
-        if diff <= pos_pow_10:
-            break
-        pos_pow_10 *= 10
+    # Get the first power of 10 greater than the difference.
+    # This corresponds to the magnitude of the smallest significant digit.
+    if diff == 0:
+        pos_pow_10 = 1
+    else:
+        pos_pow_10 = int(10 ** math.ceil(math.log10(diff)))
 
-    # Special case for situation where we don't have any significant digits.
-    if pos_pow_10 > value and pos_pow_10 > 1:
-        pos_pow_10 /= 10
-    return (value // pos_pow_10) * pos_pow_10
+    # Special case for situation where we don't have any significant digits:
+    # get the magnitude of the most significant digit in value.
+    if pos_pow_10 > value:
+        if value == 0:
+            pos_pow_10 = 1
+        else:
+            pos_pow_10 = int(10 ** math.floor(math.log10(value)))
+
+    # Return the value, rounded to the nearest multiple of pos_pow_10
+    return ((value + pos_pow_10 // 2) // pos_pow_10) * pos_pow_10
 
 class SearchResults(object):
     """A set of results of a search.
