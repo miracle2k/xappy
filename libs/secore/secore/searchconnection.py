@@ -129,6 +129,39 @@ class SearchResultIter(object):
         return SearchResult(msetitem, self._results)
 
 
+def _get_significant_digits(value, lower, upper):
+    """Get the significant digits of value which are constrained by the
+    (inclusive) lower and upper bounds.
+
+    If there are no significant digits which are definitely within the
+    bounds, exactly one significant digit will be returned in the result.
+
+    >>> _get_significant_digits(15,15,15)
+    15
+    >>> _get_significant_digits(15,15,17)
+    10
+    >>> _get_significant_digits(4777,208,6000)
+    4000
+    >>> _get_significant_digits(4777,4755,4790)
+    4700
+    >>> _get_significant_digits(4707,4695,4710)
+    4700
+
+    """
+    assert(lower <= value)
+    assert(value <= upper)
+    diff = upper - lower
+    pos_pow_10 = 1
+
+    while True:
+        if diff <= pos_pow_10:
+            break
+        pos_pow_10 *= 10
+
+    if pos_pow_10 > value:
+        pos_pow_10 /= 10
+    return (value // pos_pow_10) * pos_pow_10
+
 class SearchResults(object):
     """A set of results of a search.
 
@@ -206,6 +239,17 @@ class SearchResults(object):
         return self._mset.get_matches_upper_bound()
     matches_upper_bound = property(_get_upper_bound, doc=
     """Get an upper bound on the total number of matching documents.
+
+    """)
+
+    def _get_human_readable_estimate(self):
+        lower = self._mset.get_matches_lower_bound()
+        upper = self._mset.get_matches_upper_bound()
+        est = self._mset.get_matches_estimated()
+        return _get_significant_digits(est, lower, upper)
+    matches_human_readable_estimate = property(_get_human_readable_estimate,
+                                               doc=
+    """Get a human readable estimate of the number of matching documents.
 
     """)
 
