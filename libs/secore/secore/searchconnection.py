@@ -251,6 +251,11 @@ class SearchResults(object):
                                                doc=
     """Get a human readable estimate of the number of matching documents.
 
+    This consists of the value returned by the "matches_estimated" property,
+    rounded to an appropriate number of significant digits (as determined by
+    the values of the "matches_lower_bound" and "matches_upper_bound"
+    properties).
+
     """)
 
     def _get_estimated(self):
