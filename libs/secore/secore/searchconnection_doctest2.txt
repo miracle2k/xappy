@@ -348,5 +348,13 @@ Do a search which matches all documents:
 <SearchResults(startrank=0, endrank=30, more_matches=True, matches_lower_bound=200, matches_upper_bound=200, matches_estimated=200, estimate_is_exact=True)>
 
 
+Do a similarity search
+>>> q = sconn.query_parse('document 2')
+>>> results = sconn.search(q, 0, 5, sortby="date")
+>>> ids = [int(result.id, 16) for result in results]
+>>> q2 = sconn.query_similar(ids)
+>>> q2
+
+
 Tidy up after ourselves:
 >>> sconn.close()

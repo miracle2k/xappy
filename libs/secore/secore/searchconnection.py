@@ -770,6 +770,52 @@ class SearchConnection(object):
 
         return _xapian.Query()
 
+    def query_similar(self, ids, allow=None, deny=None):
+        """Get a query which returns documents which are similar to others.
+
+        The list of document IDs to base the similarity search on is given in
+        `ids`.  This should be an iterable, holding a list of strings.  If
+        any of the supplied IDs cannot be found in the database, they will be
+        ignored.  (If no IDs can be found in the database, the resulting query
+        will not match any documents.)
+
+        By default, all fields which have been indexed for freetext searching
+        will be used for the similarity calculation.  The list of fields used
+        for this can be customised using the `allow` and `deny` parameters
+        (only one of which may be specified):
+
+        - `allow`: A list of fields to base the similarity calculation on.
+        - `deny`: A list of fields not to base the similarity calculation on.
+
+        Regardless of the setting of `allow` and `deny`, only fields which have
+        been indexed for freetext searching will be used for the similarity
+        measure - all other fields will always be ignored for this purpose.
+
+        """
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
+        if allow is not None and deny is not None:
+            raise _errors.SearchError("Cannot specify both `allow` and `deny`")
+        if isinstance(ids, basestring):
+            ids = (ids, )
+
+        if allow is None:
+            allow = [key for key in self._field_actions]
+        if deny is not None:
+            allow = [key for key in allow if key not in deny]
+
+        prefixes = []
+        for field in allow:
+            try:
+                actions = self._field_actions[field]._actions
+            except KeyError:
+                actions = {}
+            for action, kwargslist in actions.iteritems():
+                if action == FieldActions.INDEX_FREETEXT:
+                    prefixes.append(self._field_mappings.get_prefix(field))
+
+        return prefixes
+
     def query_all(self):
         """A query which matches all the documents in the database.
 
