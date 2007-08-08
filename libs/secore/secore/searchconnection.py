@@ -146,6 +146,8 @@ def _get_significant_digits(value, lower, upper):
     4700
     >>> _get_significant_digits(4707,4695,4710)
     4700
+    >>> _get_significant_digits(0,0,0)
+    0
 
     """
     assert(lower <= value)
@@ -158,7 +160,8 @@ def _get_significant_digits(value, lower, upper):
             break
         pos_pow_10 *= 10
 
-    if pos_pow_10 > value:
+    # Special case for situation where we don't have any significant digits.
+    if pos_pow_10 > value and pos_pow_10 > 1:
         pos_pow_10 /= 10
     return (value // pos_pow_10) * pos_pow_10
 
