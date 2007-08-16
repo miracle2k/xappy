@@ -829,12 +829,28 @@ class SearchConnection(object):
                 if action == FieldActions.INDEX_FREETEXT:
                     prefixes[self._field_mappings.get_prefix(field)] = None
 
+        # Repeat the expand until we don't get a DatabaseModifiedError
+        while True:
+            try:
+                eterms = self._get_eterms(ids, prefixes, simterms)
+                break;
+            except _xapian.DatabaseModifiedError, e:
+                self.reopen()
+
+        # Use the "elite set" operator, which chooses the terms with the
+        # highest query weight to use.
+        q = _xapian.Query(_xapian.Query.OP_ELITE_SET, eterms, simterms)
+        return q
+
+    def _get_eterms(self, ids, prefixes, simterms):
+        """Perform an expand operation to get the terms for a similarity
+        search.
+
+        """
         # Set idquery to be a query which returns the documents listed in
         # "ids".
         idquery = _xapian.Query(_xapian.Query.OP_OR, ['Q' + id for id in ids])
 
-        # Perform an expand operation to get the terms for the similarity
-        # operation.
         enq = _xapian.Enquire(self._index)
         enq.set_query(idquery)
         rset = _xapian.RSet()
@@ -860,12 +876,7 @@ class SearchConnection(object):
         expanddecider = ExpandDecider()
 
         eset = enq.get_eset(simterms, rset, 0, 1.0, expanddecider)
-        eterms = [term.term for term in eset]
-
-        # Use the "elite set" operator, which chooses the terms with the
-        # highest query weight to use.
-        q = _xapian.Query(_xapian.Query.OP_ELITE_SET, eterms, simterms)
-        return q
+        return [term.term for term in eset]
 
     def query_all(self):
         """A query which matches all the documents in the database.
