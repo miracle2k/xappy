@@ -800,6 +800,61 @@ class SearchConnection(object):
         measure - all other fields will always be ignored for this purpose.
 
         """
+        eterms, prefixes = self._get_eterms(ids, allow, deny, simterms)
+
+        # Use the "elite set" operator, which chooses the terms with the
+        # highest query weight to use.
+        q = _xapian.Query(_xapian.Query.OP_ELITE_SET, eterms, simterms)
+        return q
+
+    def get_significant_terms(self, ids, allow=None, deny=None, maxterms=10):
+        """Get a set of "significant" terms for a document, or documents.
+
+        This has a similar interface to query_similar(): it takes a list of
+        ids, and an optional specification of a set of fields to consider.
+        Instead of returning a query, it returns a list of terms from the
+        document (or documents), which appear "significant".  Roughly,
+        in this situation significant means that the terms occur more
+        frequently in the specified document than in the rest of the corpus.
+
+        The list is in decreasing order of "significance".
+
+        By default, all terms related to fields which have been indexed for
+        freetext searching will be considered for the list of significant
+        terms.  The list of fields used for this can be customised using the
+        `allow` and `deny` parameters (only one of which may be specified):
+
+        - `allow`: A list of fields to consider.
+        - `deny`: A list of fields not to consider.
+
+        For convenience, any of `ids`, `allow`, or `deny` may be strings, which
+        will be treated the same as a list of length 1.
+
+        Regardless of the setting of `allow` and `deny`, only fields which have
+        been indexed for freetext searching will be considered - all other
+        fields will always be ignored for this purpose.
+
+        The maximum number of terms to return may be specified by the maxterms
+        parameter.
+
+        """
+        eterms, prefixes = self._get_eterms(ids, allow, deny, maxterms)
+        terms = []
+        for term in eterms:
+            pos = 0
+            for char in term:
+                if not char.isupper():
+                    break
+                pos += 1
+            field = prefixes[term[:pos]]
+            value = term[pos:]
+            terms.append((field, value))
+        return terms
+
+    def _get_eterms(self, ids, allow, deny, simterms):
+        """Get a set of terms for an expand
+
+        """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
         if allow is not None and deny is not None:
@@ -827,24 +882,21 @@ class SearchConnection(object):
                 actions = {}
             for action, kwargslist in actions.iteritems():
                 if action == FieldActions.INDEX_FREETEXT:
-                    prefixes[self._field_mappings.get_prefix(field)] = None
+                    prefixes[self._field_mappings.get_prefix(field)] = field
 
         # Repeat the expand until we don't get a DatabaseModifiedError
         while True:
             try:
-                eterms = self._get_eterms(ids, prefixes, simterms)
+                eterms = self._perform_expand(ids, prefixes, simterms)
                 break;
             except _xapian.DatabaseModifiedError, e:
                 self.reopen()
+        return eterms, prefixes
 
-        # Use the "elite set" operator, which chooses the terms with the
-        # highest query weight to use.
-        q = _xapian.Query(_xapian.Query.OP_ELITE_SET, eterms, simterms)
-        return q
-
-    def _get_eterms(self, ids, prefixes, simterms):
+    def _perform_expand(self, ids, prefixes, simterms):
         """Perform an expand operation to get the terms for a similarity
-        search.
+        search, given a set of ids (and a set of prefixes to restrict the
+        similarity operation to).
 
         """
         # Set idquery to be a query which returns the documents listed in

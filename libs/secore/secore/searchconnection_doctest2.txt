@@ -352,6 +352,8 @@ Do a similarity search
 >>> q = sconn.query_parse('document (2 OR 5 OR 8)')
 >>> results = sconn.search(q, 0, 5, sortby="date")
 >>> ids = [result.id for result in results]
+>>> sconn.get_significant_terms(ids, maxterms=5)
+[('title', '8'), ('title', '5'), ('title', '2'), ('title', 'test'), ('title', 'document')]
 >>> q2 = sconn.query_similar(ids, simterms=5)
 >>> str(q2)
 'Xapian::Query((XB8 ELITE_SET 5 XB5 ELITE_SET 5 XB2 ELITE_SET 5 XBtest ELITE_SET 5 XBdocument))'
