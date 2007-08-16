@@ -1,3 +1,14 @@
+Thu Aug 16 17:42:30 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/indexerconnection.py: Add a check for the database not
+	  having been closed.
+	* secore/searchconnection.py: Add method for getting an iterator
+	  over all the documents in the database.  Add support for
+	  rerunning the attempted access if get_document() catches a
+	  DatabaseModifiedError.
+	* secore/searchconnection_doctest2.txt: Change
+	  "get_significant_terms" to "significant_terms()", and test it.
+
 Thu Aug 16 17:24:06 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* secore/searchconnection.py,secore/searchconnection_doctest2.txt:

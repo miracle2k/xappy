@@ -510,34 +510,6 @@ class SearchConnection(object):
             raise _errors.SearchError("SearchConnection has been closed")
         return self._index.get_doccount()
 
-    def get_document(self, id):
-        """Get the document with the specified unique ID.
-
-        Raises a KeyError if there is no such document.  Otherwise, it returns
-        a ProcessedDocument.
-
-        """
-        if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
-        postlist = self._index.postlist('Q' + id)
-        try:
-            plitem = postlist.next()
-        except StopIteration:
-            # Unique ID not found
-            raise KeyError('Unique ID %r not found' % id)
-        try:
-            postlist.next()
-            raise _errors.SearchError("Multiple documents " #pragma: no cover
-                                      "found with same unique ID")
-        except StopIteration:
-            # Only one instance of the unique ID found, as it should be.
-            pass
-
-        result = ProcessedDocument(self._field_mappings)
-        result.id = id
-        result._doc = self._index.get_document(plitem.docid)
-        return result
-
     OP_AND = _xapian.Query.OP_AND
     OP_OR = _xapian.Query.OP_OR
     def query_composite(self, operator, queries):
@@ -807,7 +779,7 @@ class SearchConnection(object):
         q = _xapian.Query(_xapian.Query.OP_ELITE_SET, eterms, simterms)
         return q
 
-    def get_significant_terms(self, ids, allow=None, deny=None, maxterms=10):
+    def significant_terms(self, ids, maxterms=10, allow=None, deny=None):
         """Get a set of "significant" terms for a document, or documents.
 
         This has a similar interface to query_similar(): it takes a list of
@@ -1149,6 +1121,55 @@ class SearchConnection(object):
         return SearchResults(self, enq, query, mset, self._field_mappings,
                              tagspy, gettags, facetspy, facetfields)
 
+    def iterids(self):
+        """Get an iterator which returns all the ids in the database.
+
+        The unqiue_ids are currently returned in binary lexicographical sort
+        order, but this should not be relied on.
+
+        Note that the iterator returned by this method may raise a
+        xapian.DatabaseModifiedError exception if modifications are committed
+        to the database while the iteration is in progress.  If this happens,
+        the search connection must be reopened (by calling reopen) and the
+        iteration restarted.
+
+        """
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
+        return _indexerconnection.PrefixedTermIter('Q', self._index.allterms())
+
+    def get_document(self, id):
+        """Get the document with the specified unique ID.
+
+        Raises a KeyError if there is no such document.  Otherwise, it returns
+        a ProcessedDocument.
+
+        """
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
+        while True:
+            try:
+                postlist = self._index.postlist('Q' + id)
+                try:
+                    plitem = postlist.next()
+                except StopIteration:
+                    # Unique ID not found
+                    raise KeyError('Unique ID %r not found' % id)
+                try:
+                    postlist.next()
+                    raise _errors.IndexerError("Multiple documents " #pragma: no cover
+                                               "found with same unique ID")
+                except StopIteration:
+                    # Only one instance of the unique ID found, as it should be.
+                    pass
+
+                result = ProcessedDocument(self._field_mappings)
+                result.id = id
+                result._doc = self._index.get_document(plitem.docid)
+                return result
+            except _xapian.DatabaseModifiedError, e:
+                self.reopen()
+
     def iter_synonyms(self, prefix=""):
         """Get an iterator over the synonyms.
 
@@ -1174,6 +1195,8 @@ class SearchConnection(object):
          {('foo', None): ('bar',), ('foo bar', None): ('baz', 'foo baz')}
 
         """
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
         return _indexerconnection.SynonymIter(self._index, self._field_mappings, prefix)
 
 

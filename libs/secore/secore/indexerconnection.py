@@ -405,6 +405,8 @@ class IndexerConnection(object):
          {('foo', None): ('bar',), ('foo bar', None): ('baz', 'foo baz')}
 
         """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
         return SynonymIter(self._index, self._field_mappings, prefix)
 
 

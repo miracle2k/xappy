@@ -352,7 +352,7 @@ Do a similarity search
 >>> q = sconn.query_parse('document (2 OR 5 OR 8)')
 >>> results = sconn.search(q, 0, 5, sortby="date")
 >>> ids = [result.id for result in results]
->>> sconn.get_significant_terms(ids, maxterms=5)
+>>> sconn.significant_terms(ids, maxterms=5)
 [('title', '8'), ('title', '5'), ('title', '2'), ('title', 'test'), ('title', 'document')]
 >>> q2 = sconn.query_similar(ids, simterms=5)
 >>> str(q2)
@@ -366,6 +366,12 @@ Do a similarity search with an ID which isn't in the database:
 >>> q2 = sconn.query_similar('foo', simterms=5)
 >>> str(q2)
 'Xapian::Query()'
+
+
+Find the interesting terms in a set of documents:
+>>> [(docid, sconn.significant_terms(docid, 3)) for docid in sconn.iterids()][:3]
+[('0', [('title', '0'), ('title', 'test'), ('title', 'document')]), ('1', [('title', '1'), ('title', 'test'), ('title', 'document')]), ('10', [('title', '16'), ('title', 'test'), ('title', 'document')])]
+
 
 Tidy up after ourselves:
 >>> sconn.close()
