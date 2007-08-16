@@ -670,6 +670,10 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
+        if isinstance(allow, basestring):
+            allow = (allow, )
+        if isinstance(deny, basestring):
+            deny = (deny, )
         if allow is not None and deny is not None:
             raise _errors.SearchError("Cannot specify both `allow` and `deny`")
         qp = _xapian.QueryParser()
@@ -770,7 +774,7 @@ class SearchConnection(object):
 
         return _xapian.Query()
 
-    def query_similar(self, ids, allow=None, deny=None):
+    def query_similar(self, ids, allow=None, deny=None, simterms=10):
         """Get a query which returns documents which are similar to others.
 
         The list of document IDs to base the similarity search on is given in
@@ -786,6 +790,10 @@ class SearchConnection(object):
 
         - `allow`: A list of fields to base the similarity calculation on.
         - `deny`: A list of fields not to base the similarity calculation on.
+        - `simterms`: Number of terms to use for the similarity calculation.
+
+        For convenience, any of `ids`, `allow`, or `deny` may be strings, which
+        will be treated the same as a list of length 1.
 
         Regardless of the setting of `allow` and `deny`, only fields which have
         been indexed for freetext searching will be used for the similarity
@@ -796,15 +804,22 @@ class SearchConnection(object):
             raise _errors.SearchError("SearchConnection has been closed")
         if allow is not None and deny is not None:
             raise _errors.SearchError("Cannot specify both `allow` and `deny`")
+
         if isinstance(ids, basestring):
             ids = (ids, )
+        if isinstance(allow, basestring):
+            allow = (allow, )
+        if isinstance(deny, basestring):
+            deny = (deny, )
 
+        # Set "allow" to contain a list of all the fields to use.
         if allow is None:
             allow = [key for key in self._field_actions]
         if deny is not None:
             allow = [key for key in allow if key not in deny]
 
-        prefixes = []
+        # Set "prefixes" to contain a list of all the prefixes to use.
+        prefixes = {}
         for field in allow:
             try:
                 actions = self._field_actions[field]._actions
@@ -812,9 +827,45 @@ class SearchConnection(object):
                 actions = {}
             for action, kwargslist in actions.iteritems():
                 if action == FieldActions.INDEX_FREETEXT:
-                    prefixes.append(self._field_mappings.get_prefix(field))
+                    prefixes[self._field_mappings.get_prefix(field)] = None
 
-        return prefixes
+        # Set idquery to be a query which returns the documents listed in
+        # "ids".
+        idquery = _xapian.Query(_xapian.Query.OP_OR, ['Q' + id for id in ids])
+
+        # Perform an expand operation to get the terms for the similarity
+        # operation.
+        enq = _xapian.Enquire(self._index)
+        enq.set_query(idquery)
+        rset = _xapian.RSet()
+        for id in ids:
+            pl = self._index.postlist('Q' + id)
+            try:
+                xapid = pl.next()
+                rset.add_document(xapid.docid)
+            except StopIteration:
+                pass
+
+        class ExpandDecider(_xapian.ExpandDecider):
+            def __call__(self, term):
+                pos = 0
+                for char in term:
+                    if not char.isupper():
+                        break
+                    pos += 1
+                if term[:pos] in prefixes:
+                    return True
+                return False
+
+        expanddecider = ExpandDecider()
+
+        eset = enq.get_eset(simterms, rset, 0, 1.0, expanddecider)
+        eterms = [term.term for term in eset]
+
+        # Use the "elite set" operator, which chooses the terms with the
+        # highest query weight to use.
+        q = _xapian.Query(_xapian.Query.OP_ELITE_SET, eterms, simterms)
+        return q
 
     def query_all(self):
         """A query which matches all the documents in the database.

@@ -1,3 +1,9 @@
+Thu Aug 16 09:06:44 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/searchconnection.py,secore/searchconnection_doctest2.txt:
+	  Implementation of the query_similar() method, returning a query
+	  to use to get a new set of results based on similarity.
+
 Wed Aug 08 18:52:24 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* secore/searchconnection.py,secore/searchconnection_doctest2.txt:
