@@ -464,6 +464,67 @@ type "string", but contain a pair of numbers for facets of type "float" - these
 numbers define an automatically suggested range of values to use for the facet.
 
 
+Finding similar documents
+-------------------------
+
+Sometimes, instead of searching for documents matching a specific set of
+criteria, you want to find documents similar to a document (or documents) that
+you already have.  You might also want to combine such a similarity search with
+a search for some specific criteria; restricting the results by the criteria,
+but sorting in similarity order.
+
+This can be achieved using the ``query_similar()`` method, which produces a
+query, based on a list of document ids, which will return documents similar to
+those identified by the supplied document IDs.
+
+The similarity search is only based on the terms generated for free text
+searching (ie, with the ``INDEX_FREETEXT`` action), so there must be at least
+one such field for the similarity search to work.  By default, all fields
+indexed with ``INDEX_FREETEXT`` will be used for the similarity search, but the
+list of fields to use may be controlled with the ``allow`` and ``deny``
+parameters.
+
+In addition, the number of terms to use for the similarity calculation may be
+controlled with the ``simterms`` parameter (which defaults to 10).   A higher
+value will allow documents which are less similar to appear in the result set
+(but the most similar documents will still occur first).  A lower value will
+usually result in a faster search.  10 is probably a suitable value in most
+situations, but experimentation may be worthwhile for a particular dataset to
+determine whether changing the value can improve the results (or produce a
+useful speedup without compromising the results).
+
+To perform a simple similarity search, based on a few document IDs::
+
+  >>> simq = conn.query_similar(('Bible1',))
+  >>> results = conn.search(simq, 0, 10)
+  >>> [result.id for result in results]
+  ['Bible1', 'Bible2', '0']
+
+Note that the document ID supplied came first in the set of results.  While
+this is not guaranteed (in particular, it may not occur if there are other
+documents in the search corpus which are very similar to the supplied
+documents), this will usually be the case - if you wish to ignore the documents
+specified, you should ask for the appropriate number of extra results, and
+filter them out at display time (don't just ignore the top N results, assuming
+that they are those supplied).
+
+To perform a normal search, but reorder the ranking based on similarity, use
+the ``query_filter()`` method to filter the results of a similarity search to
+be only those documents which match the normal search::
+
+  >>> plainq = conn.query_field('text', 'God OR moved OR text')
+  >>> simq = conn.query_similar(('Bible1',))
+  >>> combined = conn.query_filter(simq, plainq)
+
+  >>> results = conn.search(plainq, 0, 10)
+  >>> [result.id for result in results]
+  ['Bible2', '0', 'Bible1']
+
+  >>> results = conn.search(combined, 0, 10)
+  >>> [result.id for result in results]
+  ['Bible1', 'Bible2', '0']
+
+
 Concurrent update limitations
 -----------------------------
 
