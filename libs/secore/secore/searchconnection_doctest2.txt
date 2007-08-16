@@ -360,5 +360,10 @@ Do a similarity search
 'Xapian::Query((XDdocument ELITE_SET 5 XDthis ELITE_SET 5 XDtest ELITE_SET 5 XDtext ELITE_SET 5 XDmore))'
 
 
+Do a similarity search with an ID which isn't in the database:
+>>> q2 = sconn.query_similar('foo', simterms=5)
+>>> str(q2)
+'Xapian::Query()'
+
 Tidy up after ourselves:
 >>> sconn.close()
