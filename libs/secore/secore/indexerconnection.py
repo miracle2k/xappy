@@ -133,6 +133,14 @@ class IndexerConnection(object):
             del self._field_actions[fieldname]
             self._config_modified = True
 
+    def get_fields_with_actions(self):
+        """Get a list of field names which have actions defined.
+
+        """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
+        return self._field_actions.keys()
+
     def process(self, document):
         """Process an UnprocessedDocument with the settings in this database.
 

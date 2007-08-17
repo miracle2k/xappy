@@ -1,3 +1,8 @@
+Fri Aug 17 14:38:46 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/indexerconnection.py: Add a method to get a list of the
+	  fields which have actions defined.
+
 Thu Aug 16 17:42:30 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* secore/indexerconnection.py: Add a check for the database not
