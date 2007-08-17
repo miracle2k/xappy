@@ -63,7 +63,6 @@ def open_index(dbpath):
 def dirsize(dirname):
     size = 0
     for dirpath, dirnames, filenames in os.walk(dirname):
-        os.stat
         for filename in filenames:
             size += os.stat(os.path.join(dirpath, filename)).st_size
     return size
