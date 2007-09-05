@@ -3,10 +3,10 @@ Introduction
 
 .. contents:: Table of contents
 
-The "secore" module is an easy-to-use interface to the Xapian search engine.
+The "xappy" module is an easy-to-use interface to the Xapian search engine.
 Xapian provides a low level interface, dealing with terms and documents, but
 not really worrying about where terms come from, or how to build searches to
-match the way in which data has been indexed.  In contrast, secore allows you
+match the way in which data has been indexed.  In contrast, Xappy allows you
 to design a field structure, specifying what kind of information is held in
 particular fields, and then uses this field structure to index data
 appropriately, and to build and perform searches.
@@ -17,25 +17,24 @@ Installing and testing
 Dependencies
 ------------
 
-You will need an up-to-date version of Xapian to use secore.  The 1.0.0 release
-release almost satisfies all the needs of this interface, but there is a small
-issue with the way in which range restrictions are implemented.  A bugfix 1.0.1
-release will be made shortly to fix this, and another few issues, but until
-this is released, you will need a SVN snapshot of the Xapian sources.  The core
-Xapian library and the Python bindings to go with it will need to be compiled
-and installed.
+You will need an up-to-date version of Xapian (both the core library and the
+corresponding Python bindings) to use Xappy.  The 1.0.2 release release is the
+earliest which the current version of the interface will work with, though some
+features (facets and tagging) currently require a SVN snapshot of the Xapian
+library.  When 1.0.3 is released, this will support all current features of
+Xappy.
 
 Installation
 ------------
 
-There is not yet a distutils setup script for secore, but other than Xapian it
+There is not yet a distutils setup script for xappy, but other than Xapian it
 has no dependencies or resources which need installing, so it may be installed
-simply by copying the "secore" directory to somewhere on your Python path.
+simply by copying the "xappy" directory to somewhere on your Python path.
 
-Once Xapian and secore are installed, you should be able to start the python
+Once Xapian and Xappy are installed, you should be able to start the python
 interpreter and run::
 
-  >>> import secore
+  >>> import xappy
 
 Running the testsuite
 ---------------------
@@ -64,12 +63,12 @@ if it considers that a line of code hasn't been tested.  For this reason, it is
 reasonable to aim for 100% coverage by this metric, and the coverage report can
 be helpful to keep track of sections of code which aren't tested at all.
 
-Presently, the coverage report should indicate 100% coverage for all
-modules, except for 'secore/textprocessor.py' which was imported from a
-different piece of code and is not all being used by the search engine
-interface at present.  It is due to be replaced shortly anyway, because the
-code it implements is being moved into the core C++ Xapian library.
-
+For any released version of Xappy, the coverage report should indicate 100%
+coverage for all modules.  However, if you are using an SVN snapshot of Xappy,
+you may find that some code is not covered.  In addition, the coverage testing
+currently contains a bug when run under Python 2.5 which causes some lines of
+code to be incorectly marked as "not covered" when they actually are.  When run
+under Python 2.4, this bug doesn't manifest.
 
 Building a database
 ===================
@@ -82,7 +81,7 @@ documents.  This is done simply by creating an "IndexerConnection" object, and
 passing it the path we want to create the database at.  If the database doesn't
 already exist, this will create a new, empty, database::
 
-  >>> conn = secore.IndexerConnection('db1')
+  >>> conn = xappy.IndexerConnection('db1')
 
 .. note:: All connections may only be accessed from a single thread at a time,
   and there may only be one IndexerConnection in existence at any given time.
@@ -143,8 +142,8 @@ All text passed to the interface is assumed to be UTF-8 encoded Unicode.
 
 ::
 
-  >>> conn.add_field_action('title', secore.FieldActions.INDEX_FREETEXT, weight=5, language='en')
-  >>> conn.add_field_action('text', secore.FieldActions.INDEX_FREETEXT, language='en', spell=True)
+  >>> conn.add_field_action('title', xappy.FieldActions.INDEX_FREETEXT, weight=5, language='en')
+  >>> conn.add_field_action('text', xappy.FieldActions.INDEX_FREETEXT, language='en', spell=True)
 
 
 Any fields which contain exact values which we want to search for (such as a
@@ -152,7 +151,7 @@ category name, or an ID number should be given the ``INDEX_EXACT`` actions.
 This doesn't perform any processing on the field value, so any symbols or
 punctuation will be preserved in the database::
 
-  >>> conn.add_field_action('category', secore.FieldActions.INDEX_EXACT)
+  >>> conn.add_field_action('category', xappy.FieldActions.INDEX_EXACT)
 
 If we want to be able to sort on a field, we need to give it the ``SORTABLE``
 action.  By default, sorting is performed based on a lexicographical comparison
@@ -165,9 +164,9 @@ Date values can be supplied as strings in the form YYYYMMDD or YYYY-MM-DD (or
 using / or . as separators).  Floating point numbers can be in any
 representation which is understood by Python's float() function::
 
-  >>> conn.add_field_action('category', secore.FieldActions.SORTABLE)
-  >>> conn.add_field_action('date', secore.FieldActions.SORTABLE, type="date")
-  >>> conn.add_field_action('price', secore.FieldActions.SORTABLE, type="float")
+  >>> conn.add_field_action('category', xappy.FieldActions.SORTABLE)
+  >>> conn.add_field_action('date', xappy.FieldActions.SORTABLE, type="date")
+  >>> conn.add_field_action('price', xappy.FieldActions.SORTABLE, type="float")
 
 If we want to be able to be able to remove duplicates based on a field, we need
 to give it the ``COLLAPSE`` action.  This allows the result set to be
@@ -176,26 +175,26 @@ be returned.  For example, we might want to just display the highest ranked
 document in each category (with a link to a list of the results in that
 category)::
 
-  >>> conn.add_field_action('category', secore.FieldActions.COLLAPSE)
+  >>> conn.add_field_action('category', xappy.FieldActions.COLLAPSE)
 
 If we want to be able to retrieve data from the document when it is
 the result of a search, we need to set the ``STORE_CONTENT`` action::
 
-  >>> conn.add_field_action('text', secore.FieldActions.STORE_CONTENT)
-  >>> conn.add_field_action('title', secore.FieldActions.STORE_CONTENT)
-  >>> conn.add_field_action('category', secore.FieldActions.STORE_CONTENT)
+  >>> conn.add_field_action('text', xappy.FieldActions.STORE_CONTENT)
+  >>> conn.add_field_action('title', xappy.FieldActions.STORE_CONTENT)
+  >>> conn.add_field_action('category', xappy.FieldActions.STORE_CONTENT)
 
 If we want to use the contents of a field as "tags", which can be counted at
 search time (possibly, in order to build a tag-cloud, or other such
 visualisation), we need to set the ``TAG`` action::
 
-  >>> conn.add_field_action('tag', secore.FieldActions.TAG)
+  >>> conn.add_field_action('tag', xappy.FieldActions.TAG)
 
 
-Secore also supports "faceted browsing": this means attaching "facets" to
+Xappy also supports "faceted browsing": this means attaching "facets" to
 documents, where a facet is a values representing one aspect of information
 about a document: for example, the price of an object would be a facet of a
-document representing that object.  Secore supports storing many facets about a
+document representing that object.  Xappy supports storing many facets about a
 document, restricting the search results to only those documents which contain
 that facet, and automatically selecting a set of facets which are relevant to
 the set of results returned by a search (so that the facets can be presented to
@@ -206,8 +205,8 @@ Facets can be of two types - "string" (which are just exact string matches), or
 "float" (which will automatically be grouped into ranges when returning a
 suggested list of facets).  The default is "string"::
 
-  >>> conn.add_field_action('price', secore.FieldActions.FACET, type='float')
-  >>> conn.add_field_action('category', secore.FieldActions.FACET, type='string')
+  >>> conn.add_field_action('price', xappy.FieldActions.FACET, type='float')
+  >>> conn.add_field_action('category', xappy.FieldActions.FACET, type='string')
 
 Indexing
 --------
@@ -222,16 +221,16 @@ is possible to make alterations directly to the ``ProcessedDocument`` later.
 We can access the list of fields in an ``UnprocessedDocument`` directly, using
 the ``fields`` member::
 
-  >>> doc = secore.UnprocessedDocument()
-  >>> doc.fields.append(secore.Field("title", "Our first document"))
-  >>> doc.fields.append(secore.Field("text", "This is a paragraph of text.  It's quite short."))
-  >>> doc.fields.append(secore.Field("text", "We can create another paragraph of text.  "
-  ...                                "We can have as many of these as we like."))
-  >>> doc.fields.append(secore.Field("category", "Test documents"))
-  >>> doc.fields.append(secore.Field("tag", "Tag1"))
-  >>> doc.fields.append(secore.Field("tag", "Test document"))
-  >>> doc.fields.append(secore.Field("tag", "Test document"))
-  >>> doc.fields.append(secore.Field("price", "20.56"))
+  >>> doc = xappy.UnprocessedDocument()
+  >>> doc.fields.append(xappy.Field("title", "Our first document"))
+  >>> doc.fields.append(xappy.Field("text", "This is a paragraph of text.  It's quite short."))
+  >>> doc.fields.append(xappy.Field("text", "We can create another paragraph of text.  "
+  ...                               "We can have as many of these as we like."))
+  >>> doc.fields.append(xappy.Field("category", "Test documents"))
+  >>> doc.fields.append(xappy.Field("tag", "Tag1"))
+  >>> doc.fields.append(xappy.Field("tag", "Test document"))
+  >>> doc.fields.append(xappy.Field("tag", "Test document"))
+  >>> doc.fields.append(xappy.Field("price", "20.56"))
 
 We can add the document directly to the database: if we do this, the connection
 will process the document to generate a ``ProcessedDocument`` behind the
@@ -252,23 +251,23 @@ We can also ask the database to process a document explicitly before calling
 the "add" method.  We might do this if we want to change the processed document
 in some way, but this isn't generally necessary::
 
-  >>> doc = secore.UnprocessedDocument()
-  >>> doc.fields.append(secore.Field("title", "Our second document"))
-  >>> doc.fields.append(secore.Field("text", "In the beginning God created the heaven and the earth."))
-  >>> doc.fields.append(secore.Field("category", "Bible"))
-  >>> doc.fields.append(secore.Field("price", "12.20"))
+  >>> doc = xappy.UnprocessedDocument()
+  >>> doc.fields.append(xappy.Field("title", "Our second document"))
+  >>> doc.fields.append(xappy.Field("text", "In the beginning God created the heaven and the earth."))
+  >>> doc.fields.append(xappy.Field("category", "Bible"))
+  >>> doc.fields.append(xappy.Field("price", "12.20"))
   >>> doc.id='Bible1'
   >>> pdoc = conn.process(doc)
   >>> conn.add(pdoc)
   'Bible1'
-  >>> doc = secore.UnprocessedDocument()
-  >>> doc.fields.append(secore.Field("title", "Our third document"))
-  >>> doc.fields.append(secore.Field("text", "And the earth was without form, and void; "
-  ...                                "and darkness was upon the face of the deep. "
-  ...                                "And the Spirit of God moved upon the face of the waters."))
-  >>> doc.fields.append(secore.Field("category", "Bible"))
-  >>> doc.fields.append(secore.Field("date", "17501225"))
-  >>> doc.fields.append(secore.Field("price", "16.56"))
+  >>> doc = xappy.UnprocessedDocument()
+  >>> doc.fields.append(xappy.Field("title", "Our third document"))
+  >>> doc.fields.append(xappy.Field("text", "And the earth was without form, and void; "
+  ...                               "and darkness was upon the face of the deep. "
+  ...                               "And the Spirit of God moved upon the face of the waters."))
+  >>> doc.fields.append(xappy.Field("category", "Bible"))
+  >>> doc.fields.append(xappy.Field("date", "17501225"))
+  >>> doc.fields.append(xappy.Field("price", "16.56"))
   >>> doc.id='Bible2'
   >>> pdoc = conn.process(doc)
   >>> conn.add(pdoc)
@@ -296,7 +295,7 @@ note that multiple search connections may be opened at once (though each
 connection must not be accessed from more than one thread).  Search connections
 can even be open while indexing connections are::
 
-  >>> conn = secore.SearchConnection('db1')
+  >>> conn = xappy.SearchConnection('db1')
 
 A search connection attempts to provide a stable view of the database, so when
 an update is made by a concurrent indexing process, the search connection will
