@@ -19,7 +19,7 @@
 
 See the accompanying documentation for details.  In particular, there should be
 an accompanying file "introduction.html" (or "introduction.rst") which gives
-details of how to use the secore package.
+details of how to use the xappy package.
 
 """
 __docformat__ = "restructuredtext en"

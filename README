@@ -1,10 +1,10 @@
 README
 ======
 
-The name "secore" stands for Search Engine Core.  It implements a
-simple-to-use interface to a search engine (Xapian - http://xapian.org/).
+Xappy provides a simple-to-use interface to a search engine (Xapian -
+http://xapian.org/).
 
-For an introduction to the "secore" module, read the documentation in
+For an introduction to the "xappy" module, read the documentation in
 "docs/introduction.html".  (If you have an SVN checkout, you may need to
 generate this documentation by running "./build.py")
 
@@ -25,7 +25,7 @@ Prerequisites
   early May 2007 that version should be suitable.
 
 - rst2html and epydoc.  These are used to format the documentation - you
-  should be able to use the "secore" module without them, but it won't be
+  should be able to use the "xappy" module without them, but it won't be
   so easy to know _how_ to use it!
 
 - Python docutils.  This is needed for generating the documentation - most
@@ -35,6 +35,6 @@ Prerequisites
 Building
 --------
 
-The secore module is pure Python, and thus doesn't really need to be built.
+The xappy module is pure Python, and thus doesn't really need to be built.
 However, there is a "build.py" script at the top level of the project -
 this will generate all the documentation.
