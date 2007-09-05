@@ -24,25 +24,25 @@ import threading
 import getopt
 
 def _setup_path():
-    """Set up sys.path to allow us to import secore when run uninstalled.
+    """Set up sys.path to allow us to import Xappy when run uninstalled.
 
     """
     abspath = os.path.abspath(__file__)
     dirname = os.path.dirname(abspath)
     dirname, ourdir = os.path.split(dirname)
-    if os.path.exists(os.path.join(dirname, 'secore')):
+    if os.path.exists(os.path.join(dirname, 'xappy')):
         if ourdir == 'perftest':
             sys.path.insert(0, dirname)
 
 _setup_path()
-import secore
+import xappy
 
 class TestRunner(threading.Thread):
     def __init__(self, tests, num):
         threading.Thread.__init__(self)
         self.tests = tests
         self.num = num
-        self.sconn = secore.SearchConnection(tests.dbdir)
+        self.sconn = xappy.SearchConnection(tests.dbdir)
 
     def run(self):
         try:

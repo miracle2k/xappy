@@ -21,36 +21,36 @@ import sys
 import time
 
 def _setup_path():
-    """Set up sys.path to allow us to import secore when run uninstalled.
+    """Set up sys.path to allow us to import Xappy when run uninstalled.
 
     """
     abspath = os.path.abspath(__file__)
     dirname = os.path.dirname(abspath)
     dirname, ourdir = os.path.split(dirname)
-    if os.path.exists(os.path.join(dirname, 'secore')):
+    if os.path.exists(os.path.join(dirname, 'xappy')):
         if ourdir == 'perftest':
             sys.path.insert(0, dirname)
 
 _setup_path()
-import secore
+import xappy
 
 def create_index(dbpath):
     """Create a new index, and set up its field structure.
 
     """
-    iconn = secore.IndexerConnection(dbpath)
+    iconn = xappy.IndexerConnection(dbpath)
 
-    iconn.add_field_action('title', secore.FieldActions.STORE_CONTENT)
-    iconn.add_field_action('title', secore.FieldActions.INDEX_FREETEXT,
+    iconn.add_field_action('title', xappy.FieldActions.STORE_CONTENT)
+    iconn.add_field_action('title', xappy.FieldActions.INDEX_FREETEXT,
                            language="en", weight=5)
 
-    iconn.add_field_action('text', secore.FieldActions.STORE_CONTENT)
-    iconn.add_field_action('text', secore.FieldActions.INDEX_FREETEXT,
+    iconn.add_field_action('text', xappy.FieldActions.STORE_CONTENT)
+    iconn.add_field_action('text', xappy.FieldActions.INDEX_FREETEXT,
                            language='en')
 
-    iconn.add_field_action('doclen', secore.FieldActions.STORE_CONTENT)
-    iconn.add_field_action('doclen', secore.FieldActions.SORTABLE, type='float')
-    iconn.add_field_action('doclen', secore.FieldActions.COLLAPSE)
+    iconn.add_field_action('doclen', xappy.FieldActions.STORE_CONTENT)
+    iconn.add_field_action('doclen', xappy.FieldActions.SORTABLE, type='float')
+    iconn.add_field_action('doclen', xappy.FieldActions.COLLAPSE)
 
     iconn.close()
 
@@ -58,7 +58,7 @@ def open_index(dbpath):
     """Open an existing index.
 
     """
-    return secore.IndexerConnection(dbpath)
+    return xappy.IndexerConnection(dbpath)
 
 def dirsize(dirname):
     size = 0
@@ -81,7 +81,7 @@ def index_file(iconn, dbdir, dumpfd, logfd, flushspeed):
     starttime = time.time()
     linenum = 0
     addcount = 0
-    doc = secore.UnprocessedDocument()
+    doc = xappy.UnprocessedDocument()
     doclen = 0
     inputsize = 0
     fieldlen = 0
@@ -100,7 +100,7 @@ def index_file(iconn, dbdir, dumpfd, logfd, flushspeed):
         line = line.rstrip('\n\r')
         if len(line) == 0:
             if len(doc.fields) != 0:
-                doc.fields.append(secore.Field('doclen', doclen))
+                doc.fields.append(xappy.Field('doclen', doclen))
                 iconn.add(doc)
                 addcount += 1
                 if addcount % 1000 == 0:
@@ -108,7 +108,7 @@ def index_file(iconn, dbdir, dumpfd, logfd, flushspeed):
                 if flushspeed is not None and (addcount % flushspeed) == 0:
                     iconn.flush()
                     log_entry(logfd, dbdir, "F", addcount, starttime, inputsize)
-                doc = secore.UnprocessedDocument()
+                doc = xappy.UnprocessedDocument()
             continue
 
         if line[0] == '#':
@@ -125,7 +125,7 @@ def index_file(iconn, dbdir, dumpfd, logfd, flushspeed):
                 if doc.fields[-1].name == 'text':
                     doclen = len(doc.fields[-1].value)
         else:
-            doc.fields.append(secore.Field(line[:equals], line[equals + 1:]))
+            doc.fields.append(xappy.Field(line[:equals], line[equals + 1:]))
             if doc.fields[-1].name == 'id':
                 doc.id = doc.fields[-1].value
             elif doc.fields[-1].name == 'text':
@@ -133,7 +133,7 @@ def index_file(iconn, dbdir, dumpfd, logfd, flushspeed):
 
     # Add any left-over documents
     if len(doc.fields) != 0:
-        doc.fields.append(secore.Field('doclen', doclen))
+        doc.fields.append(xappy.Field('doclen', doclen))
         iconn.add(doc)
         addcount += 1
     log_entry(logfd, dbdir, "A", addcount, starttime, inputsize)

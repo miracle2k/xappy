@@ -5,24 +5,24 @@ import os
 import re
 
 def _setup_path():
-    """Set up sys.path to allow us to import secore when run uninstalled.
+    """Set up sys.path to allow us to import Xappy when run uninstalled.
 
     """
     abspath = os.path.abspath(__file__)
     dirname = os.path.dirname(abspath)
     dirname, ourdir = os.path.split(dirname)
     dirname, parentdir = os.path.split(dirname)
-    if (parentdir, ourdir) == ('secore', 'examples'):
+    if (parentdir, ourdir) == ('xappy', 'examples'):
         sys.path.insert(0, '..')
 
 _setup_path()
-import secore
+import xappy
 
 
 _whitespace_re = re.compile('\s+')
 
 def open_index(dbpath):
-    return secore.SearchConnection(dbpath)
+    return xappy.SearchConnection(dbpath)
 
 def main(argv):
     dbpath = 'foo'

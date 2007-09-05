@@ -4,30 +4,30 @@ import sys
 import os
 
 def _setup_path():
-    """Set up sys.path to allow us to import secore when run uninstalled.
+    """Set up sys.path to allow us to import Xappy when run uninstalled.
 
     """
     abspath = os.path.abspath(__file__)
     dirname = os.path.dirname(abspath)
     dirname, ourdir = os.path.split(dirname)
     dirname, parentdir = os.path.split(dirname)
-    if (parentdir, ourdir) == ('secore', 'examples'):
+    if (parentdir, ourdir) == ('xappy', 'examples'):
         sys.path.insert(0, '..')
 
 _setup_path()
-import secore
+import xappy
 
 def create_index(dbpath):
     """Create a new index, and set up its field structure.
 
     """
-    iconn = secore.IndexerConnection(dbpath)
+    iconn = xappy.IndexerConnection(dbpath)
 
-    iconn.add_field_action('path', secore.FieldActions.STORE_CONTENT)
-    iconn.add_field_action('path', secore.FieldActions.INDEX_EXACT)
-    iconn.add_field_action('pathcomponent', secore.FieldActions.INDEX_EXACT)
-    iconn.add_field_action('text', secore.FieldActions.STORE_CONTENT)
-    iconn.add_field_action('text', secore.FieldActions.INDEX_FREETEXT, language='en')
+    iconn.add_field_action('path', xappy.FieldActions.STORE_CONTENT)
+    iconn.add_field_action('path', xappy.FieldActions.INDEX_EXACT)
+    iconn.add_field_action('pathcomponent', xappy.FieldActions.INDEX_EXACT)
+    iconn.add_field_action('text', xappy.FieldActions.STORE_CONTENT)
+    iconn.add_field_action('text', xappy.FieldActions.INDEX_FREETEXT, language='en')
 
     iconn.close()
 
@@ -35,7 +35,7 @@ def open_index(dbpath):
     """Open an existing index.
 
     """
-    return secore.IndexerConnection(dbpath)
+    return xappy.IndexerConnection(dbpath)
 
 def canonical_path(path):
     """Convert a path to a canonical form."""
@@ -53,20 +53,20 @@ def index_content(doc, filepath):
         contents = unicode(contents)
     except UnicodeDecodeError:
         return
-    doc.fields.append(secore.Field('text', contents))
+    doc.fields.append(xappy.Field('text', contents))
 
 def index_file(iconn, filepath):
     """Index a file."""
     filepath = canonical_path(filepath)
-    doc = secore.UnprocessedDocument()
-    doc.fields.append(secore.Field('path', filepath))
+    doc = xappy.UnprocessedDocument()
+    doc.fields.append(xappy.Field('path', filepath))
 
     components = filepath
     while True:
         components, dirname = os.path.split(components)
         if len(dirname) == 0 or components == '/':
             break
-        doc.fields.append(secore.Field('pathcomponent', components))
+        doc.fields.append(xappy.Field('pathcomponent', components))
 
     index_content(doc, filepath)
     iconn.add(doc)
