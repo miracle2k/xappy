@@ -46,6 +46,16 @@ MODNAMES = (
     'secore.marshall',
     'secore.parsedate',
     'secore.searchconnection',
+    'xappy',
+    'xappy.datastructures',
+    'xappy.errors',
+    'xappy.fieldactions',
+    'xappy.fieldmappings',
+    'xappy.highlight',
+    'xappy.indexerconnection',
+    'xappy.marshall',
+    'xappy.parsedate',
+    'xappy.searchconnection',
 )
 
 # List the documentation files which should be valid doctest inputs
