@@ -192,13 +192,13 @@ visualisation), we need to set the ``TAG`` action::
 
 
 Xappy also supports "faceted browsing": this means attaching "facets" to
-documents, where a facet is a values representing one aspect of information
+documents, where a facet is a value representing one aspect of information
 about a document: for example, the price of an object would be a facet of a
 document representing that object.  Xappy supports storing many facets about a
 document, restricting the search results to only those documents which contain
-that facet, and automatically selecting a set of facets which are relevant to
-the set of results returned by a search (so that the facets can be presented to
-the user to be used to refine their search).
+a particular facet, and automatically selecting a set of facets which are
+relevant to the set of results returned by a search (so that the facets can be
+presented to the user to be used to refine their search).
 
 If we want to use a field as a facet, we simply add the ``FACET`` action to it.
 Facets can be of two types - "string" (which are just exact string matches), or
@@ -461,6 +461,28 @@ gettags option, it may be advisable to specify a reasonably high value for the
 Note that the values for the suggested facets contain the string for facets of
 type "string", but contain a pair of numbers for facets of type "float" - these
 numbers define an automatically suggested range of values to use for the facet.
+
+To restrict a further search to a particular value of the facet, or range of
+facets, a query can be produced using the query_facet() method.  This will
+often be combined with an existing query using query_filter(), but you are free
+to use it differently if you wish.  Note that the values in the output of
+get_suggested_facets() are in a form suitable for passing to the value
+parameter of query_facet().  For example, results can be restricted using a
+"string" facet like this::
+
+  >>> facet_q = conn.query_facet('category', 'bible')
+  >>> results = conn.search(conn.query_filter(q, facet_q), 0, 10)
+  >>> for result in results:
+  ...     print result.rank, result.id, result.data['category']
+  0 Bible1 ['Bible']
+
+Or can be restricted using a "float" facet like this::
+
+  >>> facet_q = conn.query_facet('price', (20.559999999999999, 20.559999999999999))
+  >>> results = conn.search(conn.query_filter(q, facet_q), 0, 10)
+  >>> for result in results:
+  ...     print result.rank, result.id, result.data['category']
+  0 0 ['Test documents']
 
 
 Finding similar documents
