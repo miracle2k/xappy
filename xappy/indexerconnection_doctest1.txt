@@ -194,6 +194,14 @@ We can add fields which don't have any configuration.  These will be ignored.
 >>> conn.get_doccount()
 8
 
+We can also supply fields as an iterator instead of a list:
+>>> fieldlist = [Field('author', 'Richard Boulton')]
+>>> doc.fields = iter(fieldlist)
+>>> conn.add(doc)
+'8'
+>>> conn.get_doccount()
+9
+
 Calling close() will automatically call flush(), too:
 >>> conn.close()
 
@@ -248,4 +256,4 @@ But calling close() multiple times is okay:
 Now that we've closed the connection, we can open a new one:
 >>> conn = IndexerConnection('foo')
 >>> conn.get_doccount()
-8
+9

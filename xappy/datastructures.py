@@ -49,7 +49,8 @@ class UnprocessedDocument(object):
 
     An unprocessed document is a simple container with two attributes:
 
-     - `fields` is a list of Field objects.
+     - `fields` is a list of Field objects, or an iterator returning Field
+       objects.
      - `id` is a string holding a unique identifier for the document (or
        None to get the database to allocate a unique identifier automatically
        when the document is added).
