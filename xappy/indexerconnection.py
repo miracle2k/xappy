@@ -68,7 +68,7 @@ class IndexerConnection(object):
                                      self._next_docid,
                                     ), 2)
         config_file = _os.path.join(self._indexpath, 'config')
-        fd = open(config_file, "w")
+        fd = open(config_file, "wb")
         fd.write(config_str)
         fd.close()
         self._config_modified = False
@@ -80,7 +80,7 @@ class IndexerConnection(object):
         config_file = _os.path.join(self._indexpath, 'config')
         if not _os.path.exists(config_file):
             return
-        fd = open(config_file)
+        fd = open(config_file, 'rb')
         config_str = fd.read()
         fd.close()
 
