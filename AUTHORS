@@ -5,6 +5,25 @@ The Xappy module and accompanying documentation and testsuite (excluding
 coverage.py) is Copyright (C) 2007 Lemur Consulting Ltd.  It is released under
 the GPL license; see the file COPYING_GPL in this directory for details.
 
+Major code and design
+---------------------
+
+Richard Boulton (initial author)
+Tom Mortimer (highlighting and summarisation)
+
+
+Bug reports and comments
+------------------------
+
+Thanks are due to the following individuals for helpful comments, bug reports
+and small patches:
+
+Bruno ("brunovianarezende")
+
+
+Third party code
+----------------
+
 The coverage.py file in the testsuite is Copyright 2001 Gareth Rees and
 Copyright 2004-2006 Ned Batchelder.  See the end of that file for details of
 its licensing.
