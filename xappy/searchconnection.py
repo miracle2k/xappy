@@ -451,7 +451,7 @@ class SearchConnection(object):
             self._field_actions = {}
             self._field_mappings = _fieldmappings.FieldMappings()
             return
-        fd = open(config_file)
+        fd = open(config_file, 'rb')
         config_str = fd.read()
         fd.close()
 
