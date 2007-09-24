@@ -349,6 +349,15 @@ Do a search which matches all documents:
 <SearchResults(startrank=0, endrank=30, more_matches=True, matches_lower_bound=200, matches_upper_bound=200, matches_estimated=200, estimate_is_exact=True)>
 
 
+Do a search which uses a restricted set of default fields:
+>>> q = sconn.query_parse('richard', default_allow='author')
+>>> str(q)
+'Xapian::Query(ZXArichard:(pos=1))'
+>>> q = sconn.query_parse('richard', default_deny='category')
+>>> str(q)
+'Xapian::Query((ZXArichard:(pos=1) OR ZXBrichard:(pos=1) OR ZXDrichard:(pos=1)))'
+
+
 Do a similarity search
 >>> q = sconn.query_parse('document (2 OR 5 OR 8)')
 >>> results = sconn.search(q, 0, 5, sortby="date")

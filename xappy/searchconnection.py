@@ -635,19 +635,29 @@ class SearchConnection(object):
             return _xapian.Query(prefix + val.lower())
 
 
-    def _prepare_queryparser(self, allow, deny, default_op):
+    def _prepare_queryparser(self, allow, deny, default_op, default_allow,
+                             default_deny):
         """Prepare (and return) a query parser using the specified fields and
         operator.
 
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
+
         if isinstance(allow, basestring):
             allow = (allow, )
         if isinstance(deny, basestring):
             deny = (deny, )
         if allow is not None and deny is not None:
             raise _errors.SearchError("Cannot specify both `allow` and `deny`")
+
+        if isinstance(default_allow, basestring):
+            default_allow = (default_allow, )
+        if isinstance(default_deny, basestring):
+            default_deny = (default_deny, )
+        if default_allow is not None and default_deny is not None:
+            raise _errors.SearchError("Cannot specify both `default_allow` and `default_deny`")
+
         qp = _xapian.QueryParser()
         qp.set_database(self._index)
         qp.set_default_op(default_op)
@@ -676,20 +686,44 @@ class SearchConnection(object):
                             qp.set_stemming_strategy(qp.STEM_SOME)
                         except KeyError:
                             pass
+
+        if default_allow is not None or default_deny is not None:
+            if default_allow is None:
+                default_allow = [key for key in self._field_actions]
+            if default_deny is not None:
+                default_allow = [key for key in default_allow if key not in default_deny]
+            for field in default_allow:
+                try:
+                    actions = self._field_actions[field]._actions
+                except KeyError:
+                    actions = {}
+                for action, kwargslist in actions.iteritems():
+                    if action == FieldActions.INDEX_FREETEXT:
+                        qp.add_prefix('', self._field_mappings.get_prefix(field), _xapian.QueryParser.PREFIX_INLINE)
+                        # FIXME - set stemming options for the default prefix
+
         return qp
 
-    def query_parse(self, string, allow=None, deny=None, default_op=OP_AND):
+    def query_parse(self, string, allow=None, deny=None, default_op=OP_AND,
+                    default_allow=None, default_deny=None):
         """Parse a query string.
 
         This is intended for parsing queries entered by a user.  If you wish to
         combine structured queries, it is generally better to use the other
-        query building methods, such as `query_composite`.
+        query building methods, such as `query_composite` (though you may wish
+        to create parts of the query to combine with such methods with this
+        method).
 
         - `string`: The string to parse.
         - `allow`: A list of fields to allow in the query.
         - `deny`: A list of fields not to allow in the query.
+        - `default_op`: The default operator to combine query terms with.
+        - `default_allow`: A list of fields to search for by default.
+        - `default_deny`: A list of fields not to search for by default.
 
         Only one of `allow` and `deny` may be specified.
+
+        Only one of `default_allow` and `default_deny` may be specified.
 
         If any of the entries in `allow` are not present in the configuration
         for the database, or are not specified for indexing (either as
@@ -701,7 +735,8 @@ class SearchConnection(object):
         combined with other queries.
 
         """
-        qp = self._prepare_queryparser(allow, deny, default_op)
+        qp = self._prepare_queryparser(allow, deny, default_op, default_allow,
+                                       default_deny)
         try:
             return qp.parse_query(string, self._qp_flags_std)
         except _xapian.QueryParserError, e:
@@ -926,7 +961,7 @@ class SearchConnection(object):
         database, they will be ignored.
 
         """
-        qp = self._prepare_queryparser(allow, deny, self.OP_AND)
+        qp = self._prepare_queryparser(allow, deny, self.OP_AND, None, None)
         qp.parse_query(string, self._qp_flags_std | qp.FLAG_SPELLING_CORRECTION)
         corrected = qp.get_corrected_query_string()
         if len(corrected) == 0:
