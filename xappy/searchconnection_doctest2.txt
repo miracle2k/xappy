@@ -221,6 +221,21 @@ Get a list of the facets and tags relevant for the search
 >>> [(facet[0], facet[1]) for facet in results2.get_suggested_facets(maxfacets=5)]
 [('price3', [((0.0, 194.30000000000001), 30), ((201.0, 395.30000000000001), 30), ((402.0, 596.29999999999995), 30), ((603.0, 797.29999999999995), 30), ((804.0, 998.29999999999995), 30), ((1005.0, 1199.3), 30), ((1206.0, 1333.3), 20)]), ('facet1', [('0', 40), ('1', 40), ('2', 40), ('3', 40), ('4', 40)]), ('facet4', [((0.0, 4.0), 40), ((5.0, 9.0), 40), ((10.0, 14.0), 40), ((15.0, 19.0), 40), ((20.0, 24.0), 40)]), ('facet2', [('0', 20), ('1', 20), ('2', 20), ('3', 20), ('4', 20), ('5', 20), ('6', 20), ('7', 20), ('8', 20), ('9', 20)]), ('price', [((0.0, 2.4285709999999998), 54), ((2.5714290000000002, 4.8571429999999998), 51), ((5.0, 7.4285709999999998), 54), ((7.5714290000000002, 9.8571430000000007), 41)])]
 
+>>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets='price3')]
+[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('price', 4)]
+
+>>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets='facet8')]
+[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('facet8', 2)]
+
+>>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets=('facet8', 'price', 'facet7'))]
+[('price3', 7), ('facet1', 5), ('price', 4), ('facet8', 2), ('facet7', 4)]
+
+>>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets=('facet8', 'price', 'facet7', 'price3', 'facet1'))]
+[('price3', 7), ('facet1', 5), ('price', 4), ('facet8', 2), ('facet7', 4)]
+
+>>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets=('facet8', 'price', 'facet7', 'price3', 'facet1', 'facet4'))]
+[('price3', 7), ('facet1', 5), ('facet4', 5), ('price', 4), ('facet8', 2), ('facet7', 4)]
+
 
 We can use a facet to restrict the search results:
 

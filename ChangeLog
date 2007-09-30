@@ -1,3 +1,10 @@
+Sun Sep 30 10:37:21 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py,xappy/searchconnection_doctest2.txt:
+	  Add "required_facets" parameter to get_suggested_facets(),
+	  allowing certain facets to be required in the list of returned
+	  facets.
+
 Fri Sep 28 16:12:35 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* testsuite/coverage.py: Update copy of coverage.py to latest

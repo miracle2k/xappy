@@ -330,7 +330,8 @@ class SearchResults(object):
         prefix = self._conn._field_mappings.get_prefix(field)
         return self._tagspy.get_top_terms(prefix, maxtags)
 
-    def get_suggested_facets(self, maxfacets=5, desired_num_of_categories=7):
+    def get_suggested_facets(self, maxfacets=5, desired_num_of_categories=7,
+                             required_facets=None):
         """Get a suggested set of facets, to present to the user.
 
         This returns a list, in descending order of the usefulness of the
@@ -348,9 +349,23 @@ class SearchResults(object):
            The second item in the 2-tuple will be the frequency of the facet
            value or range in the result set.
 
+        If required_facets is not None, it must be a sequence of field names.
+        Any field names mentioned in required_facets will be returned if there
+        are any facet values at all in the search results for that field.  The
+        facet will only be omitted if there are no facet values at all for the
+        field.
+
+        The value of maxfacets will be respected as far as possible; the
+        exception is that if there are too many fields listed in
+        required_facets with at least one value in the search results, extra
+        facets will be returned (ie, obeying the required_facets parameter is
+        considered more important than the maxfacets parameter).
+
         """
         if self._facetspy is None:
             raise _errors.SearchError("Facet selection wasn't enabled when the search was run")
+        if isinstance(required_facets, basestring):
+            required_facets = [required_facets]
         scores = []
         facettypes = {}
         for field, slot, kwargslist in self._facetfields:
@@ -370,11 +385,30 @@ class SearchResults(object):
             scores.append((score, field, slot))
         scores.sort()
 
-        result = []
+        results = []
+        required_results = []
         for score, field, slot in scores:
-            values = self._facetspy.get_values_as_dict(slot)
-            if len(values) <= 1:
+            # Check if the facet is required
+            required = False
+            if required_facets is not None:
+                required = field in required_facets
+
+            # If we've got enough facets, and the field isn't required, skip it
+            if not required and len(results) + len(required_results) >= maxfacets:
                 continue
+
+            # Get the values
+            values = self._facetspy.get_values_as_dict(slot)
+
+            # Required facets must occur at least once, other facets must occur
+            # at least twice.
+            if required:
+                if len(values) < 1:
+                    continue
+            else:
+                if len(values) <= 1:
+                    continue
+
             newvalues = []
             if facettypes[field] == 'float':
                 # Convert numbers to python numbers, and number ranges to a
@@ -390,12 +424,27 @@ class SearchResults(object):
             else:
                 for value, frequency in values.iteritems():
                     newvalues.append((value, frequency))
-                
+
             newvalues.sort()
-            result.append((field, newvalues))
-            if len(result) >= maxfacets:
-                break
-        return result
+            if required:
+                required_results.append((score, field, newvalues))
+            else:
+                results.append((score, field, newvalues))
+
+        # Throw away any excess results if we have more required_results to
+        # insert.
+        maxfacets = maxfacets - len(required_results)
+        if maxfacets <= 0:
+            results = required_results
+        else:
+            results = results[:maxfacets]
+            results.extend(required_results)
+            results.sort()
+
+        # Throw away the scores because they're not meaningful outside this
+        # algorithm.
+        results = [(field, newvalues) for (score, field, newvalues) in results]
+        return results
         
 
 class SearchConnection(object):
