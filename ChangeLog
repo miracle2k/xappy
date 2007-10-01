@@ -1,3 +1,13 @@
+Mon Oct 01 14:23:22 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add SearchConnection.query_multweight,
+	  which produces a query from a subquery by multiplying the weights
+	  by a multiplier.
+	* xappy/indexerconnection_doctest2.txt: Modify test of "Cannot
+	  specify both `allow` and `deny`" to expect new extended message.
+	* xappy/searchconnection_doctest2.txt: Add test of a multweight
+	  query.
+
 Sun Sep 30 10:37:21 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py,xappy/searchconnection_doctest2.txt:

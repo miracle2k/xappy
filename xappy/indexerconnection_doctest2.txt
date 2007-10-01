@@ -209,7 +209,7 @@ considered as plain text:
 >>> str(sconn4.query_parse("text:clematis title:Test", allow=("text",), deny=("title",)))
 Traceback (most recent call last):
 ...
-SearchError: Cannot specify both `allow` and `deny`
+SearchError: Cannot specify both `allow` and `deny` (got ('text',) and ('title',))
 
 
 We can parse queries which don't specify a field explicitly, too:

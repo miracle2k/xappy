@@ -373,6 +373,15 @@ Do a search which uses a restricted set of default fields:
 'Xapian::Query((ZXArichard:(pos=1) OR ZXBrichard:(pos=1) OR ZXDrichard:(pos=1)))'
 
 
+Do a search which multiplies the weights by 2:
+>>> q = sconn.query_multweight(sconn.query_parse('richard', default_allow='author'), 2)
+>>> str(q)
+'Xapian::Query((ZXArichard:(pos=1) * 2))'
+>>> q2 = sconn.query_parse('richard', default_deny='author')
+>>> q = sconn.query_composite(sconn.OP_OR, (q, q2))
+>>> str(q)
+'Xapian::Query(((ZXArichard:(pos=1) * 2) OR ZXBrichard:(pos=1) OR ZXDrichard:(pos=1)))'
+
 Do a similarity search
 >>> q = sconn.query_parse('document (2 OR 5 OR 8)')
 >>> results = sconn.search(q, 0, 5, sortby="date")

@@ -572,6 +572,22 @@ class SearchConnection(object):
             raise _errors.SearchError("SearchConnection has been closed")
         return _xapian.Query(operator, list(queries))
 
+    def query_multweight(self, query, multiplier):
+        """Build a query which modifies the weights of a subquery.
+
+        This produces a query which returns the same documents as the subquery,
+        and in the same order, but with the weights assigned to each document
+        multiplied by the value of "multiplier".  "multiplier" may be any floating
+        point value, but negative values will be clipped to 0, since Xapian
+        doesn't support negative weights.
+
+        This can be useful when producing queries to be combined with
+        query_composite, because it allows the relative importance of parts of
+        the query to be adjusted.
+
+        """
+        return _xapian.Query(_xapian.Query.OP_MULT_WEIGHT, query, multiplier)
+
     def query_filter(self, query, filter, exclude=False):
         """Filter a query with another query.
 
@@ -698,14 +714,16 @@ class SearchConnection(object):
         if isinstance(deny, basestring):
             deny = (deny, )
         if allow is not None and deny is not None:
-            raise _errors.SearchError("Cannot specify both `allow` and `deny`")
+            raise _errors.SearchError("Cannot specify both `allow` and `deny` "
+                                      "(got %r and %r)" % (allow, deny))
 
         if isinstance(default_allow, basestring):
             default_allow = (default_allow, )
         if isinstance(default_deny, basestring):
             default_deny = (default_deny, )
         if default_allow is not None and default_deny is not None:
-            raise _errors.SearchError("Cannot specify both `default_allow` and `default_deny`")
+            raise _errors.SearchError("Cannot specify both `default_allow` and `default_deny` "
+                                      "(got %r and %r)" % (default_allow, default_deny))
 
         qp = _xapian.QueryParser()
         qp.set_database(self._index)
