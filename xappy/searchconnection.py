@@ -313,6 +313,20 @@ class SearchResults(object):
         """
         return SearchResultIter(self)
 
+    def __len__(self):
+        """Get the number of hits in the search result.
+
+        Note that this is not (usually) the number of matching documents for
+        the search.  If startrank is non-zero, it's not even the rank of the
+        last document in the search result.  It's simply the number of hits
+        stored in the search result.
+
+        It is, however, the number of items returned by the iterator produced
+        by calling iter() on this SearchResults object.
+
+        """
+        return len(self._mset)
+
     def get_top_tags(self, field, maxtags):
         """Get the most frequent tags in a given field.
 

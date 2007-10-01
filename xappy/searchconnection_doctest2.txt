@@ -360,6 +360,8 @@ Do a search which matches all documents:
 >>> str(q)
 'Xapian::Query(<alldocuments>)'
 >>> results = sconn.search(q, 0, 30)
+>>> len(results)
+30
 >>> results
 <SearchResults(startrank=0, endrank=30, more_matches=True, matches_lower_bound=200, matches_upper_bound=200, matches_estimated=200, estimate_is_exact=True)>
 
@@ -385,7 +387,11 @@ Do a search which multiplies the weights by 2:
 Do a similarity search
 >>> q = sconn.query_parse('document (2 OR 5 OR 8)')
 >>> results = sconn.search(q, 0, 5, sortby="date")
+>>> len(results)
+3
 >>> ids = [result.id for result in results]
+>>> len(ids)
+3
 >>> sconn.significant_terms(ids, maxterms=5)
 [('title', '8'), ('title', '5'), ('title', '2'), ('title', 'test'), ('title', 'document')]
 >>> q2 = sconn.query_similar(ids, simterms=5)
