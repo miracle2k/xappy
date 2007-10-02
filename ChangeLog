@@ -1,3 +1,10 @@
+Tue Oct 02 18:03:31 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add query_adjust(), allowing the
+	  weights of one query to be adjusted based on the results of a
+	  second query.
+	* xappy/searchconnection_doctest2.txt: Add test for query_adjust()
+
 Mon Oct 01 15:23:11 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Add a __len__() method for

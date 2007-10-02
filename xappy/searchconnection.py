@@ -632,6 +632,20 @@ class SearchConnection(object):
         else:
             return _xapian.Query(_xapian.Query.OP_FILTER, query, filter)
 
+    def query_adjust(self, primary, secondary):
+        """Adjust the weights of one query with a secondary query.
+
+        Documents will be returned from the resulting query if and only if they
+        match the primary query (specified by the "primary" parameter).
+        However, the weights (and hence, the relevance rankings) of the
+        documents will be adjusted by adding weights from the secondary query
+        (specified by the "secondary" parameter).
+
+        """
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
+        return _xapian.Query(_xapian.Query.OP_AND_MAYBE, primary, secondary)
+
     def query_range(self, field, begin, end):
         """Create a query for a range search.
         

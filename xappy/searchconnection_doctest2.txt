@@ -348,6 +348,14 @@ If the end of the range is lower than the start, no results can match
 []
 
 
+
+We can also adjust the weights of one query using a second query:
+>>> q = sconn.query_adjust(q, sconn.query_parse('cat'))
+>>> str(q)
+'Xapian::Query((Zdocument:(pos=1) AND_MAYBE Zcat:(pos=1)))'
+
+
+
 If invalid values are supplied to query_range, a SearchError is raised
 >>> sconn.query_range('date', '0.1428', '0.5')
 Traceback (most recent call last):
