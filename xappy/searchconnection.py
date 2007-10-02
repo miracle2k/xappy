@@ -363,11 +363,11 @@ class SearchResults(object):
            The second item in the 2-tuple will be the frequency of the facet
            value or range in the result set.
 
-        If required_facets is not None, it must be a sequence of field names.
-        Any field names mentioned in required_facets will be returned if there
-        are any facet values at all in the search results for that field.  The
-        facet will only be omitted if there are no facet values at all for the
-        field.
+        If required_facets is not None, it must be a field name, or a sequence
+        of field names.  Any field names mentioned in required_facets will be
+        returned if there are any facet values at all in the search results for
+        that field.  The facet will only be omitted if there are no facet
+        values at all for the field.
 
         The value of maxfacets will be respected as far as possible; the
         exception is that if there are too many fields listed in
