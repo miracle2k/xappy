@@ -1,3 +1,9 @@
+Wed Oct 03 14:00:17 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* build.py: Don't include private variables in the output of epydoc;
+	  this makes it more useful as an API reference.
+	* docs/introduction.rst: Add a note on error handling.
+
 Wed Oct 03 13:04:01 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/errors.py,xappy/errors_doctest1.txt: Export all the xapian

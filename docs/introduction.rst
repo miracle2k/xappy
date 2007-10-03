@@ -618,6 +618,25 @@ setting the collapse parameter of the ``search()`` method to the field name::
   >>> [result.id for result in conn.search(q, 0, 10, collapse='category')]
   ['Bible1', '0']
 
+Errors
+======
+
+Most errors raised by xappy will be a subclass of xappy.SearchEngineError (the
+only deliberate exceptions are standard python errors, caused by invalid
+parameters being supplied to xappy).  Any errors related to searching will be
+instances of xappy.SearchError, and errors related to indexing will be
+instances of xappy.IndexerError.
+
+Errors may also be raised by the underlying Xapian library.  For example, if
+you attempt to make two simultaneous IndexerConnections to a single database,
+Xapian will raise a xapian.DatabaseLockError.  However, to avoid users of xappy
+needing to import xapian, the xapian errors are exposed by xappy.  For example,
+xapian.DatabaseLockError can be caught by catching
+xappy.XapianDatabaseLockError (note the "Xapian" prefix of
+"XapianDatabaseLockError").  In addition, the inheritance heirarchy of the
+xapian errors is modified so that xappy.XapianError can be used as a catch-all
+for all Xapian errors, and xappy.SearchEngineError will catch all Xapian errors as well as any errors directly from xappy.
+
 Other documentation
 ===================
 
