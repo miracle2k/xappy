@@ -123,6 +123,9 @@ class Highlighter(object):
 
         """
 
+        # coerce maxlen into an int, otherwise truncation doesn't happen
+        maxlen = int(maxlen)
+
         words = self._split_text(text, True)
         terms = self._query_to_stemmed_words(query)
 

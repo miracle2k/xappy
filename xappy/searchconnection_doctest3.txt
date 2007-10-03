@@ -44,6 +44,16 @@ Now, parse a simple query.
 >>> result.summarise('title')
 'Test <b>document</b> 0'
 
+The maxlen (in characters) can be specified:
+>>> result.summarise('text', 5)
+'This..'
+
+If it's specified as a string (eg, unconverted output from a webapp) it should
+still work:
+>>> result.summarise('text', '5')
+'This..'
+
+
 Asking for a summary of a field which isn't known will raise a KeyError.
 
 >>> result.summarise('titl')
