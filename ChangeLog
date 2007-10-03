@@ -1,3 +1,12 @@
+Wed Oct 03 13:04:01 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/errors.py,xappy/errors_doctest1.txt: Export all the xapian
+	  error types (eg, xapian.FooError) as xappy.XapianFooError.  Also,
+	  make them all subclasses of xappy.XapianError.  This allow
+	  a particular Xapian error to be caught using "except
+	  xappy.XapianFooError", or all Xapian errors to be caught using
+	  "except xappy.XapianError".
+
 Wed Oct 03 12:36:27 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/highlight.py,xappy/searchconnection_doctest3.txt: Fix from
