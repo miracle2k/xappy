@@ -1,0 +1,5 @@
+include MANIFEST.in
+include README
+include setup.py
+include eggsetup.py
+include xappy/*.py
