@@ -600,7 +600,7 @@ class SearchConnection(object):
         the query to be adjusted.
 
         """
-        return _xapian.Query(_xapian.Query.OP_MULT_WEIGHT, query, multiplier)
+        return _xapian.Query(_xapian.Query.OP_SCALE_WEIGHT, query, multiplier)
 
     def query_filter(self, query, filter, exclude=False):
         """Filter a query with another query.
