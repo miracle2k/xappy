@@ -16,23 +16,20 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
+import csv
 import os
 import sys
 import time
-
-def _setup_path():
-    """Set up sys.path to allow us to import Xappy when run uninstalled.
-
-    """
-    abspath = os.path.abspath(__file__)
-    dirname = os.path.dirname(abspath)
-    dirname, ourdir = os.path.split(dirname)
-    if os.path.exists(os.path.join(dirname, 'xappy')):
-        if ourdir == 'perftest':
-            sys.path.insert(0, dirname)
-
-_setup_path()
 import xappy
+
+class CsvLogger(object):
+    def __init__(self, filepath):
+        self.fd = open(filepath, 'ab')
+        self.csvwriter = csv.writer(self.fd)
+
+    def log(self, *args):
+        self.csvwriter.writerow(args)
+        self.fd.flush()
 
 def create_index(dbpath):
     """Create a new index, and set up its field structure.
@@ -67,17 +64,17 @@ def dirsize(dirname):
             size += os.stat(os.path.join(dirpath, filename)).st_size
     return size
 
-def log_entry(logfd, dbdir, action, addcount, starttime, inputsize):
+def log_entry(logger, dbpath, addcount, starttime, inputsize):
     currtime = time.time()
-    dbsize = dirsize(dbdir)
-    logfd.write("%s,%d,%f,%d,%d\n" % (action, addcount, currtime - starttime, dbsize, inputsize))
-    logfd.flush()
+    dbsize = dirsize(dbpath)
+    logger.log(addcount, currtime - starttime, dbsize, inputsize)
 
-def index_file(iconn, dbdir, dumpfd, logfd, flushspeed):
-    """Index a file."""
+def index_scriptindex_file(iconn, dbpath, dumpfd, logger, flushspeed, maxdocs,
+                           logspeed):
+    """Index a xapian "scriptindex" format file.
 
-    logfd.write("Action,Documents Added,Time(seconds),dbsize(bytes),inputsize(bytes)\n")
-    logfd.flush()
+    """
+    logger.log("Documents Added", "Time(seconds)", "dbsize(bytes)", "inputsize(bytes)")
     starttime = time.time()
     linenum = 0
     addcount = 0
@@ -85,16 +82,12 @@ def index_file(iconn, dbdir, dumpfd, logfd, flushspeed):
     doclen = 0
     inputsize = 0
     fieldlen = 0
-    while True:
+    while maxdocs is None or addcount < maxdocs:
         line = dumpfd.readline()
         linenum += 1
 
         if len(line) == 0:
             break
-        if line[0] == '=' and len(doc.fields) > 0 and len(doc.fields[-1].value) > 1000:
-            # Truncate fields of more than 1000 characters, for a more
-            # reasonable data size.
-            continue
 
         inputsize += len(line)
         line = line.rstrip('\n\r')
@@ -103,11 +96,10 @@ def index_file(iconn, dbdir, dumpfd, logfd, flushspeed):
                 doc.fields.append(xappy.Field('doclen', doclen))
                 iconn.add(doc)
                 addcount += 1
-                if addcount % 1000 == 0:
-                    log_entry(logfd, dbdir, "A", addcount, starttime, inputsize)
                 if flushspeed is not None and (addcount % flushspeed) == 0:
                     iconn.flush()
-                    log_entry(logfd, dbdir, "F", addcount, starttime, inputsize)
+                if addcount % logspeed == 0:
+                    log_entry(logger, dbpath, addcount, starttime, inputsize)
                 doc = xappy.UnprocessedDocument()
             continue
 
@@ -136,26 +128,20 @@ def index_file(iconn, dbdir, dumpfd, logfd, flushspeed):
         doc.fields.append(xappy.Field('doclen', doclen))
         iconn.add(doc)
         addcount += 1
-    log_entry(logfd, dbdir, "A", addcount, starttime, inputsize)
     iconn.flush()
-    log_entry(logfd, dbdir, "F", addcount, starttime, inputsize)
+    log_entry(logger, dbpath, addcount, starttime, inputsize)
 
-def main(dumpfile, dbdir, logfile, flushspeed):
-    create_index(dbdir)
-    iconn = open_index(dbdir)
-    dumpfd = open(dumpfile)
-    logfd = open(logfile, "a")
-    index_file(iconn, dbdir, dumpfd, logfd, flushspeed)
+def index_file(inputfile, dbpath, logpath, flushspeed, description, maxdocs, logspeed):
+    create_index(dbpath)
+    iconn = open_index(dbpath)
+    dumpfd = open(inputfile)
+    logger = CsvLogger(logpath)
+    descline = [description, "flushspeed=%d" % flushspeed]
+    if maxdocs is not None:
+        descline.append("maxdocs=%d" % maxdocs)
+    if logspeed is not None:
+        descline.append("logspeed=%d" % logspeed)
+    logger.log(*descline)
+    index_scriptindex_file(iconn, dbpath, dumpfd, logger, flushspeed, maxdocs,
+                           logspeed)
 
-def parse_argv(argv):
-    if len(argv) < 4 or len(argv) > 5:
-        print("Usage: index_from_dump.py <dumpfile> <dbdir> <logfile> [<flushnum>]")
-        sys.exit(1)
-    if len(argv) == 5:
-        return argv[1], argv[2], argv[3], int(argv[4])
-    else:
-        return argv[1], argv[2], argv[3], None
-
-if __name__ == '__main__':
-    dumpfile, dbdir, logfile, flushspeed = parse_argv(sys.argv)
-    main(dumpfile, dbdir, logfile, flushspeed)

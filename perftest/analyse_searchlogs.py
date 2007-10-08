@@ -20,15 +20,18 @@ import csv
 import pylab
 import sys
 
-def generate_figures(log, outprefix, pretitle):
+def get_stats(log):
     query_v_time = [(row.time, row.query) for row in log]
     query_v_time.sort()
     query_v_time.reverse()
+
     print "Average speed: %f seconds" % (sum((row.time for row in log)) / len(log))
     print "Slowest queries:"
     for time, query in query_v_time[:10]:
         print "%s: %f seconds" % (query, time)
 
+
+def generate_figures(log, outprefix, pretitle):
     # Generate a "total time" versus "total documents" plot
     total_times = [row.tottime for row in log]
     query_times = [row.time for row in log]
@@ -56,32 +59,23 @@ def generate_figures(log, outprefix, pretitle):
     pylab.savefig(outprefix + "query_times.png", format="png")
 
 class logrow(object):
-    __slots__ = ('thread', 'querycount', 'matchingcount', 'estmatches', 'time',
-                 'tottime', 'querywords', 'query')
+    __slots__ = ('querynum', 'estmatches', 'time', 'tottime')
 
-    def __init__(self, thread, querycount, matchingcount, estmatches, time,
-                 tottime, querywords, query):
-        self.thread = int(thread)
-        self.querycount = int(querycount)
-        self.matchingcount = int(matchingcount)
+    def __init__(self, querynum, estmatches, time, tottime):
+        self.querynum = int(querynum)
         self.estmatches = int(estmatches)
         self.time = float(time)
         self.tottime = float(tottime)
-        self.querywords = int(querywords)
-        self.query = query
 
 def parse_logfile(filename):
     fd = open(filename)
     times = []
     titles = None
-    for row in csv.reader(fd):
+    reader = csv.reader(fd)
+    for row in reader:
         if titles is None:
             titles = row
         else:
-            if len(row) > 8:
-                enditem = row[7:]
-                row = row[:7]
-                row.append(','.join(enditem))
             newrow = logrow(*row)
             times.append(newrow)
     return times
