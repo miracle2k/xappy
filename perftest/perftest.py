@@ -112,6 +112,7 @@ def do_index(config, testrun):
         if os.path.exists(indexlogpath):
             os.unlink(indexlogpath)
 
+        print "Starting index run (creating %s)" % dbpath
         indexer.index_file(inputfile=testrun.inputfile,
                            dbpath=dbpath,
                            logpath=indexlogpath,
@@ -119,6 +120,7 @@ def do_index(config, testrun):
                            description=testrun.description,
                            maxdocs=testrun.maxdocs,
                            logspeed=testrun.logspeed)
+        print "Ending index run"
 
 def do_search(config, testrun):
     dbpath = testrun.dbpath(config)
@@ -126,22 +128,15 @@ def do_search(config, testrun):
     for runnum in range(1, config.searchruns + 1):
         for queryfile, concurrency, extraargs in testrun.queryruns:
             searchlogfile = testrun.searchlogpath(config, queryfile, concurrency, extraargs, runnum)
-            searchdumpdir = testrun.searchdumpdir(config, queryfile, concurrency, extraargs, runnum)
 
             if config.preserve and \
-               os.path.exists(searchlogfile) and \
-               os.path.exists(searchdumpdir):
+               os.path.exists(searchlogfile):
                 continue
 
-            if os.path.exists(searchdumpdir):
-                shutil.rmtree(searchdumpdir)
-            if not os.path.exists(searchdumpdir):
-                os.mkdir(searchdumpdir)
-
-            print "Starting test run"
+            print "Starting search run (logging to %s)" % searchlogfile 
             tests = searcher.QueryTests(queryfile, dbpath, searchlogfile, concurrency, **extraargs)
             tests.run()
-            print "Ending test run"
+            print "Ending search run"
 
 def analyse_index(config):
     alltimes = {}
@@ -300,22 +295,21 @@ if __name__ == '__main__':
     # Build up a set of test runs to do.
     config.testruns = []
 
-    testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", flushspeed=1, maxdocs=1000, logspeed=10)
-    config.testruns.append(testrun)
+    # Comment out the index runs with different flush values for now.
+    if False:
+        testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", flushspeed=1, maxdocs=1000, logspeed=10)
+        config.testruns.append(testrun)
 
-    testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", flushspeed=10, maxdocs=1000, logspeed=10)
-    config.testruns.append(testrun)
+        testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", flushspeed=10, maxdocs=1000, logspeed=10)
+        config.testruns.append(testrun)
 
-    testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", 1000)
-    config.testruns.append(testrun)
+        testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", 1000, maxdocs=10000)
+        config.testruns.append(testrun)
 
-    testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", 10000)
-    config.testruns.append(testrun)
+        testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", 10000)
+        config.testruns.append(testrun)
 
     testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", 100000)
-    config.testruns.append(testrun)
-
-    testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", 1000000)
     testrun.add_query_run("sampledata/queries.txt", 1)
     testrun.add_query_run("sampledata/queries.txt", 10)
     testrun.add_query_run("sampledata/queries.txt", 100)
