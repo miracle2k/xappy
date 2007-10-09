@@ -1,4 +1,4 @@
-Check out xappy:
+Firstly, check out xappy:
 
     svn co http://xappy.googlecode.com/svn/trunk xappy
     cd xappy/
@@ -11,6 +11,12 @@ Now, go into the performance test directory:
 
     cd perftest/
     mkdir sampledata
+
+The following  instructions assume you're on atreus.tartarus.org.  On other
+machines, you'll need to get the wikipedia data, and process it into a
+"scriptindex" dump format.  This can be done using the
+"parse_wikipedia/wiki2dump.py" script inside the perftest directory (you can
+just ignore the "redirects output file").
 
 Link to the wikipedia sample data:
 
@@ -27,3 +33,4 @@ Finally, run the performance tests:
 
     python perftest.py
 
+The output will be placed in "perftestoutdir/"
