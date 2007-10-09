@@ -68,7 +68,7 @@ class QueryTests(object):
 
         self.qfd = open(queryfile)
         self.logfd = open(logfile, "a")
-        self.logfd.write("Thread Num,Query Count,Matching Count,Estimated matches,Time (seconds),Total Time(seconds)\n")
+        self.logfd.write("Thread Num,Query Num,Count of queries with some matches,Estimated matches,Time (seconds),Elapsed Time(seconds)\n")
         self.querycount = 0
         self.matchingcount = 0
         self.starttime = time.time()
