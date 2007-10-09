@@ -72,13 +72,15 @@ def usage(exitval):
     print("  --outdir: Set output directory")
     print("  --tmpdir: Set temporary directory")
     print("  --preserve: Preserve existing runs")
+    print("  --searchruns: How many times to repeat each search run")
+    print("  --usedb: Use a particular existing database (only do search tests)")
     sys.exit(exitval)
 
 def parse_argv(argv, **defaults):
     config = Config(**defaults)
     try:
         optlist, argv = getopt.gnu_getopt(argv, 'ho:t:p',
-                                          ('help', 'outdir=', 'tmpdir=', 'preserve', 'searchruns='))
+                                          ('help', 'outdir=', 'tmpdir=', 'preserve', 'searchruns=', 'usedb='))
         for (opt, val) in optlist:
             if opt == '-h' or opt == '--help':
                 usage(0)
@@ -90,6 +92,8 @@ def parse_argv(argv, **defaults):
                 config.preserve = True
             elif opt == '--searchruns':
                 config.searchruns = int(val)
+            elif opt == '--usedb':
+                config.usedb = val
             else:
                 print("Unknown option %r" % opt)
                 usage(1)
@@ -193,7 +197,7 @@ def analyse_search(config):
 
 
 class TestRun(object):
-    def __init__(self, inputfile, description, flushspeed=10000, maxdocs=None, logspeed=1000):
+    def __init__(self, inputfile, description, flushspeed=10000, maxdocs=None, logspeed=1000, noindex=False):
         """
 
          - description: textual description of this run (excluding information
@@ -203,6 +207,7 @@ class TestRun(object):
          - maxdocs: maximum number of documents to add (stop automatically
            after this many).
          - logspeed: make a log entry each time we add "logspeed" documents.
+         - noindex: If True, don't do an indexing run (use existing database)
 
         """
         self.inputfile = os.path.abspath(inputfile)
@@ -210,6 +215,7 @@ class TestRun(object):
         self.flushspeed = flushspeed
         self.maxdocs = maxdocs
         self.logspeed = logspeed
+        self.noindex = noindex
         self.queryruns = []
 
     def add_query_run(self, queryfile, concurrency, **extraargs):
@@ -240,6 +246,8 @@ class TestRun(object):
         return self._filename_safe_path(self.description)
 
     def dbpath(self, config):
+        if self.noindex:
+            return self.inputfile
         return os.path.join(config.tmpdir, 'db_%s' % self._index_pathbit())
 
     def indexlogpath(self, config):
@@ -296,7 +304,8 @@ if __name__ == '__main__':
                         tmpdir='perftesttmpdir',
                         outdir='perftestoutdir',
                         preserve=False,
-                        searchruns=5)
+                        searchruns=5,
+                        usedb=None)
     for key in ('tmpdir', 'outdir', ):
         setattr(config, key, os.path.abspath(getattr(config, key)))
 
@@ -317,7 +326,10 @@ if __name__ == '__main__':
         testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", 10000)
         config.testruns.append(testrun)
 
-    testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", 100000)
+    if config.usedb is None:
+        testrun = TestRun("sampledata/wikipedia.dump", "wikipedia", 100000)
+    else:
+        testrun = TestRun(config.usedb, "wikipedia", noindex=True)
     testrun.add_query_run("sampledata/queries.txt", 1)
     testrun.add_query_run("sampledata/queries.txt", 10)
     testrun.add_query_run("sampledata/queries.txt", 100)
@@ -342,7 +354,8 @@ if __name__ == '__main__':
 
     # Do the indexing
     for testrun in config.testruns:
-        do_index(config, testrun)
+        if not testrun.noindex:
+            do_index(config, testrun)
 
     analyse_index(config)
 
