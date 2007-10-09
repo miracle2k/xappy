@@ -51,9 +51,13 @@ import urllib
 import setuppaths
 
 import indexer
-import analyse_indexlogs
 import searcher
-import analyse_searchlogs
+try:
+    import analyse_indexlogs
+    import analyse_searchlogs
+except ImportError:
+    analyse_indexlogs = None
+    analyse_searchlogs = None
 
 
 class Config(object):
@@ -139,6 +143,8 @@ def do_search(config, testrun):
             print "Ending search run"
 
 def analyse_index(config):
+    if analyse_indexlogs is None:
+        return
     alltimes = {}
 
     for testrun in config.testruns:
@@ -162,6 +168,8 @@ def analyse_index(config):
         analyse_indexlogs.generate_comparison_figures(alltimes[desc][1], outprefix, alltimes[desc][0])
 
 def analyse_search(config):
+    if analyse_searchlogs is None:
+        return
     for testrun in config.testruns:
         for runnum in range(1, config.searchruns + 1):
             for queryfile, concurrency, extraargs in testrun.queryruns:
