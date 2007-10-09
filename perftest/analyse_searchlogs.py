@@ -18,7 +18,6 @@
 
 import csv
 import pylab
-import sys
 
 def get_stats(log):
     query_v_time = [(row.time, row.query) for row in log]
@@ -61,7 +60,7 @@ def generate_figures(log, outprefix, pretitle):
 class logrow(object):
     __slots__ = ('querynum', 'estmatches', 'time', 'tottime')
 
-    def __init__(self, querynum, estmatches, time, tottime):
+    def __init__(self, threadnum, querynum, matchcount, estmatches, time, tottime, querylen, *query):
         self.querynum = int(querynum)
         self.estmatches = int(estmatches)
         self.time = float(time)
@@ -79,15 +78,3 @@ def parse_logfile(filename):
             newrow = logrow(*row)
             times.append(newrow)
     return times
-
-if __name__ == '__main__':
-    try:
-        filename = sys.argv[1]
-        outprefix = sys.argv[2]
-        pretitle = sys.argv[3]
-    except IndexError:
-        print "Usage: %s <logfile> <outprefix> <pretitle>" % sys.argv[0]
-        sys.exit(1)
-
-    log = parse_logfile(filename)
-    generate_figures(log, outprefix, pretitle)
