@@ -1,3 +1,9 @@
+Tue Oct 09 16:03:42 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Expand documentation comment to
+	  explain the distinction between default_{allow,deny} and
+	  {allow,deny}.
+
 Tue Oct 09 15:36:32 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* perftest/perftest.py: Add "--usedb" parameter - if supplied, a

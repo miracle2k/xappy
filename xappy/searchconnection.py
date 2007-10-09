@@ -809,6 +809,24 @@ class SearchConnection(object):
         to create parts of the query to combine with such methods with this
         method).
 
+        The string passed to this method can have various operators in it.  In
+        particular, it may contain field specifiers (ie, field names, followed
+        by a colon, followed by some text to search for in that field).  For
+        example, if "author" is a field in the database, the search string
+        could contain "author:richard", and this would be interpreted as
+        "search for richard in the author field".  By default, any fields in
+        the database which are indexed with INDEX_EXACT or INDEX_FREETEXT will
+        be available for field specific searching in this way - however, this
+        can be modified using the "allow" or "deny" parameters.
+
+        Any text which isn't prefixed by a field specifier is used to search
+        the "default set" of fields.  By default, this is the full set of
+        fields in the database which are indexed with INDEX_FREETEXT (ie, if
+        the text is found in any of those fields, the query will match).
+        However, this may be modified with the "default_allow" and
+        "default_deny" parameters.  (Note that fields which are indexed with
+        INDEX_EXACT aren't allowed to be used in the default list of fields.)
+
         - `string`: The string to parse.
         - `allow`: A list of fields to allow in the query.
         - `deny`: A list of fields not to allow in the query.
