@@ -18,11 +18,12 @@ Dependencies
 ------------
 
 You will need an up-to-date version of Xapian (both the core library and the
-corresponding Python bindings) to use Xappy.  The 1.0.2 release release is the
-earliest which the current version of the interface will work with, though some
-features (facets and tagging) currently require a SVN snapshot of the Xapian
-library.  When 1.0.3 is released, this will support all current features of
-Xappy.
+corresponding Python bindings) to use Xappy.  Unfortunately, the latest
+release (1.0.3) doesn't support all the features needed by Xappy, so you will
+either need a recent snapshot release, or to build from Xapian SVN HEAD.  We
+recommend using a snapshot unless you are actively developing Xapian itself.
+
+We hope that release 1.0.4 will be suitable for use with Xappy.
 
 Installation
 ------------

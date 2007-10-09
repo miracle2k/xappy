@@ -21,8 +21,7 @@ Prerequisites
 
 - Xapian (core library and python bindings).  Currently, you will need a
   snapshot release of Xapian (available from
-  http://www.oligarchy.co.uk/xapian/trunk/), but when 1.0 is released in
-  early May 2007 that version should be suitable.
+  http://www.oligarchy.co.uk/xapian/trunk/).
 
 - rst2html and epydoc.  These are used to format the documentation - you
   should be able to use the "xappy" module without them, but it won't be
