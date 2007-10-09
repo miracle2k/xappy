@@ -1,0 +1,29 @@
+Check out xappy:
+
+    svn co http://xappy.googlecode.com/svn/trunk xappy
+    cd xappy/
+
+Check it's working properly, if you like:
+
+    python testsuite/runtests.py
+
+Now, go into the performance test directory:
+
+    cd perftest/
+    mkdir sampledata
+
+Link to the wikipedia sample data:
+
+    ln -s /home/richard/pub/data/wikipedia_processed/out_splitaa sampledata/wikipedia.dump
+     (or use split_ab for a small piece of data)
+
+Generate some sample queries (the source data is in ../testdata - could do with
+better source data):
+
+    python gen_queries.py
+    mv ../testdata/queries.txt sampledata/
+
+Finally, run the performance tests:
+
+    python perftest.py
+
