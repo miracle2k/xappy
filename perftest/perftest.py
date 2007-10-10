@@ -152,6 +152,8 @@ def analyse_index(config):
     alltimes = {}
 
     for testrun in config.testruns:
+        if testrun.noindex:
+            continue
         indexlogpath = testrun.indexlogpath(config)
         outprefix = testrun.indexoutprefix(config)
 
@@ -338,8 +340,8 @@ if __name__ == '__main__':
     testrun.add_query_run("sampledata/queries.txt", 1, sort="doclen")
     testrun.add_query_run("sampledata/queries.txt", 1, collapse="doclen")
     testrun.add_query_run("sampledata/queries.txt", 1, range=("doclen", 10000, 30000))
-    testrun.add_query_run("sampledata/queries.txt", 1, getfacets=10)
-    testrun.add_query_run("sampledata/queries.txt", 1, gettags=("tags",10))
+    #testrun.add_query_run("sampledata/queries.txt", 1, getfacets=10)
+    #testrun.add_query_run("sampledata/queries.txt", 1, gettags=("tags",10))
     config.testruns.append(testrun)
 
     # Make directories (and ensure they're empty)
