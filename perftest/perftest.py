@@ -331,6 +331,7 @@ if __name__ == '__main__':
     else:
         testrun = TestRun(config.usedb, "wikipedia", noindex=True)
     testrun.add_query_run("sampledata/queries.txt", 1)
+    testrun.add_query_run("sampledata/queries.txt", 1, use_or=True)
     testrun.add_query_run("sampledata/queries.txt", 10)
     testrun.add_query_run("sampledata/queries.txt", 100)
 

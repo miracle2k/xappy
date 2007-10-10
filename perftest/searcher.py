@@ -38,7 +38,11 @@ class TestRunner(threading.Thread):
                 query = query.strip()
                 querystart = time.time()
 
-                parsedquery = self.sconn.query_parse(query)
+                if self.tests.use_or:
+                    parsedquery = self.sconn.query_parse(query,
+                                                         default_op=self.sconn.OP_OR)
+                else:
+                    parsedquery = self.sconn.query_parse(query)
                 if self.tests.range is not None:
                     rangequery = self.sconn.query_range(*self.tests.range)
                     parsedquery = self.sconn.query_filter(parsedquery, rangequery)
@@ -61,7 +65,7 @@ class TestRunner(threading.Thread):
 class QueryTests(object):
     def __init__(self, queryfile=None, dbdir=None, logfile=None, threads=1,
                  sort=None, collapse=None, range=None, getfacets=None,
-                 gettags=None):
+                 gettags=None, use_or=False):
         self.queryfile = queryfile
         self.dbdir = dbdir
         self.logfile = logfile
@@ -73,6 +77,8 @@ class QueryTests(object):
         self.matchingcount = 0
         self.starttime = time.time()
         self.threads = threads
+
+        self.use_or = use_or
 
         self.sort = sort
         self.collapse = collapse

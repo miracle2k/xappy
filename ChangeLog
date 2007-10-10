@@ -1,3 +1,8 @@
+Wed Oct 10 01:22:20 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* perftest/perftest.py,perftest/searcher.py: Add use_or option to
+	  search runs, and do an "OR" run by default.
+
 Tue Oct 09 16:03:42 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Expand documentation comment to
