@@ -1056,7 +1056,8 @@ class SearchConnection(object):
         """
         return _xapian.Query('')
 
-    def spell_correct(self, string, allow=None, deny=None):
+    def spell_correct(self, string, allow=None, deny=None, default_op=OP_AND,
+                      default_allow=None, default_deny=None):
         """Correct a query spelling.
 
         This returns a version of the query string with any misspelt words
@@ -1064,8 +1065,13 @@ class SearchConnection(object):
 
         - `allow`: A list of fields to allow in the query.
         - `deny`: A list of fields not to allow in the query.
+        - `default_op`: The default operator to combine query terms with.
+        - `default_allow`: A list of fields to search for by default.
+        - `default_deny`: A list of fields not to search for by default.
 
         Only one of `allow` and `deny` may be specified.
+
+        Only one of `default_allow` and `default_deny` may be specified.
 
         If any of the entries in `allow` are not present in the configuration
         for the database, or are not specified for indexing (either as
@@ -1074,7 +1080,8 @@ class SearchConnection(object):
         database, they will be ignored.
 
         """
-        qp = self._prepare_queryparser(allow, deny, self.OP_AND, None, None)
+        qp = self._prepare_queryparser(allow, deny, default_op, default_allow,
+                                       default_deny)
         qp.parse_query(string, self._qp_flags_std | qp.FLAG_SPELLING_CORRECTION)
         corrected = qp.get_corrected_query_string()
         if len(corrected) == 0:

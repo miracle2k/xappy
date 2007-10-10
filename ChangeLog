@@ -1,3 +1,9 @@
+Wed Oct 10 18:21:33 BST 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add the default_op, default_allow, and
+	  default_deny optional parameters to spell_correct(), so that it
+	  takes the same arguments as query_parse().
+
 Wed Oct 10 01:25:01 BST 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* perftest/perftest.py: Remove facet and tags test runs - we don't
