@@ -1056,7 +1056,7 @@ class SearchConnection(object):
         """
         return _xapian.Query('')
 
-    def spell_correct(self, string, allow=None, deny=None, default_op=OP_AND,
+    def spell_correct(self, querystr, allow=None, deny=None, default_op=OP_AND,
                       default_allow=None, default_deny=None):
         """Correct a query spelling.
 
@@ -1079,17 +1079,22 @@ class SearchConnection(object):
         entries in `deny` are not present in the configuration for the
         database, they will be ignored.
 
+        Note that it is possible that the resulting spell-corrected query will
+        still match no documents - the user should usually check that some
+        documents are matched by the corrected query before suggesting it to
+        users.
+
         """
         qp = self._prepare_queryparser(allow, deny, default_op, default_allow,
                                        default_deny)
-        qp.parse_query(string, self._qp_flags_std | qp.FLAG_SPELLING_CORRECTION)
+        qp.parse_query(querystr, self._qp_flags_std | qp.FLAG_SPELLING_CORRECTION)
         corrected = qp.get_corrected_query_string()
         if len(corrected) == 0:
-            if isinstance(string, unicode):
+            if isinstance(querystr, unicode):
                 # Encode as UTF-8 for consistency - this happens automatically
                 # to values passed to Xapian.
-                return string.encode('utf-8')
-            return string
+                return querystr.encode('utf-8')
+            return querystr
         return corrected
 
     def can_collapse_on(self, field):
