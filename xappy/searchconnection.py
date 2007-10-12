@@ -741,6 +741,10 @@ class SearchConnection(object):
             allow = (allow, )
         if isinstance(deny, basestring):
             deny = (deny, )
+        if allow is not None and len(allow) == 0:
+            allow = None
+        if deny is not None and len(deny) == 0:
+            deny = None
         if allow is not None and deny is not None:
             raise _errors.SearchError("Cannot specify both `allow` and `deny` "
                                       "(got %r and %r)" % (allow, deny))
@@ -749,6 +753,10 @@ class SearchConnection(object):
             default_allow = (default_allow, )
         if isinstance(default_deny, basestring):
             default_deny = (default_deny, )
+        if default_allow is not None and len(default_allow) == 0:
+            default_allow = None
+        if default_deny is not None and len(default_deny) == 0:
+            default_deny = None
         if default_allow is not None and default_deny is not None:
             raise _errors.SearchError("Cannot specify both `default_allow` and `default_deny` "
                                       "(got %r and %r)" % (default_allow, default_deny))
