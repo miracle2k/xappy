@@ -898,7 +898,10 @@ class SearchConnection(object):
                         qp.set_stemming_strategy(qp.STEM_SOME)
                     except KeyError:
                         pass
-                return qp.parse_query(value, self._qp_flags_std, prefix)
+                try:
+                    return qp.parse_query(value, self._qp_flags_std, prefix)
+                except _xapian.QueryParserError:
+                    return qp.parse_query(value, self._qp_flags_nobool, prefix)
 
         return _xapian.Query()
 
@@ -1095,7 +1098,10 @@ class SearchConnection(object):
         """
         qp = self._prepare_queryparser(allow, deny, default_op, default_allow,
                                        default_deny)
-        qp.parse_query(querystr, self._qp_flags_std | qp.FLAG_SPELLING_CORRECTION)
+        try:
+            qp.parse_query(querystr, self._qp_flags_std | qp.FLAG_SPELLING_CORRECTION)
+        except _xapian.QueryParserError:
+            qp.parse_query(querystr, self._qp_flags_nobool | qp.FLAG_SPELLING_CORRECTION)
         corrected = qp.get_corrected_query_string()
         if len(corrected) == 0:
             if isinstance(querystr, unicode):
