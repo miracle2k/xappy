@@ -24,6 +24,7 @@ import xapian as _xapian
 from datastructures import *
 from fieldactions import *
 import fieldmappings as _fieldmappings
+import memutils as _memutils
 import errors as _errors
 import os as _os
 import cPickle as _cPickle
@@ -52,6 +53,53 @@ class IndexerConnection(object):
         self._next_docid = 0
         self._config_modified = False
         self._load_config()
+
+        # Set management of the memory used.
+        # This can be removed once Xapian implements this itself.
+        self._mem_buffered = 0
+        self.set_max_mem_use(max_mem_proportion=0.5)
+
+    def set_max_mem_use(self, max_mem=None, max_mem_proportion=None):
+        """Set the maximum memory to use.
+
+        This call allows the amount of memory to use to buffer changes to be
+        set.  This will affect the speed of indexing, but should not result in
+        other changes to the indexing.
+
+        Note: this is an approximate measure - the actual amount of memory used
+        max exceed the specified amount.  Also, note that future versions of
+        xapian are likely to implement this differently, so this setting may be
+        entirely ignored.
+
+        The absolute amount of memory to use (in bytes) may be set by setting
+        max_mem.  Alternatively, the proportion of the available memory may be
+        set by setting max_mem_proportion (this should be a value between 0 and
+        1).
+
+        Setting too low a value will result in excessive flushing, and very
+        slow indexing.  Setting too high a value will result in excessive
+        buffering, leading to swapping, and very slow indexing.
+
+        This default is a value of 0.5 for max_mem_proportion, which is
+        probably a reasonable default for a system which is dedicated to
+        indexing.
+
+        """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
+        if max_mem is not None and max_mem_proportion is not None:
+            raise _errors.IndexerError("Only one of max_mem and "
+                                       "max_mem_proportion may be specified")
+
+        if max_mem is None and max_mem_proportion is None:
+            self._max_mem = None
+
+        if max_mem_proportion is not None:
+            physmem = _memutils.get_physical_memory()
+            if physmem is not None:
+                max_mem = int(physmem * max_mem_proportion)
+
+        self._max_mem = max_mem
 
     def _store_config(self):
         """Store the configuration for the database.
@@ -171,6 +219,23 @@ class IndexerConnection(object):
 
         return result
 
+    def _get_bytes_used_by_doc_terms(self, xapdoc):
+        """Get an estimate of the bytes used by the terms in a document.
+
+        (This is a very rough estimate.)
+
+        """
+        count = 0
+        for item in xapdoc.termlist():
+            # The term may also be stored in the spelling correction table, so
+            # double the amount used.
+            count += len(item.term) * 2
+
+            # Add a few more bytes for holding the wdf, and other bits and
+            # pieces.
+            count += 8
+        return count
+
     def add(self, document):
         """Add a new document to the search engine index.
 
@@ -205,6 +270,11 @@ class IndexerConnection(object):
         xapdoc = document.prepare()
         self._index.add_document(xapdoc)
 
+        if self._max_mem is not None:
+            self._mem_buffered += self._get_bytes_used_by_doc_terms(xapdoc)
+            if self._mem_buffered > self._max_mem:
+                self.flush()
+
         if id is not orig_id:
             document.id = orig_id
         return id
@@ -232,6 +302,11 @@ class IndexerConnection(object):
 
         xapdoc = document.prepare()
         self._index.replace_document('Q' + id, xapdoc)
+
+        if self._max_mem is not None:
+            self._mem_buffered += self._get_bytes_used_by_doc_terms(xapdoc)
+            if self._mem_buffered > self._max_mem:
+                self.flush()
 
     def _make_synonym_key(self, original, field):
         """Make a synonym key (ie, the term or group of terms to store in
@@ -306,6 +381,7 @@ class IndexerConnection(object):
         if self._config_modified:
             self._store_config()
         self._index.flush()
+        self._mem_buffered = 0
 
     def close(self):
         """Close the connection to the database.

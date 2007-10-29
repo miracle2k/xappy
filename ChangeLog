@@ -1,3 +1,14 @@
+Mon Oct 29 14:08:59 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/memutils.py: New file, which gets the total amount of
+	  physical memory on the system (for windows and POSIX).
+	* xappy/indexerconnection.py: Add set_max_mem_use(), which causes
+	  an automatic flush if more than a certain (configurable) amount
+	  of memory is used.  This should help to avoid using all the
+	  memory for buffered changes, resulting in swapping.  The estimate
+	  of the memory used is fairly primitive, though, so could do with
+	  improvment.
+
 Mon Oct 29 09:30:21 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Retry parse_query() attempt without
