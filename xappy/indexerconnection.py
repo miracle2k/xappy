@@ -234,7 +234,10 @@ class IndexerConnection(object):
             # Add a few more bytes for holding the wdf, and other bits and
             # pieces.
             count += 8
-        return count
+
+        # Empirical observations indicate that about 5 times as much memory as
+        # the above calculation predicts is used for buffering in practice.
+        return count * 5
 
     def add(self, document):
         """Add a new document to the search engine index.
