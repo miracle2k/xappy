@@ -57,7 +57,7 @@ class IndexerConnection(object):
         # Set management of the memory used.
         # This can be removed once Xapian implements this itself.
         self._mem_buffered = 0
-        self.set_max_mem_use(max_mem_proportion=0.5)
+        self.set_max_mem_use()
 
     def set_max_mem_use(self, max_mem=None, max_mem_proportion=None):
         """Set the maximum memory to use.
@@ -80,9 +80,9 @@ class IndexerConnection(object):
         slow indexing.  Setting too high a value will result in excessive
         buffering, leading to swapping, and very slow indexing.
 
-        This default is a value of 0.5 for max_mem_proportion, which is
-        probably a reasonable default for a system which is dedicated to
-        indexing.
+        A reasonable default for max_mem_proportion for a system which is
+        dedicated to indexing is probably 0.5: if other tasks are also being
+        performed on the system, the value should be lowered.
 
         """
         if self._index is None:

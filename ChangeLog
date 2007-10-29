@@ -1,3 +1,8 @@
+Mon Oct 29 15:07:00 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py: Turn off the max_mem_use setting by
+	  default, so we don't mess up performance of existing applications.
+
 Mon Oct 29 14:59:26 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py: Increase estimate of amount of memory
