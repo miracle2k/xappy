@@ -802,7 +802,7 @@ class SearchConnection(object):
                     actions = {}
                 for action, kwargslist in actions.iteritems():
                     if action == FieldActions.INDEX_FREETEXT:
-                        qp.add_prefix('', self._field_mappings.get_prefix(field), _xapian.QueryParser.PREFIX_INLINE)
+                        qp.add_prefix('', self._field_mappings.get_prefix(field))
                         # FIXME - set stemming options for the default prefix
 
         return qp
