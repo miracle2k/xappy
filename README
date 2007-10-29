@@ -19,9 +19,11 @@ Prerequisites
   work correctly, and versions earlier than 2.2 will certainly not work
   (since they are not supported by Xapian).
 
-- Xapian (core library and python bindings).  Currently, you will need a
-  snapshot release of Xapian (available from
-  http://www.oligarchy.co.uk/xapian/trunk/).
+- Xapian (core library and python bindings).  Currently, no release
+  contains all the features needed for Xappy: you will need a snapshot
+  release of Xapian.  Appropriate snapshots are available from the tarballs
+  in the libs/ subdirectory: we do not currently support use of a version
+  of Xapian other than that in those tarballs.
 
 - rst2html and epydoc.  These are used to format the documentation - you
   should be able to use the "xappy" module without them, but it won't be
