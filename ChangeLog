@@ -1,3 +1,8 @@
+Mon Oct 29 14:14:04 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* testsuite/unittests/spell_correct_1.py: Add unittest
+	  demonstrating problem with spelling correction.
+
 Mon Oct 29 14:08:59 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/memutils.py: New file, which gets the total amount of
