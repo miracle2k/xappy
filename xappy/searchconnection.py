@@ -39,6 +39,8 @@ class SearchResult(ProcessedDocument):
     def __init__(self, msetitem, results):
         ProcessedDocument.__init__(self, results._fieldmappings, msetitem.document)
         self.rank = msetitem.rank
+        self.weight = msetitem.weight
+        self.percent = msetitem.percent
         self._results = results
 
     def _get_language(self, field):
