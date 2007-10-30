@@ -35,6 +35,30 @@ import indexerconnection as _indexerconnection
 class SearchResult(ProcessedDocument):
     """A result from a search.
 
+    As well as being a ProcessedDocument representing the document in the
+    database, the result has several members which may be used to get
+    information about how well the document matches the search:
+
+     - `rank`: The rank of the document in the search results, starting at 0
+       (ie, 0 is the "top" result, 1 is the second result, etc).
+
+     - `weight`: A floating point number indicating the weight of the result
+       document.  The value is only meaningful relative to other results for a
+       given search - a different search, or the same search with a different
+       database, may give an entirely different scale to the weights.  This
+       should not usually be displayed to users, but may be useful if trying to
+       perform advanced reweighting operations on search results.
+
+     - `percent`: A percentage value for the weight of a document.  This is
+       just a rescaled form of the `weight` member.  It doesn't represent any
+       kind of probability value; the only real meaning of the numbers is that,
+       within a single set of results, a document with a higher percentage
+       corresponds to a better match.  Because the percentage doesn't really
+       represent a probability, or a confidence value, it is probably unhelpful
+       to display it to most users, since they tend to place an over emphasis
+       on its meaning.  However, it is included because it may be useful
+       occasionally.
+
     """
     def __init__(self, msetitem, results):
         ProcessedDocument.__init__(self, results._fieldmappings, msetitem.document)
