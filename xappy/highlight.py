@@ -252,12 +252,12 @@ __test__ = {
     >>> hl.highlight('Hello. word. wording. wordinging.', ['wording'], '<>')
     'Hello. <word>. <wording>. wordinging.'
 
-    # "wordinging" stems to "wording", so only the last word is highlighted for
-    # this one.
+    # "wordinging" stems to "wording", so only the last two words are
+    # highlighted for this one.
     >>> hl.makeSample('Hello. word. wording. wordinging.', ['wordinging'], hl='<>')
-    'Hello. word. wording. <wordinging>.'
+    'Hello. word. <wording>. <wordinging>.'
     >>> hl.highlight('Hello. word. wording. wordinging.', ['wordinging'], '<>')
-    'Hello. word. wording. <wordinging>.'
+    'Hello. word. <wording>. <wordinging>.'
     ''',
 
     'supplied_stemmer': r'''

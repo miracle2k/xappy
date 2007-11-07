@@ -1093,6 +1093,14 @@ class SearchConnection(object):
         """
         return _xapian.Query('')
 
+    def query_none(self):
+        """A query which matches no documents in the database.
+
+        This may be useful as a placeholder in various situations.
+
+        """
+        return _xapian.Query()
+
     def spell_correct(self, querystr, allow=None, deny=None, default_op=OP_AND,
                       default_allow=None, default_deny=None):
         """Correct a query spelling.
