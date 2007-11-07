@@ -83,7 +83,7 @@ class SearchResult(ProcessedDocument):
                         pass
         return 'none'
 
-    def summarise(self, field, maxlen=600, hl=('<b>', '</b>')):
+    def summarise(self, field, maxlen=600, hl=('<b>', '</b>'), query=None):
         """Return a summarised version of the field specified.
 
         This will return a summary of the contents of the field stored in the
@@ -103,6 +103,11 @@ class SearchResult(ProcessedDocument):
         Any XML or HTML style markup tags in the field will be stripped before
         the summarisation algorithm is applied.
 
+        If `query` is supplied, it should contain a Query object, as returned
+        from SearchConnection.query_parse() or related methods, which will be
+        used as the basis of the summarisation and highlighting rather than the
+        query which was used for the search.
+
         Raises KeyError if the field is not known.
 
         """
@@ -110,9 +115,11 @@ class SearchResult(ProcessedDocument):
         field = self.data[field]
         results = []
         text = '\n'.join(field)
-        return highlighter.makeSample(text, self._results._query, maxlen, hl)
+        if query is None:
+            query = self._results._query
+        return highlighter.makeSample(text, query, maxlen, hl)
 
-    def highlight(self, field, hl=('<b>', '</b>'), strip_tags=False):
+    def highlight(self, field, hl=('<b>', '</b>'), strip_tags=False, query=None):
         """Return a highlighted version of the field specified.
 
         This will return all the contents of the field stored in the search
@@ -128,14 +135,21 @@ class SearchResult(ProcessedDocument):
         If `strip_tags` is True, any XML or HTML style markup tags in the field
         will be stripped before highlighting is applied.
 
+        If `query` is supplied, it should contain a Query object, as returned
+        from SearchConnection.query_parse() or related methods, which will be
+        used as the basis of the summarisation and highlighting rather than the
+        query which was used for the search.
+
         Raises KeyError if the field is not known.
 
         """
         highlighter = _highlight.Highlighter(language_code=self._get_language(field))
         field = self.data[field]
         results = []
+        if query is None:
+            query = self._results._query
         for text in field:
-            results.append(highlighter.highlight(text, self._results._query, hl, strip_tags))
+            results.append(highlighter.highlight(text, query, hl, strip_tags))
         return results
 
     def __repr__(self):
