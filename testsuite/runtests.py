@@ -84,7 +84,6 @@ import os
 import re
 import unittest
 import doctest
-import coverage
 import traceback
 import copy
 
@@ -169,7 +168,7 @@ def teardown_test(dtobj):
     sys.path = _orig_vals['path']
     recursive_rm(tmpdir)
 
-def run_tests(topdir, modnames, other_files):
+def run_tests(topdir, modnames, other_files, use_coverage):
     """Run tests on the specified modules.
 
     Returns a list of modules which were tested.
@@ -190,10 +189,12 @@ def run_tests(topdir, modnames, other_files):
     # Make a test suite to put all the tests in.
     suite = unittest.TestSuite()
 
-    # Use the coverage test module to get coverage information.
-    coverage.erase()
-    coverage.start()
-    coverage.exclude('#pragma[: ]+[nN][oO] [cC][oO][vV][eE][rR]')
+    if use_coverage:
+        # Use the coverage test module to get coverage information.
+        import coverage
+        coverage.erase()
+        coverage.start()
+        coverage.exclude('#pragma[: ]+[nN][oO] [cC][oO][vV][eE][rR]')
 
     # Add all the doctest tests.
     modules = []
@@ -245,11 +246,14 @@ def run_tests(topdir, modnames, other_files):
     runner = unittest.TextTestRunner()
     runner.run(suite)
 
-    # Finished run - stop the coverage tests
-    coverage.stop()
+    if use_coverage:
+        # Finished run - stop the coverage tests
+        coverage.stop()
     return modules
 
 def get_coverage(topdir, modules, covered_lines):
+    import coverage
+
     # Compile the expressions in COVERED_LINES
     covered_lines = [(lines, re.compile(pattern))
                      for (lines, pattern) in covered_lines]
@@ -311,6 +315,19 @@ def display_coverage(stats):
             msg += "\t Missed: %s" % ','.join(missed)
         print msg
 
-topdir = canonical_path(os.path.join(os.path.dirname(__file__), '..'))
-modules = run_tests(topdir, MODNAMES, OTHER_FILES)
-display_coverage(get_coverage(topdir, modules, COVERED_LINES))
+def run(use_coverage=False, use_profiling=False):
+    topdir = canonical_path(os.path.join(os.path.dirname(__file__), '..'))
+    if use_profiling:
+        try:
+            import cProfile as profile
+        except ImportError:
+            import profile
+
+        modules = profile.run('run_tests(%r, MODNAMES, OTHER_FILES, %r)' % (topdir, use_profiling), os.path.join(topdir, '.runtests.prof'))
+    else:
+        modules = run_tests(topdir, MODNAMES, OTHER_FILES, use_coverage)
+
+    if use_coverage:
+        display_coverage(get_coverage(topdir, modules, COVERED_LINES))
+
+run(use_profiling=True)
