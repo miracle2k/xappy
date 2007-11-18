@@ -330,4 +330,5 @@ def run(use_coverage=False, use_profiling=False):
     if use_coverage:
         display_coverage(get_coverage(topdir, modules, COVERED_LINES))
 
-run(use_profiling=True)
+run()
+#run(use_profiling=True)

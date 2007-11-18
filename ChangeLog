@@ -1,3 +1,8 @@
+Sun Nov 18 15:44:50 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* testsuite/runtests.py: Run without profiling by default - much
+	  faster.
+
 Thu Nov 15 08:38:18 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* testsuite/runtests.py: Allow coverage and profiling measures to
