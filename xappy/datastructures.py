@@ -21,6 +21,7 @@ r"""datastructures.py: Datastructures for search engine core.
 __docformat__ = "restructuredtext en"
 
 import errors as _errors
+from replaylog import log as _log
 import xapian as _xapian
 import cPickle as _cPickle
 
@@ -88,7 +89,7 @@ class ProcessedDocument(object):
 
         """
         if xapdoc is None:
-            self._doc = _xapian.Document()
+            self._doc = _log(_xapian.Document)
         else:
             self._doc = xapdoc
         self._fieldmappings = fieldmappings

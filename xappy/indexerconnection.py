@@ -26,6 +26,7 @@ from fieldactions import *
 import fieldmappings as _fieldmappings
 import memutils as _memutils
 import errors as _errors
+from replaylog import log as _log
 import os as _os
 import cPickle as _cPickle
 
@@ -44,7 +45,7 @@ class IndexerConnection(object):
         If the database doesn't already exist, it will be created.
 
         """
-        self._index = _xapian.WritableDatabase(indexpath, _xapian.DB_CREATE_OR_OPEN)
+        self._index = _log(_xapian.WritableDatabase, indexpath, _xapian.DB_CREATE_OR_OPEN)
         self._indexpath = indexpath
 
         # Read existing actions.

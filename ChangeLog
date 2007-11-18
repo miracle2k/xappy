@@ -1,3 +1,16 @@
+Sun Nov 18 15:45:26 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/replaylog.py: New file - allows all calls to xapian to be
+	  logged, such that they could be replayed later for debugging.
+	  Has rather an unpleasant implementation, but as a result has
+	  minimal impact when not turned on - I've not been able to measure
+	  any performance impact incurred when not logging.
+	* xappy/__init__.py: Expose new function "set_replay_path" used to
+	  start logging.
+	* xappy/marshall.py, xappy/fieldactions.py,
+	  xappy/datastructures.py, xappy/indexerconnection.py,
+	  xappy/searchconnection.py: Hook into the replay logging.
+
 Sun Nov 18 15:44:50 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* testsuite/runtests.py: Run without profiling by default - much

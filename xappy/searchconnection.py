@@ -31,6 +31,7 @@ import fieldmappings as _fieldmappings
 import highlight as _highlight 
 import errors as _errors
 import indexerconnection as _indexerconnection
+from replaylog import log as _log
 
 class SearchResult(ProcessedDocument):
     """A result from a search.
@@ -469,11 +470,11 @@ class SearchResults(object):
                 # python tuple of two numbers.
                 for value, frequency in values.iteritems():
                     if len(value) <= 9:
-                        value1 = _xapian.sortable_unserialise(value)
+                        value1 = _log(_xapian.sortable_unserialise, value)
                         value2 = value1
                     else:
-                        value1 = _xapian.sortable_unserialise(value[:9])
-                        value2 = _xapian.sortable_unserialise(value[9:])
+                        value1 = _log(_xapian.sortable_unserialise, value[:9])
+                        value2 = _log(_xapian.sortable_unserialise, value[9:])
                     newvalues.append(((value1, value2), frequency))
             else:
                 for value, frequency in values.iteritems():
@@ -524,7 +525,7 @@ class SearchConnection(object):
         If the database doesn't exist, an exception will be raised.
 
         """
-        self._index = _xapian.Database(indexpath)
+        self._index = _log(_xapian.Database, indexpath)
         self._indexpath = indexpath
 
         # Read the actions.
@@ -624,7 +625,7 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
-        return _xapian.Query(operator, list(queries))
+        return _log(_xapian.Query, operator, list(queries))
 
     def query_multweight(self, query, multiplier):
         """Build a query which modifies the weights of a subquery.
@@ -640,7 +641,7 @@ class SearchConnection(object):
         the query to be adjusted.
 
         """
-        return _xapian.Query(_xapian.Query.OP_SCALE_WEIGHT, query, multiplier)
+        return _log(_xapian.Query, _xapian.Query.OP_SCALE_WEIGHT, query, multiplier)
 
     def query_filter(self, query, filter, exclude=False):
         """Filter a query with another query.
@@ -668,9 +669,9 @@ class SearchConnection(object):
         if not isinstance(filter, _xapian.Query):
             raise _errors.SearchError("Filter must be a Xapian Query object")
         if exclude:
-            return _xapian.Query(_xapian.Query.OP_AND_NOT, query, filter)
+            return _log(_xapian.Query, _xapian.Query.OP_AND_NOT, query, filter)
         else:
-            return _xapian.Query(_xapian.Query.OP_FILTER, query, filter)
+            return _log(_xapian.Query, _xapian.Query.OP_FILTER, query, filter)
 
     def query_adjust(self, primary, secondary):
         """Adjust the weights of one query with a secondary query.
@@ -684,7 +685,7 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
-        return _xapian.Query(_xapian.Query.OP_AND_MAYBE, primary, secondary)
+        return _log(_xapian.Query, _xapian.Query.OP_AND_MAYBE, primary, secondary)
 
     def query_range(self, field, begin, end):
         """Create a query for a range search.
@@ -712,8 +713,8 @@ class SearchConnection(object):
         try:
             slot = self._field_mappings.get_slot(field, 'collsort')
         except KeyError:
-            return _xapian.Query()
-        return _xapian.Query(_xapian.Query.OP_VALUE_RANGE, slot, begin, end)
+            return _log(_xapian.Query)
+        return _log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end)
 
     def query_facet(self, field, val):
         """Create a query for a facet value.
@@ -755,17 +756,17 @@ class SearchConnection(object):
             try:
                 slot = self._field_mappings.get_slot(field, 'facet')
             except KeyError:
-                return _xapian.Query()
+                return _log(_xapian.Query)
             sorttype = self._get_sort_type(field)
             marshaller = SortableMarshaller(False)
             fn = marshaller.get_marshall_function(field, sorttype)
             begin = fn(field, val[0])
             end = fn(field, val[1])
-            return _xapian.Query(_xapian.Query.OP_VALUE_RANGE, slot, begin, end)
+            return _log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end)
         else:
             assert(facettype == 'string' or facettype is None)
             prefix = self._field_mappings.get_prefix(field)
-            return _xapian.Query(prefix + val.lower())
+            return _log(_xapian.Query, prefix + val.lower())
 
 
     def _prepare_queryparser(self, allow, deny, default_op, default_allow,
@@ -801,7 +802,7 @@ class SearchConnection(object):
             raise _errors.SearchError("Cannot specify both `default_allow` and `default_deny` "
                                       "(got %r and %r)" % (default_allow, default_deny))
 
-        qp = _xapian.QueryParser()
+        qp = _log(_xapian.QueryParser)
         qp.set_database(self._index)
         qp.set_default_op(default_op)
 
@@ -825,7 +826,7 @@ class SearchConnection(object):
                     for kwargs in kwargslist:
                         try:
                             lang = kwargs['language']
-                            qp.set_stemmer(_xapian.Stem(lang))
+                            qp.set_stemmer(_log(_xapian.Stem, lang))
                             qp.set_stemming_strategy(qp.STEM_SOME)
                         except KeyError:
                             pass
@@ -926,15 +927,15 @@ class SearchConnection(object):
                     chval = ord(value[0])
                     if chval >= ord('A') and chval <= ord('Z'):
                         prefix = prefix + ':'
-                return _xapian.Query(prefix + value)
+                return _log(_xapian.Query, prefix + value)
             if action == FieldActions.INDEX_FREETEXT:
-                qp = _xapian.QueryParser()
+                qp = _log(_xapian.QueryParser)
                 qp.set_default_op(default_op)
                 prefix = self._field_mappings.get_prefix(field)
                 for kwargs in kwargslist:
                     try:
                         lang = kwargs['language']
-                        qp.set_stemmer(_xapian.Stem(lang))
+                        qp.set_stemmer(_log(_xapian.Stem, lang))
                         qp.set_stemming_strategy(qp.STEM_SOME)
                     except KeyError:
                         pass
@@ -943,7 +944,7 @@ class SearchConnection(object):
                 except _xapian.QueryParserError:
                     return qp.parse_query(value, self._qp_flags_nobool, prefix)
 
-        return _xapian.Query()
+        return _log(_xapian.Query)
 
     def query_similar(self, ids, allow=None, deny=None, simterms=10):
         """Get a query which returns documents which are similar to others.
@@ -975,7 +976,7 @@ class SearchConnection(object):
 
         # Use the "elite set" operator, which chooses the terms with the
         # highest query weight to use.
-        q = _xapian.Query(_xapian.Query.OP_ELITE_SET, eterms, simterms)
+        q = _log(_xapian.Query, _xapian.Query.OP_ELITE_SET, eterms, simterms)
         return q
 
     def significant_terms(self, ids, maxterms=10, allow=None, deny=None):
@@ -1064,6 +1065,21 @@ class SearchConnection(object):
                 self.reopen()
         return eterms, prefixes
 
+    class ExpandDecider(_xapian.ExpandDecider):
+        def __init__(self, prefixes):
+            _xapian.ExpandDecider.__init__(self)
+            self._prefixes = prefixes
+
+        def __call__(self, term):
+            pos = 0
+            for char in term:
+                if not char.isupper():
+                    break
+                pos += 1
+            if term[:pos] in self._prefixes:
+                return True
+            return False
+
     def _perform_expand(self, ids, prefixes, simterms):
         """Perform an expand operation to get the terms for a similarity
         search, given a set of ids (and a set of prefixes to restrict the
@@ -1072,11 +1088,11 @@ class SearchConnection(object):
         """
         # Set idquery to be a query which returns the documents listed in
         # "ids".
-        idquery = _xapian.Query(_xapian.Query.OP_OR, ['Q' + id for id in ids])
+        idquery = _log(_xapian.Query, _xapian.Query.OP_OR, ['Q' + id for id in ids])
 
-        enq = _xapian.Enquire(self._index)
+        enq = _log(_xapian.Enquire, self._index)
         enq.set_query(idquery)
-        rset = _xapian.RSet()
+        rset = _log(_xapian.RSet)
         for id in ids:
             pl = self._index.postlist('Q' + id)
             try:
@@ -1085,19 +1101,7 @@ class SearchConnection(object):
             except StopIteration:
                 pass
 
-        class ExpandDecider(_xapian.ExpandDecider):
-            def __call__(self, term):
-                pos = 0
-                for char in term:
-                    if not char.isupper():
-                        break
-                    pos += 1
-                if term[:pos] in prefixes:
-                    return True
-                return False
-
-        expanddecider = ExpandDecider()
-
+        expanddecider = _log(self.ExpandDecider, prefixes)
         eset = enq.get_eset(simterms, rset, 0, 1.0, expanddecider)
         return [term.term for term in eset]
 
@@ -1105,7 +1109,7 @@ class SearchConnection(object):
         """A query which matches all the documents in the database.
 
         """
-        return _xapian.Query('')
+        return _log(_xapian.Query, '')
 
     def query_none(self):
         """A query which matches no documents in the database.
@@ -1113,7 +1117,7 @@ class SearchConnection(object):
         This may be useful as a placeholder in various situations.
 
         """
-        return _xapian.Query()
+        return _log(_xapian.Query)
 
     def spell_correct(self, querystr, allow=None, deny=None, default_op=OP_AND,
                       default_allow=None, default_deny=None):
@@ -1226,7 +1230,7 @@ class SearchConnection(object):
         if checkatleast == -1:
             checkatleast = self._index.get_doccount()
 
-        enq = _xapian.Enquire(self._index)
+        enq = _log(_xapian.Enquire, self._index)
         enq.set_query(query)
 
         if sortby is not None:
@@ -1269,7 +1273,7 @@ class SearchConnection(object):
                 gettags = [gettags]
         tagspy = None
         if gettags is not None and len(gettags) != 0:
-            tagspy = _xapian.TermCountMatchSpy()
+            tagspy = _log(_xapian.TermCountMatchSpy)
             for field in gettags:
                 try:
                     prefix = self._field_mappings.get_prefix(field)
@@ -1299,7 +1303,7 @@ class SearchConnection(object):
                     if action == FieldActions.FACET:
                         slot = self._field_mappings.get_slot(field, 'facet')
                         if facetspy is None:
-                            facetspy = _xapian.CategorySelectMatchSpy()
+                            facetspy = _log(_xapian.CategorySelectMatchSpy)
                         facettype = None
                         for kwargs in kwargslist:
                             facettype = kwargs.get('type', None)
@@ -1326,7 +1330,7 @@ class SearchConnection(object):
         elif len(matchspies) == 1:
             matchspy = matchspies[0]
         else:
-            matchspy = _xapian.MultipleMatchDecider()
+            matchspy = _log(_xapian.MultipleMatchDecider)
             for spy in matchspies:
                 matchspy.append(spy)
 

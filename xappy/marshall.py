@@ -22,13 +22,14 @@ __docformat__ = "restructuredtext en"
 
 import math
 import xapian
+from replaylog import log as _log
 
 def float_to_string(value):
     """Marshall a floating point number to a string which sorts in the
     appropriate manner.
 
     """
-    return xapian.sortable_serialise(value)
+    return _log(xapian.sortable_serialise, value)
 
 def date_to_string(date):
     """Marshall a date to a string which sorts in the appropriate manner.

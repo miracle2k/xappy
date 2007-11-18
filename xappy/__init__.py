@@ -28,3 +28,4 @@ from datastructures import *
 from errors import *
 from indexerconnection import *
 from searchconnection import *
+from replaylog import set_replay_path

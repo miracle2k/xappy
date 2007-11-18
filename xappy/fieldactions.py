@@ -22,6 +22,7 @@ __docformat__ = "restructuredtext en"
 
 import errors as _errors
 import marshall as _marshall
+from replaylog import log as _log
 import xapian as _xapian
 import parsedate as _parsedate
 
@@ -55,7 +56,8 @@ def _act_facet(fieldname, doc, value, context, type=None):
     if type is None or type == 'string':
         value = value.lower()
         doc.add_term(fieldname, value, 0)
-        serialiser = _xapian.StringListSerialiser(doc.get_value(fieldname, 'facet'))
+        serialiser = _log(_xapian.StringListSerialiser,
+                          doc.get_value(fieldname, 'facet'))
         serialiser.append(value)
         doc.add_value(fieldname, serialiser.get(), 'facet')
     else:
@@ -69,12 +71,12 @@ def _act_index_freetext(fieldname, doc, value, context, weight=1,
     """Perform the INDEX_FREETEXT action.
     
     """
-    termgen = _xapian.TermGenerator()
+    termgen = _log(_xapian.TermGenerator)
     if language is not None:
-        termgen.set_stemmer(_xapian.Stem(language))
+        termgen.set_stemmer(_log(_xapian.Stem, language))
         
     if stop is not None:
-        stopper = _xapian.SimpleStopper()
+        stopper = _log(_xapian.SimpleStopper)
         for term in stop:
             stopper.add (term)
         termgen.set_stopper (stopper)
