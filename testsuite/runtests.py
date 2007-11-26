@@ -163,6 +163,9 @@ def teardown_test(dtobj):
     """Cleanup after running a test.
 
     """
+    for key in list(dtobj.globs.iterkeys()):
+        if not key.startswith('_'):
+            del dtobj.globs[key]
     tmpdir = 'test_tmp'
     os.chdir(_orig_vals['wd'])
     sys.path = _orig_vals['path']

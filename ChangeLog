@@ -1,3 +1,9 @@
+Mon Nov 26 12:36:38 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* testsuite/runtests.py: Delete entries in the dictionary before
+	  calling teardown; should help avoid trying to delete open files
+	  on windows.
+
 Sun Nov 18 15:45:26 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/replaylog.py: New file - allows all calls to xapian to be
