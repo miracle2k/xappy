@@ -1,0 +1,135 @@
+#!/bin/sh -ex
+# This script is used to generate the tarballs of xapian for xappy.
+#
+# These tarballs are based on SVN HEAD, but with the changes from two branches
+# merged in.  Some of the contents of these branches may be merged into HEAD
+# shortly, but other changes on the branches can't easily be merged to HEAD
+# during the 1.0.x release series, so will be merged after the 1.0.x series has
+# been moved into maintenance mode, and HEAD is being used to work towards the
+# 1.1 series.
+#
+# The script depends on various directories being set up, and is probably only
+# usable on my machine without a fair bit of work first.
+
+# The directories used are:
+#
+#  $basedir/branchpoints/matchspy: a checkout of the matchspy branch at the
+#  revision the branch was made (ie, before any changes were made on it).
+#
+#  $basedir/branchpoints/opsynonym: a checkout of the opsynonym branch at the
+#  revision the branch was made (ie, before any changes were made on it).
+#
+#  $basedir/branches/matchspy: a checkout of the matchspy branch at the latest
+#  revision.
+#
+#  $basedir/branches/opsynonym: a checkout of the opsynonym branch at the
+#  latest revision.
+#
+#  $basedir/head/trunk: a checkout of HEAD, at the latest revision.
+#
+#  $xappylibdir: a checkout of xappy/trunk.
+
+rev="1.0.4"
+matchspy_branchpoint="9758"
+opsynonym_branchpoint="9755"
+basedir="$HOME/private/Working/xapian/pristine/"
+xappylibdir="$HOME/xappy/libs/"
+
+echo "Updating branchpoint trees"
+cd $basedir/branchpoints/matchspy
+svn update -r$matchspy_branchpoint
+
+cd $basedir/branchpoints/opsynonym
+svn update -r$opsynonym_branchpoint
+
+echo "Updating branch trees"
+cd $basedir/branches/matchspy
+svn update
+cd $basedir/branches/opsynonym
+svn update
+
+echo "Updating head"
+cd $basedir/head/trunk
+svn update
+
+echo "Exporting clean trees"
+rm -rf $basedir/branchpoints/matchspy_export
+svn export $basedir/branchpoints/matchspy $basedir/branchpoints/matchspy_export
+rm -rf $basedir/branchpoints/opsynonym_export
+svn export $basedir/branchpoints/opsynonym $basedir/branchpoints/opsynonym_export
+rm -rf $basedir/branches/matchspy_export
+svn export $basedir/branches/matchspy $basedir/branches/matchspy_export
+rm -rf $basedir/branches/opsynonym_export
+svn export $basedir/branches/opsynonym $basedir/branches/opsynonym_export
+
+rm -rf $basedir/head/trunk_export
+svn export $basedir/head/trunk $basedir/head/trunk_export
+
+# Get the diffs we made on branches.
+echo "Getting patches from matchspy branch"
+cd $basedir
+diff -Nur \
+  branchpoints/matchspy_export \
+  branches/matchspy_export \
+ | filterdiff -x '*/ChangeLog' -x '*/NEWS' \
+  >$basedir/matchspy_changes.patch
+
+echo "Getting patches from opsynonym branch"
+cd $basedir
+diff -Nur \
+  branchpoints/opsynonym_export \
+  branches/opsynonym_export \
+ | filterdiff -x '*/ChangeLog' -x '*/NEWS' \
+  >$basedir/opsysnonym_changes.patch
+
+# Get the diffs made to HEAD since the branch points
+echo "Getting changes to HEAD since matchspy branch"
+cd $basedir
+diff -Nur \
+  branchpoints/matchspy_export \
+  head/trunk_export \
+  >$basedir/head_changes_since_matchspy_branch.patch && true
+
+echo "Getting changes to HEAD since opsynonym branch"
+cd $basedir
+diff -Nur \
+  branchpoints/opsynonym_export \
+  head/trunk_export \
+  >$basedir/head_changes_since_opsynonym_branch.patch && true
+
+# Apply the patches to HEAD
+echo "Applying patches"
+cd $basedir/head/trunk_export
+patch -p2 < $basedir/matchspy_changes.patch
+patch -p2 < $basedir/opsysnonym_changes.patch
+
+# Make tarballs
+echo "Building tarballs"
+cd $basedir/head/trunk_export
+./bootstrap
+./configure
+(cd xapian-core && make && make dist)
+(cd xapian-bindings && make && make dist)
+
+# Copy the tarballs into xappy
+echo "Repacking tarballs"
+cd $xappylibdir
+rm -rf xapian-core-* xapian-bindings-*
+cd $basedir/head/trunk_export
+cp xapian-core/xapian-core-${rev}.tar.gz $xappylibdir/
+cp xapian-bindings/xapian-bindings-${rev}.tar.gz $xappylibdir/
+cd $xappylibdir
+tar zxf $xappylibdir/xapian-core-${rev}.tar.gz
+tar zxf $xappylibdir/xapian-bindings-${rev}.tar.gz
+mv xapian-core-${rev} xapian-core
+mv xapian-bindings-${rev} xapian-bindings
+tar -H ustar -zcf xapian-core.tgz xapian-core
+tar -H ustar -zcf xapian-bindings.tgz xapian-bindings
+rm -r xapian-core xapian-bindings
+rm xapian-core-${rev}.tar.gz
+rm xapian-bindings-${rev}.tar.gz
+
+# Make a tarball of the windows build files
+cd $basedir/head/trunk_export/xapian-maintainer-tools/
+tar -H ustar -zcf win32msvc.tgz win32msvc
+cp win32msvc.tgz $xappylibdir/
