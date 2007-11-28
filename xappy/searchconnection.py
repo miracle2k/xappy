@@ -454,6 +454,9 @@ class SearchResults(object):
 
             # Get the values
             values = self._facetspy.get_values_as_dict(slot)
+            if field in self._numeric_ranges_built:
+                if '' in values:
+                    del values['']
 
             # Required facets must occur at least once, other facets must occur
             # at least twice.

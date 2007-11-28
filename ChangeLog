@@ -1,3 +1,11 @@
+Wed Nov 28 10:18:43 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Fix returning of empty facet value,
+	  which translates into numeric range from -inf to -inf: this is
+	  returned when some documents do not have an entry in a numeric
+	  range, with a count of the number of documents which matched but
+	  didn't have a numeric facet.  Just ignore this information.
+
 Wed Nov 28 08:37:08 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Remove a typo.
