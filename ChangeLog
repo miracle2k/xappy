@@ -1,3 +1,8 @@
+Wed Nov 28 07:34:21 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/: Update the xapian tarballs; these now include OP_SYNONYM
+	  and use it for synonym searches, wildcards, and partial searches.
+
 Tue Nov 27 22:39:54 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: Add script to update the xappy
