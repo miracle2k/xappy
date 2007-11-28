@@ -508,12 +508,11 @@ class SearchConnection(object):
     The connection will access a view of the database.
 
     """
-    _qp_flags_std = (_xapian.QueryParser.FLAG_PHRASE |
-                     _xapian.QueryParser.FLAG_BOOLEAN |
-                     _xapian.QueryParser.FLAG_LOVEHATE |
-                     _xapian.QueryParser.FLAG_AUTO_SYNONYMS |
-                     _xapian.QueryParser.FLAG_AUTO_MULTIWORD_SYNONYMS)
-    _qp_flags_nobool = (_qp_flags_std | _xapian.QueryParser.FLAG_BOOLEAN) ^ _xapian.QueryParser.FLAG_BOOLEAN
+    _qp_flags_base = _xapian.QueryParser.FLAG_LOVEHATE
+    _qp_flags_phrase = _xapian.QueryParser.FLAG_PHRASE
+    _qp_flags_synonym = (_xapian.QueryParser.FLAG_AUTO_SYNONYMS |
+                         _xapian.QueryParser.FLAG_AUTO_MULTIWORD_SYNONYMS)
+    _qp_flags_bool = _xapian.QueryParser.FLAG_BOOLEAN
 
     def __init__(self, indexpath):
         """Create a new connection to the index for searching.
@@ -826,7 +825,8 @@ class SearchConnection(object):
                     for kwargs in kwargslist:
                         try:
                             lang = kwargs['language']
-                            qp.set_stemmer(_log(_xapian.Stem, lang))
+                            qp.my_stemmer = _log(_xapian.Stem, lang)
+                            qp.set_stemmer(qp.my_stemmer)
                             qp.set_stemming_strategy(qp.STEM_SOME)
                         except KeyError:
                             pass
@@ -847,6 +847,53 @@ class SearchConnection(object):
                         # FIXME - set stemming options for the default prefix
 
         return qp
+
+    def _query_parse_with_prefix(self, qp, string, flags, prefix):
+        """Parse a query, with an optional prefix.
+
+        """
+        if prefix is None:
+            return qp.parse_query(string, flags)
+        else:
+            return qp.parse_query(string, flags, prefix)
+
+    def _query_parse_with_fallback(self, qp, string, prefix=None):
+        """Parse a query with various flags.
+        
+        If the initial boolean pass fails, fall back to not using boolean
+        operators.
+
+        """
+        try:
+            q1 = self._query_parse_with_prefix(qp, string,
+                                               self._qp_flags_base |
+                                               self._qp_flags_phrase |
+                                               self._qp_flags_synonym |
+                                               self._qp_flags_bool,
+                                               prefix)
+        except _xapian.QueryParserError, e:
+            # If we got a parse error, retry without boolean operators (since
+            # these are the usual cause of the parse error).
+            q1 = self._query_parse_with_prefix(qp, string,
+                                               self._qp_flags_base |
+                                               self._qp_flags_phrase |
+                                               self._qp_flags_synonym,
+                                               prefix)
+
+        qp.set_stemming_strategy(qp.STEM_NONE)
+        try:
+            q2 = self._query_parse_with_prefix(qp, string,
+                                               self._qp_flags_base |
+                                               self._qp_flags_bool,
+                                               prefix)
+        except _xapian.QueryParserError, e:
+            # If we got a parse error, retry without boolean operators (since
+            # these are the usual cause of the parse error).
+            q2 = self._query_parse_with_prefix(qp, string,
+                                               self._qp_flags_base,
+                                               prefix)
+
+        return _log(_xapian.Query, _xapian.Query.OP_AND_MAYBE, q1, q2)
 
     def query_parse(self, string, allow=None, deny=None, default_op=OP_AND,
                     default_allow=None, default_deny=None):
@@ -899,12 +946,7 @@ class SearchConnection(object):
         """
         qp = self._prepare_queryparser(allow, deny, default_op, default_allow,
                                        default_deny)
-        try:
-            return qp.parse_query(string, self._qp_flags_std)
-        except _xapian.QueryParserError, e:
-            # If we got a parse error, retry without boolean operators (since
-            # these are the usual cause of the parse error).
-            return qp.parse_query(string, self._qp_flags_nobool)
+        return self._query_parse_with_fallback(qp, string)
 
     def query_field(self, field, value, default_op=OP_AND):
         """A query for a single field.
@@ -939,10 +981,7 @@ class SearchConnection(object):
                         qp.set_stemming_strategy(qp.STEM_SOME)
                     except KeyError:
                         pass
-                try:
-                    return qp.parse_query(value, self._qp_flags_std, prefix)
-                except _xapian.QueryParserError:
-                    return qp.parse_query(value, self._qp_flags_nobool, prefix)
+                return self._query_parse_with_fallback(qp, value, prefix)
 
         return _log(_xapian.Query)
 
@@ -1151,9 +1190,18 @@ class SearchConnection(object):
         qp = self._prepare_queryparser(allow, deny, default_op, default_allow,
                                        default_deny)
         try:
-            qp.parse_query(querystr, self._qp_flags_std | qp.FLAG_SPELLING_CORRECTION)
+            qp.parse_query(querystr,
+                           self._qp_flags_base |
+                           self._qp_flags_phrase |
+                           self._qp_flags_synonym |
+                           self._qp_flags_bool |
+                           qp.FLAG_SPELLING_CORRECTION)
         except _xapian.QueryParserError:
-            qp.parse_query(querystr, self._qp_flags_nobool | qp.FLAG_SPELLING_CORRECTION)
+            qp.parse_query(querystr,
+                           self._qp_flags_base |
+                           self._qp_flags_phrase |
+                           self._qp_flags_synonym |
+                           qp.FLAG_SPELLING_CORRECTION)
         corrected = qp.get_corrected_query_string()
         if len(corrected) == 0:
             if isinstance(querystr, unicode):

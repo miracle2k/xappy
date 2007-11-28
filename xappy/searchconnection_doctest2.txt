@@ -129,7 +129,7 @@ First, check the fallback handling for queries with invalid boolean
 operations:
 >>> q = sconn.query_parse('AND document')
 >>> str(q)
-'Xapian::Query((and:(pos=1) AND (Zdocument:(pos=2) OR record:(pos=2))))'
+'Xapian::Query(((and:(pos=1) AND (Zdocument:(pos=2) SYNONYM record:(pos=2))) AND_MAYBE (and:(pos=1) AND document:(pos=2))))'
 
 Check that spelling correction works:
 >>> sconn.spell_correct('docment')
@@ -152,7 +152,7 @@ Check that synonyms work:
 {('document', None): ('record',), ('basic test', 'text'): ('exam',)}
 >>> q = sconn.query_parse('document')
 >>> str(q)
-'Xapian::Query((Zdocument:(pos=1) OR record:(pos=1)))'
+'Xapian::Query(((Zdocument:(pos=1) SYNONYM record:(pos=1)) AND_MAYBE document:(pos=1)))'
 
 
 Remove the synonyms for the remaining tests:
@@ -166,7 +166,7 @@ Remove the synonyms for the remaining tests:
 Now, parse a simple query.
 >>> q = sconn.query_parse('document')
 >>> str(q)
-'Xapian::Query(Zdocument:(pos=1))'
+'Xapian::Query((Zdocument:(pos=1) AND_MAYBE document:(pos=1)))'
 >>> results = sconn.search(q, 0, 30)
 >>> [result.id for result in results]
 ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '1a', '1b', '1c', '1d']
@@ -352,7 +352,7 @@ If the end of the range is lower than the start, no results can match
 We can also adjust the weights of one query using a second query:
 >>> q = sconn.query_adjust(q, sconn.query_parse('cat'))
 >>> str(q)
-'Xapian::Query((Zdocument:(pos=1) AND_MAYBE Zcat:(pos=1)))'
+'Xapian::Query(((Zdocument:(pos=1) AND_MAYBE document:(pos=1)) AND_MAYBE (Zcat:(pos=1) AND_MAYBE cat:(pos=1))))'
 
 
 
@@ -377,20 +377,20 @@ Do a search which matches all documents:
 Do a search which uses a restricted set of default fields:
 >>> q = sconn.query_parse('richard', default_allow='author')
 >>> str(q)
-'Xapian::Query(ZXArichard:(pos=1))'
+'Xapian::Query((ZXArichard:(pos=1) AND_MAYBE XArichard:(pos=1)))'
 >>> q = sconn.query_parse('richard', default_deny='category')
 >>> str(q)
-'Xapian::Query((ZXArichard:(pos=1) OR ZXBrichard:(pos=1) OR ZXDrichard:(pos=1)))'
+'Xapian::Query(((ZXArichard:(pos=1) OR ZXBrichard:(pos=1) OR ZXDrichard:(pos=1)) AND_MAYBE (XArichard:(pos=1) OR XBrichard:(pos=1) OR XDrichard:(pos=1))))'
 
 
 Do a search which multiplies the weights by 2:
 >>> q = sconn.query_multweight(sconn.query_parse('richard', default_allow='author'), 2)
 >>> str(q)
-'Xapian::Query(2 * ZXArichard:(pos=1))'
+'Xapian::Query(2 * (ZXArichard:(pos=1) AND_MAYBE XArichard:(pos=1)))'
 >>> q2 = sconn.query_parse('richard', default_deny='author')
 >>> q = sconn.query_composite(sconn.OP_OR, (q, q2))
 >>> str(q)
-'Xapian::Query((2 * ZXArichard:(pos=1) OR ZXBrichard:(pos=1) OR ZXDrichard:(pos=1)))'
+'Xapian::Query((2 * (ZXArichard:(pos=1) AND_MAYBE XArichard:(pos=1)) OR ((ZXBrichard:(pos=1) OR ZXDrichard:(pos=1)) AND_MAYBE (XBrichard:(pos=1) OR XDrichard:(pos=1)))))'
 
 Do a similarity search
 >>> q = sconn.query_parse('document (2 OR 5 OR 8)')

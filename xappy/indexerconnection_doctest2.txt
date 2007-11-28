@@ -172,11 +172,11 @@ If we reopen the connection, we can see the latest changes:
 
 We can parse some
 >>> str(sconn4.query_parse('test'))
-'Xapian::Query(Ztest:(pos=1))'
+'Xapian::Query((Ztest:(pos=1) AND_MAYBE test:(pos=1)))'
 >>> str(sconn4.query_parse('title:test'))
-'Xapian::Query(ZXAtest:(pos=1))'
+'Xapian::Query((ZXAtest:(pos=1) AND_MAYBE XAtest:(pos=1)))'
 >>> str(sconn4.query_parse('title:Test'))
-'Xapian::Query(XAtest:(pos=1))'
+'Xapian::Query((XAtest:(pos=1) AND_MAYBE XAtest:(pos=1)))'
 
 Xapian needs a patch to support exact prefixes.  When this is applied, the
 following test will pass.
@@ -186,12 +186,12 @@ following test will pass.
 For now, the output is approximately right, and good enough to be going on
 with:
 >>> str(sconn4.query_parse('title:Test category:Te/st'))
-'Xapian::Query((XAtest:(pos=1) AND (XBte:(pos=2) PHRASE 2 XBst:(pos=3))))'
+'Xapian::Query(((XAtest:(pos=1) AND (XBte:(pos=2) PHRASE 2 XBst:(pos=3))) AND_MAYBE (XAtest:(pos=1) AND (XBte:(pos=2) PHRASE 2 XBst:(pos=3)))))'
 
 >>> q1 = sconn4.query_parse('text:(clematis)')
 >>> q2 = sconn4.query_parse('title:Test')
 >>> str(sconn4.query_filter(q1, q2))
-'Xapian::Query((ZXCclemati:(pos=1) FILTER XAtest:(pos=1)))'
+'Xapian::Query(((ZXCclemati:(pos=1) AND_MAYBE XCclematis:(pos=1)) FILTER (XAtest:(pos=1) AND_MAYBE XAtest:(pos=1))))'
 
 >>> str(sconn4.query_filter(q1, "filter"))
 Traceback (most recent call last):
@@ -201,11 +201,11 @@ SearchError: Filter must be a Xapian Query object
 If we only allow a limited set of fields, other field specifications will be
 considered as plain text:
 >>> str(sconn4.query_parse("text:clematis title:Test"))
-'Xapian::Query((ZXCclemati:(pos=1) AND XAtest:(pos=2)))'
+'Xapian::Query(((ZXCclemati:(pos=1) AND XAtest:(pos=2)) AND_MAYBE (XCclematis:(pos=1) AND XAtest:(pos=2))))'
 >>> str(sconn4.query_parse("text:clematis title:Test", allow=("text",)))
-'Xapian::Query((ZXCclemati:(pos=1) AND (title:(pos=2) PHRASE 2 test:(pos=3))))'
+'Xapian::Query(((ZXCclemati:(pos=1) AND (title:(pos=2) PHRASE 2 test:(pos=3))) AND_MAYBE (XCclematis:(pos=1) AND (title:(pos=2) PHRASE 2 test:(pos=3)))))'
 >>> str(sconn4.query_parse("text:clematis title:Test", deny=("title",)))
-'Xapian::Query((ZXCclemati:(pos=1) AND (title:(pos=2) PHRASE 2 test:(pos=3))))'
+'Xapian::Query(((ZXCclemati:(pos=1) AND (title:(pos=2) PHRASE 2 test:(pos=3))) AND_MAYBE (XCclematis:(pos=1) AND (title:(pos=2) PHRASE 2 test:(pos=3)))))'
 >>> str(sconn4.query_parse("text:clematis title:Test", allow=("text",), deny=("title",)))
 Traceback (most recent call last):
 ...
@@ -214,15 +214,15 @@ SearchError: Cannot specify both `allow` and `deny` (got ('text',) and ('title',
 
 We can parse queries which don't specify a field explicitly, too:
 >>> str(sconn4.query_parse("clematis Test"))
-'Xapian::Query((Zclemati:(pos=1) AND test:(pos=2)))'
+'Xapian::Query(((Zclemati:(pos=1) AND test:(pos=2)) AND_MAYBE (clematis:(pos=1) AND test:(pos=2))))'
 
 We can generate a query for an individual field:
 >>> str(sconn4.query_field('text', "clematis Test"))
-'Xapian::Query((ZXCclemati:(pos=1) AND XCtest:(pos=2)))'
+'Xapian::Query(((ZXCclemati:(pos=1) AND XCtest:(pos=2)) AND_MAYBE (XCclematis:(pos=1) AND XCtest:(pos=2))))'
 
 If we generate a query for a field with no language set, it won't be stemmed:
 >>> str(sconn4.query_field('other', "clematis Test"))
-'Xapian::Query((XDclematis:(pos=1) AND XDtest:(pos=2)))'
+'Xapian::Query(((XDclematis:(pos=1) AND XDtest:(pos=2)) AND_MAYBE (XDclematis:(pos=1) AND XDtest:(pos=2))))'
 
 If the field is an exact text field, the query will contain a single term:
 >>> str(sconn4.query_field('category', "Clematis Test"))
@@ -240,7 +240,7 @@ If we filter a query with an empty query, we get another empty query:
 
 >>> q = sconn4.query_parse('title:Test')
 >>> str(q)
-'Xapian::Query(XAtest:(pos=1))'
+'Xapian::Query((XAtest:(pos=1) AND_MAYBE XAtest:(pos=1)))'
 >>> res = sconn4.search(q, 0, 10)
 >>> res.matches_lower_bound
 3
@@ -266,18 +266,18 @@ If we ask for fewer results, we get them:
 Multiword queries use AND to combine terms, by default:
 >>> q1 = sconn4.query_parse('text:(important plants)')
 >>> str(q1)
-'Xapian::Query((ZXCimport:(pos=1) AND ZXCplant:(pos=2)))'
+'Xapian::Query(((ZXCimport:(pos=1) AND ZXCplant:(pos=2)) AND_MAYBE (XCimportant:(pos=1) AND XCplants:(pos=2))))'
 
 But we can set the default operator to OR if we want:
 >>> q1 = sconn4.query_parse('text:(important plants)', default_op=sconn4.OP_OR)
 >>> str(q1)
-'Xapian::Query((ZXCimport:(pos=1) OR ZXCplant:(pos=2)))'
+'Xapian::Query(((ZXCimport:(pos=1) OR ZXCplant:(pos=2)) AND_MAYBE (XCimportant:(pos=1) OR XCplants:(pos=2))))'
 
 We can combine queries:
 >>> q2 = sconn4.query_parse('title:test')
 >>> q = sconn4.query_composite(sconn4.OP_OR, (q1, q2))
 >>> str(q)
-'Xapian::Query((ZXCimport:(pos=1) OR ZXCplant:(pos=2) OR ZXAtest:(pos=1)))'
+'Xapian::Query((((ZXCimport:(pos=1) OR ZXCplant:(pos=2)) AND_MAYBE (XCimportant:(pos=1) OR XCplants:(pos=2))) OR (ZXAtest:(pos=1) AND_MAYBE XAtest:(pos=1))))'
 
 
 >>> doc = UnprocessedDocument(fields=(Field('author', 'Richard Boulton'),
