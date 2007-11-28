@@ -114,13 +114,16 @@ cd $basedir/head/trunk_export
 # Copy the tarballs into xappy
 echo "Repacking tarballs"
 cd $xappylibdir
+mkdir -p tmp
+cd tmp
+
 rm -rf xapian-core-* xapian-bindings-*
 cd $basedir/head/trunk_export
-cp xapian-core/xapian-core-${rev}.tar.gz $xappylibdir/
-cp xapian-bindings/xapian-bindings-${rev}.tar.gz $xappylibdir/
-cd $xappylibdir
-tar zxf $xappylibdir/xapian-core-${rev}.tar.gz
-tar zxf $xappylibdir/xapian-bindings-${rev}.tar.gz
+cp xapian-core/xapian-core-${rev}.tar.gz $xappylibdir/tmp/
+cp xapian-bindings/xapian-bindings-${rev}.tar.gz $xappylibdir/tmp/
+cd $xappylibdir/tmp
+tar zxf $xappylibdir/tmp/xapian-core-${rev}.tar.gz
+tar zxf $xappylibdir/tmp/xapian-bindings-${rev}.tar.gz
 mv xapian-core-${rev} xapian-core
 mv xapian-bindings-${rev} xapian-bindings
 tar -H ustar -zcf xapian-core.tgz xapian-core
@@ -128,6 +131,10 @@ tar -H ustar -zcf xapian-bindings.tgz xapian-bindings
 rm -r xapian-core xapian-bindings
 rm xapian-core-${rev}.tar.gz
 rm xapian-bindings-${rev}.tar.gz
+
+cd $xappylibdir
+mv tmp/xapian-core.tgz .
+mv tmp/xapian-bindings.tgz .
 
 # Make a tarball of the windows build files
 cd $basedir/head/trunk_export/xapian-maintainer-tools/
