@@ -432,7 +432,7 @@ class SearchResults(object):
 
             if type == 'float':
                 if field not in self._numeric_ranges_built:
-                    field, self._facetspy.build_numeric_ranges(slot, desired_num_of_categories)
+                    self._facetspy.build_numeric_ranges(slot, desired_num_of_categories)
                     self._numeric_ranges_built[field] = None
             facettypes[field] = type
             score = self._facetspy.score_categorisation(slot,
