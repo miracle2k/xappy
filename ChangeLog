@@ -1,3 +1,12 @@
+Thu Nov 29 17:58:18 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Expose an API for setting the minimum
+	  weight or percentage allowed for a result to be returned; this is
+	  done by supplying the percentcutoff or weightcutoff parameters to
+	  SearchConnection.search()
+	* xappy/searchconnection_doctest2.txt: Test the weight and
+	  percentage cutoff parameters.
+
 Wed Nov 28 10:18:43 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Fix returning of empty facet value,

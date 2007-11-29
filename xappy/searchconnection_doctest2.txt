@@ -409,6 +409,22 @@ Do a similarity search
 >>> str(q2)
 'Xapian::Query((XDdocument ELITE_SET 5 XDthis ELITE_SET 5 XDtest ELITE_SET 5 XDtext ELITE_SET 5 XDmore))'
 
+Try a search with various weight cutoff restrictions:
+>>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date")
+>>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
+[('7', 55, 326), ('8', 27, 163)]
+>>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date", percentcutoff=30)
+>>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
+[('7', 55, 326)]
+>>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date", weightcutoff=20)
+>>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
+[('7', 55, 326)]
+>>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date", percentcutoff=56)
+>>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
+[]
+>>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date", weightcutoff=33)
+>>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
+[]
 
 Do a similarity search with an ID which isn't in the database:
 >>> q2 = sconn.query_similar('foo', simterms=5)

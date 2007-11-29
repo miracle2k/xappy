@@ -1241,7 +1241,8 @@ class SearchConnection(object):
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
                gettags=None,
-               getfacets=None, allowfacets=None, denyfacets=None):
+               getfacets=None, allowfacets=None, denyfacets=None,
+               percentcutoff=None, weightcutoff=None):
         """Perform a search, for documents matching a query.
 
         - `query` is the query to perform.
@@ -1271,6 +1272,10 @@ class SearchConnection(object):
         - `allowfacets` is a list of the fieldnames of facets to consider.
         - `denyfacets` is a list of fieldnames of facets which will not be
           considered.
+        - `percentcutoff` is the minimum percentage a result must have to be
+          returned.
+        - `weightcutoff` is the minimum weight a result must have to be
+          returned.
 
         If neither 'allowfacets' or 'denyfacets' is specified, all fields
         holding facets will be considered.
@@ -1386,6 +1391,14 @@ class SearchConnection(object):
                 matchspy.append(spy)
 
         enq.set_docid_order(enq.DONT_CARE)
+
+        # Set percentage and weight cutoffs
+        if percentcutoff is not None or weightcutoff is not None:
+            if percentcutoff is None:
+                percentcutoff = 0
+            if weightcutoff is None:
+                weightcutoff = 0
+            enq.set_cutoff(percentcutoff, weightcutoff)
 
         # Repeat the search until we don't get a DatabaseModifiedError
         while True:
