@@ -533,6 +533,27 @@ class SearchConnection(object):
         # Read the actions.
         self._load_config()
 
+        self._close_handlers = []
+
+    def __del__(self):
+        self.close()
+
+    def append_close_handler(self, handler):
+        """Append a callback to the list of close handlers.
+
+        These will be called when the SearchConnection is closed.  This happens
+        when the close() method is called, or when the SearchConnection object
+        is deleted.
+
+        The handlers will be called in the order in which they were added.
+
+        The handlers will be called after the connection has been closed, so
+        cannot prevent it closing: their return value will be ignored.  In
+        addition, they should not raise any exceptions.
+
+        """
+        self._close_handlers.append(handler)
+
     def _get_sort_type(self, field):
         """Get the sort type that should be used for a given field.
 
@@ -593,6 +614,10 @@ class SearchConnection(object):
         """
         if self._index is None:
             return
+
+        # Remember the index path
+        indexpath = self._indexpath
+
         # There is currently no "close()" method for xapian databases, so
         # we have to rely on the garbage collector.  Since we never copy
         # the _index property out of this class, there should be no cycles,
@@ -604,6 +629,14 @@ class SearchConnection(object):
         self._indexpath = None
         self._field_actions = None
         self._field_mappings = None
+
+        # Call the close handlers.
+        for handler in self._close_handlers:
+            try:
+                handler(indexpath)
+            except Exception, e:
+                import sys, traceback
+                print >>sys.stderr, "WARNING: unhandled exception in handler called by SearchConnection.close(): %s" % traceback.format_exception_only(type(e), e)
 
     def get_doccount(self):
         """Count the number of documents in the database.

@@ -125,6 +125,12 @@ Now, open a search connection:
 >>> sconn = SearchConnection('foo')
 >>> sconn2 = SearchConnection('foo2')
 
+We can append a close handler to notify us when the connection is closed.
+>>> def closehandler(path):
+...     print "Closing connection at path %s" % path
+>>> sconn.append_close_handler(closehandler)
+>>> sconn2.append_close_handler(closehandler)
+
 First, check the fallback handling for queries with invalid boolean
 operations:
 >>> q = sconn.query_parse('AND document')
@@ -439,3 +445,12 @@ Find the interesting terms in a set of documents:
 
 Tidy up after ourselves:
 >>> sconn.close()
+Closing connection at path foo
+
+>>> del sconn
+>>> del sconn2
+>>> del result
+>>> del results
+>>> del results2
+>>> del results3
+Closing connection at path foo2
