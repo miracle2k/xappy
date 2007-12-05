@@ -543,7 +543,8 @@ class SearchConnection(object):
 
         These will be called when the SearchConnection is closed.  This happens
         when the close() method is called, or when the SearchConnection object
-        is deleted.
+        is deleted.  The callback will be passed a single argument: the path to
+        the SearchConnection object.
 
         The handlers will be called in the order in which they were added.
 
