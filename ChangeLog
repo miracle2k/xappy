@@ -1,3 +1,14 @@
+Thu Dec 06 12:27:53 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/highlight_doctest1.txt: Don't display the output of the
+	  highlighter - we're just testing that it returns promptly.
+
+Thu Dec 06 12:19:55 UTC 2007  Tom Mortimer <tom@lemurconsulting.com>
+
+	* xappy/highlight.py,xappy/highlight_doctest1.txt: Simplified
+	  regexp to work around freezing problem. Less procise now but
+	  probably good enough temporarily. Fixed test case.
+
 Thu Dec 06 07:38:49 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/highlight_doctest1.txt: Add testcase of a pathological
