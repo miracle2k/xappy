@@ -126,10 +126,10 @@ Now, open a search connection:
 >>> sconn2 = SearchConnection('foo2')
 
 We can append a close handler to notify us when the connection is closed.
->>> def closehandler(path):
-...     print "Closing connection at path %s" % path
->>> sconn.append_close_handler(closehandler)
->>> sconn2.append_close_handler(closehandler)
+>>> def closehandler(path, userdata):
+...     print "Closing connection at path %s: %s" % (path, userdata)
+>>> sconn.append_close_handler(closehandler, "Conn1")
+>>> sconn2.append_close_handler(closehandler, "Conn2")
 
 First, check the fallback handling for queries with invalid boolean
 operations:
@@ -445,7 +445,7 @@ Find the interesting terms in a set of documents:
 
 Tidy up after ourselves:
 >>> sconn.close()
-Closing connection at path foo
+Closing connection at path foo: Conn1
 
 >>> del sconn
 >>> del sconn2
@@ -453,4 +453,4 @@ Closing connection at path foo
 >>> del results
 >>> del results2
 >>> del results3
-Closing connection at path foo2
+Closing connection at path foo2: Conn2

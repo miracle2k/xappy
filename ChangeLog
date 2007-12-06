@@ -1,3 +1,9 @@
+Thu Dec 06 16:53:23 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add a "userdata" parameter to the
+	  closehandler callback, to make writing the callbacks easier.
+	* xappy/searchconnection_doctest2.txt: Test the userdata parameter.
+
 Thu Dec 06 12:27:53 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/highlight_doctest1.txt: Don't display the output of the

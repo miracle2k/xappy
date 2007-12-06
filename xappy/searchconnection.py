@@ -538,13 +538,13 @@ class SearchConnection(object):
     def __del__(self):
         self.close()
 
-    def append_close_handler(self, handler):
+    def append_close_handler(self, handler, userdata=None):
         """Append a callback to the list of close handlers.
 
         These will be called when the SearchConnection is closed.  This happens
         when the close() method is called, or when the SearchConnection object
-        is deleted.  The callback will be passed a single argument: the path to
-        the SearchConnection object.
+        is deleted.  The callback will be passed two arguments: the path to the
+        SearchConnection object, and the userdata supplied to this method.
 
         The handlers will be called in the order in which they were added.
 
@@ -553,7 +553,7 @@ class SearchConnection(object):
         addition, they should not raise any exceptions.
 
         """
-        self._close_handlers.append(handler)
+        self._close_handlers.append((handler, userdata))
 
     def _get_sort_type(self, field):
         """Get the sort type that should be used for a given field.
@@ -632,9 +632,9 @@ class SearchConnection(object):
         self._field_mappings = None
 
         # Call the close handlers.
-        for handler in self._close_handlers:
+        for handler, userdata in self._close_handlers:
             try:
-                handler(indexpath)
+                handler(indexpath, userdata)
             except Exception, e:
                 import sys, traceback
                 print >>sys.stderr, "WARNING: unhandled exception in handler called by SearchConnection.close(): %s" % traceback.format_exception_only(type(e), e)
