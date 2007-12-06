@@ -1,3 +1,9 @@
+Thu Dec 06 07:38:49 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/highlight_doctest1.txt: Add testcase of a pathological
+	  document for highlighting - the regular expression currently
+	  takes a ridiculously long time to process this.
+
 Thu Dec 06 07:29:28 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* testsuite/runtests.py: Fix for running with debug logging.
