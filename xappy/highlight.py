@@ -35,8 +35,7 @@ class Highlighter(object):
     """
 
     # split string into words, spaces, punctuation and markup tags
-    _split_re = re.compile(
-        '</\\w+>|<\\w+(?:\\s*\\w+="[^"]*"|\\s*\\w+)*\\s*>|[\\w\']+|\\s+|[^\\w\'\\s<>/]+')
+    _split_re = re.compile(r'<\w+[^>]*>|</\w+>|[\w\']+|\s+|[^\w\'\s<>/]+')
 
     def __init__(self, language_code='en', stemmer=None):
         """Create a new highlighter for the specified language.
