@@ -164,7 +164,9 @@ def teardown_test(dtobj):
 
     """
     for key, val in list(dtobj.globs.iteritems()):
-        if hasattr(val, '__module__') and val.__module__.startswith('xappy'):
+        if hasattr(val, '__module__') and \
+           val.__module__ is not None and \
+           val.__module__.startswith('xappy'):
             if hasattr(val, 'close'):
                 if not isinstance(val, type):
                     val.close()
