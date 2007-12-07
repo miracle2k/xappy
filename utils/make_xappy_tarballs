@@ -19,10 +19,16 @@
 #  $basedir/branchpoints/opsynonym: a checkout of the opsynonym branch at the
 #  revision the branch was made (ie, before any changes were made on it).
 #
+#  $basedir/branchpoints/clustering: a checkout of the clustering branch at the
+#  revision the branch was made (ie, before any changes were made on it).
+#
 #  $basedir/branches/matchspy: a checkout of the matchspy branch at the latest
 #  revision.
 #
 #  $basedir/branches/opsynonym: a checkout of the opsynonym branch at the
+#  latest revision.
+#
+#  $basedir/branches/clustering: a checkout of the clustering branch at the
 #  latest revision.
 #
 #  $basedir/head/trunk: a checkout of HEAD, at the latest revision.
@@ -30,8 +36,9 @@
 #  $xappylibdir: a checkout of xappy/trunk.
 
 rev="1.0.4"
-matchspy_branchpoint="9758"
-opsynonym_branchpoint="9755"
+matchspy_branchpoint="9807"
+opsynonym_branchpoint="9816"
+clustering_branchpoint="9826"
 basedir="$HOME/private/Working/xapian/pristine/"
 xappylibdir="$HOME/xappy/libs/"
 
@@ -42,10 +49,15 @@ svn update -r$matchspy_branchpoint
 cd $basedir/branchpoints/opsynonym
 svn update -r$opsynonym_branchpoint
 
+cd $basedir/branchpoints/clustering
+svn update -r$clustering_branchpoint
+
 echo "Updating branch trees"
 cd $basedir/branches/matchspy
 svn update
 cd $basedir/branches/opsynonym
+svn update
+cd $basedir/branches/clustering
 svn update
 
 echo "Updating head"
@@ -57,10 +69,14 @@ rm -rf $basedir/branchpoints/matchspy_export
 svn export $basedir/branchpoints/matchspy $basedir/branchpoints/matchspy_export
 rm -rf $basedir/branchpoints/opsynonym_export
 svn export $basedir/branchpoints/opsynonym $basedir/branchpoints/opsynonym_export
+rm -rf $basedir/branchpoints/clustering_export
+svn export $basedir/branchpoints/clustering $basedir/branchpoints/clustering_export
 rm -rf $basedir/branches/matchspy_export
 svn export $basedir/branches/matchspy $basedir/branches/matchspy_export
 rm -rf $basedir/branches/opsynonym_export
 svn export $basedir/branches/opsynonym $basedir/branches/opsynonym_export
+rm -rf $basedir/branches/clustering_export
+svn export $basedir/branches/clustering $basedir/branches/clustering_export
 
 rm -rf $basedir/head/trunk_export
 svn export $basedir/head/trunk $basedir/head/trunk_export
@@ -68,7 +84,7 @@ svn export $basedir/head/trunk $basedir/head/trunk_export
 # Get the diffs we made on branches.
 echo "Getting patches from matchspy branch"
 cd $basedir
-diff -Nur \
+diff -Nur --ignore-matching-lines='\$Author' \
   branchpoints/matchspy_export \
   branches/matchspy_export \
  | filterdiff -x '*/ChangeLog' -x '*/NEWS' \
@@ -76,32 +92,48 @@ diff -Nur \
 
 echo "Getting patches from opsynonym branch"
 cd $basedir
-diff -Nur \
+diff -Nur --ignore-matching-lines='\$Author' \
   branchpoints/opsynonym_export \
   branches/opsynonym_export \
  | filterdiff -x '*/ChangeLog' -x '*/NEWS' \
-  >$basedir/opsysnonym_changes.patch
+  >$basedir/opsynonym_changes.patch
+
+echo "Getting patches from clustering branch"
+cd $basedir
+diff -Nur --ignore-matching-lines='\$Author' \
+  branchpoints/clustering_export \
+  branches/clustering_export \
+ | filterdiff -x '*/ChangeLog' -x '*/NEWS' \
+  >$basedir/opsynonym_changes.patch
 
 # Get the diffs made to HEAD since the branch points
 echo "Getting changes to HEAD since matchspy branch"
 cd $basedir
-diff -Nur \
+diff -Nur --ignore-matching-lines='\$Author' \
   branchpoints/matchspy_export \
   head/trunk_export \
   >$basedir/head_changes_since_matchspy_branch.patch && true
 
 echo "Getting changes to HEAD since opsynonym branch"
 cd $basedir
-diff -Nur \
+diff -Nur --ignore-matching-lines='\$Author' \
   branchpoints/opsynonym_export \
   head/trunk_export \
   >$basedir/head_changes_since_opsynonym_branch.patch && true
+
+echo "Getting changes to HEAD since clustering branch"
+cd $basedir
+diff -Nur --ignore-matching-lines='\$Author' \
+  branchpoints/clustering_export \
+  head/trunk_export \
+  >$basedir/head_changes_since_clustering_branch.patch && true
 
 # Apply the patches to HEAD
 echo "Applying patches"
 cd $basedir/head/trunk_export
 patch -p2 < $basedir/matchspy_changes.patch
-patch -p2 < $basedir/opsysnonym_changes.patch
+patch -p2 < $basedir/opsynonym_changes.patch
+#patch -p2 < $basedir/clustering_changes.patch
 
 # Make tarballs
 echo "Building tarballs"
