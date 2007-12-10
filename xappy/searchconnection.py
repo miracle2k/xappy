@@ -249,7 +249,8 @@ class SearchResults(object):
         self._facetfields = facetfields
         self._numeric_ranges_built = {}
 
-    def _reorder_by_similarity(self, count, maxcount, max_similarity):
+    def _reorder_by_similarity(self, count, maxcount, max_similarity,
+                               fields=None, approximate_termfreqs=False):
         """Reorder results based on similarity.
 
         The top `count` documents will be chosen such that they are relatively
@@ -264,8 +265,41 @@ class SearchResults(object):
         """
         if self.startrank != 0:
             raise _errors.SearchError("startrank must be zero to reorder by similiarity")
-        ds = _xapian.DocSimCosine()
+        ds = _xapian.DocSimCosine(not approximate_termfreqs)
         ds.set_database(self._conn._index)
+
+        if fields is not None:
+            prefixes = {}
+            if isinstance(fields, basestring):
+                fields = [fields]
+            for field in fields:
+                try:
+                    actions = self._conn._field_actions[field]._actions
+                except KeyError:
+                    continue
+                for action, kwargslist in actions.iteritems():
+                    if action == FieldActions.INDEX_FREETEXT:
+                        prefix = self._conn._field_mappings.get_prefix(field)
+                        prefixes[prefix] = None
+                        prefixes['Z' + prefix] = None
+                    if action in (FieldActions.INDEX_EXACT,
+                                  FieldActions.TAG,
+                                  FieldActions.FACET,):
+                        prefix = self._conn._field_mappings.get_prefix(field)
+                        prefixes[prefix] = None
+            class decider(_xapian.ExpandDecider):
+                def __call__(self, term):
+                    prefix = []
+                    for char in term:
+                        if char == ':': break
+                        if char.islower(): break
+                        prefix += char
+                    prefix = ''.join(prefix)
+                    if prefix in prefixes:
+                        return True
+                    return False
+            ds.set_expand_decider(decider())
+
         tophits = []
         nottophits = []
         full = False
