@@ -292,7 +292,6 @@ class SearchResults(object):
                     maxsim = sim
 
             # If it's not similar to an existing hit, add to tophits.
-            print i, maxsim
             if maxsim < max_similarity:
                 tophits.append(hit)
             else:
@@ -315,7 +314,6 @@ class SearchResults(object):
             new_order.extend(range(end, self.endrank))
         assert len(new_order) == self.endrank
         if reordered:
-            print new_order
             self._mset_order = new_order
         else:
             assert new_order == range(self.endrank)
