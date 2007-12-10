@@ -1,4 +1,4 @@
-#!/bin/sh -ex
+#!/bin/sh -x
 # This script is used to generate the tarballs of xapian for xappy.
 #
 # These tarballs are based on SVN HEAD, but with the changes from two branches
@@ -38,7 +38,7 @@
 rev="1.0.4"
 matchspy_branchpoint="9807"
 opsynonym_branchpoint="9816"
-clustering_branchpoint="9826"
+clustering_branchpoint="9832"
 basedir="$HOME/private/Working/xapian/pristine/"
 xappylibdir="$HOME/xappy/libs/"
 
@@ -104,7 +104,7 @@ diff -Nur --ignore-matching-lines='\$Author' \
   branchpoints/clustering_export \
   branches/clustering_export \
  | filterdiff -x '*/ChangeLog' -x '*/NEWS' \
-  >$basedir/opsynonym_changes.patch
+  >$basedir/clustering_changes.patch
 
 # Get the diffs made to HEAD since the branch points
 echo "Getting changes to HEAD since matchspy branch"
@@ -133,7 +133,7 @@ echo "Applying patches"
 cd $basedir/head/trunk_export
 patch -p2 < $basedir/matchspy_changes.patch
 patch -p2 < $basedir/opsynonym_changes.patch
-#patch -p2 < $basedir/clustering_changes.patch
+patch -p2 < $basedir/clustering_changes.patch
 
 # Make tarballs
 echo "Building tarballs"

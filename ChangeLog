@@ -1,3 +1,8 @@
+Mon Dec 10 19:46:25 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update to apply the changes in the
+	  clustering branch.
+
 Mon Dec 10 19:45:30 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Add ability to restrict the reordering
