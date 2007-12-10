@@ -162,12 +162,20 @@ class SearchResultIter(object):
     """An iterator over a set of results from a search.
 
     """
-    def __init__(self, results):
+    def __init__(self, results, order):
         self._results = results
-        self._iter = iter(results._mset)
+        self._order = order
+        if self._order is None:
+            self._iter = iter(results._mset)
+        else:
+            self._iter = iter(self._order)
 
     def next(self):
-        msetitem = self._iter.next()
+        if self._order is None:
+            msetitem = self._iter.next()
+        else:
+            index = self._iter.next()
+            msetitem = self._results._mset.get_hit(index)
         return SearchResult(msetitem, self._results)
 
 
@@ -230,6 +238,7 @@ class SearchResults(object):
         self._enq = enq
         self._query = query
         self._mset = mset
+        self._mset_order = None
         self._fieldmappings = fieldmappings
         self._tagspy = tagspy
         if tagfields is None:
@@ -239,6 +248,77 @@ class SearchResults(object):
         self._facetspy = facetspy
         self._facetfields = facetfields
         self._numeric_ranges_built = {}
+
+    def _reorder_by_similarity(self, count, maxcount, max_similarity):
+        """Reorder results based on similarity.
+
+        The top `count` documents will be chosen such that they are relatively
+        dissimilar.  `maxcount` documents will be considered for moving around,
+        and `max_similarity` is a value between 0 and 1 indicating the maximum
+        similarity to the previous document before a document is moved down the
+        result set.
+
+        Note: this method is experimental, and will probably disappear or
+        change in the future.
+
+        """
+        if self.startrank != 0:
+            raise _errors.SearchError("startrank must be zero to reorder by similiarity")
+        ds = _xapian.DocSimCosine()
+        ds.set_database(self._conn._index)
+        tophits = []
+        nottophits = []
+        full = False
+        reordered = False
+
+        sim_count = 0
+        new_order = []
+        end = min(self.endrank, maxcount)
+        for i in xrange(end):
+            if full:
+                new_order.append(i)
+                continue
+            hit = self._mset.get_hit(i)
+            if len(tophits) == 0:
+                tophits.append(hit)
+                continue
+
+            # Compare each incoming hit to tophits
+            maxsim = 0.0
+            for tophit in tophits[-1:]:
+                sim_count += 1
+                sim = ds.calculate_similarity(hit.document, tophit.document)
+                if sim > maxsim:
+                    maxsim = sim
+
+            # If it's not similar to an existing hit, add to tophits.
+            print i, maxsim
+            if maxsim < max_similarity:
+                tophits.append(hit)
+            else:
+                nottophits.append(hit)
+                reordered = True
+
+            # If we're full of hits, append to the end.
+            if len(tophits) >= count:
+                for hit in tophits:
+                    new_order.append(hit.rank)
+                for hit in nottophits:
+                    new_order.append(hit.rank)
+                full = True
+        if not full:
+            for hit in tophits:
+                new_order.append(hit.rank)
+            for hit in nottophits:
+                new_order.append(hit.rank)
+        if end != self.endrank:
+            new_order.extend(range(end, self.endrank))
+        assert len(new_order) == self.endrank
+        if reordered:
+            print new_order
+            self._mset_order = new_order
+        else:
+            assert new_order == range(self.endrank)
 
     def __repr__(self):
         return ("<SearchResults(startrank=%d, "
@@ -342,7 +422,10 @@ class SearchResults(object):
         """Get the hit with a given index.
 
         """
-        msetitem = self._mset.get_hit(index)
+        if self._mset_order is None:
+            msetitem = self._mset.get_hit(index)
+        else:
+            msetitem = self._mset.get_hit(self._mset_order[index])
         return SearchResult(msetitem, self)
     __getitem__ = get_hit
 
@@ -352,7 +435,7 @@ class SearchResults(object):
         The iterator returns the results in increasing order of rank.
 
         """
-        return SearchResultIter(self)
+        return SearchResultIter(self, self._mset_order)
 
     def __len__(self):
         """Get the number of hits in the search result.
