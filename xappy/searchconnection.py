@@ -249,8 +249,100 @@ class SearchResults(object):
         self._facetfields = facetfields
         self._numeric_ranges_built = {}
 
+    def _cluster(self, num_clusters, maxdocs, fields=None):
+        """Cluster results based on similarity.
+
+        Note: this method is experimental, and will probably disappear or
+        change in the future.
+
+        The number of clusters is specified by num_clusters: unless there are
+        too few results, there will be exaclty this number of clusters in the
+        result.
+
+        """
+        clusterer = _xapian.ClusterSingleLink()
+        xapclusters = _xapian.ClusterAssignments()
+        docsim = _xapian.DocSimCosine()
+        source = _xapian.MSetDocumentSource(self._mset, maxdocs)
+
+        if fields is None:
+            clusterer.cluster(self._conn._index, xapclusters, docsim, source, num_clusters)
+        else:
+            decider = self._make_expand_decider(fields)
+            clusterer.cluster(self._conn._index, xapclusters, docsim, source, decider, num_clusters)
+
+        newid = 0
+        idmap = {}
+        clusters = {}
+        for item in self._mset:
+            docid = item.docid
+            clusterid = xapclusters.cluster(docid)
+            if clusterid not in idmap:
+                idmap[clusterid] = newid
+                newid += 1
+            clusterid = idmap[clusterid]
+            if clusterid not in clusters:
+                clusters[clusterid] = []
+            clusters[clusterid].append(item.rank)
+        return clusters
+
+    def _reorder_by_clusters(self, clusters):
+        """Reorder the mset based on some clusters.
+
+        """
+        if self.startrank != 0:
+            raise _errors.SearchError("startrank must be zero to reorder by clusters")
+        reordered = False
+        tophits = []
+        nottophits = []
+
+        clusterstarts = dict(((c[0], None) for c in clusters.itervalues()))
+        for i in xrange(self.endrank):
+            if i in clusterstarts:
+                tophits.append(i)
+            else:
+                nottophits.append(i)
+        self._mset_order = tophits
+        self._mset_order.extend(nottophits)
+
+    def _make_expand_decider(self, fields):
+        """Make an expand decider which accepts only terms in the specified
+        field.
+
+        """
+        prefixes = {}
+        if isinstance(fields, basestring):
+            fields = [fields]
+        for field in fields:
+            try:
+                actions = self._conn._field_actions[field]._actions
+            except KeyError:
+                continue
+            for action, kwargslist in actions.iteritems():
+                if action == FieldActions.INDEX_FREETEXT:
+                    prefix = self._conn._field_mappings.get_prefix(field)
+                    prefixes[prefix] = None
+                    prefixes['Z' + prefix] = None
+                if action in (FieldActions.INDEX_EXACT,
+                              FieldActions.TAG,
+                              FieldActions.FACET,):
+                    prefix = self._conn._field_mappings.get_prefix(field)
+                    prefixes[prefix] = None
+        class decider(_xapian.ExpandDecider):
+            def __call__(self, term):
+                prefix = []
+                for char in term:
+                    if char == ':': break
+                    if char.islower(): break
+                    prefix += char
+                prefix = ''.join(prefix)
+                if prefix in prefixes:
+                    return True
+                return False
+        return decider()
+
     def _reorder_by_similarity(self, count, maxcount, max_similarity,
-                               fields=None, approximate_termfreqs=False):
+                               fields=None):
         """Reorder results based on similarity.
 
         The top `count` documents will be chosen such that they are relatively
@@ -265,40 +357,11 @@ class SearchResults(object):
         """
         if self.startrank != 0:
             raise _errors.SearchError("startrank must be zero to reorder by similiarity")
-        ds = _xapian.DocSimCosine(not approximate_termfreqs)
-        ds.set_database(self._conn._index)
+        ds = _xapian.DocSimCosine()
+        ds.set_termfreqsource(_xapian.DatabaseTermFreqSource(self._conn._index))
 
         if fields is not None:
-            prefixes = {}
-            if isinstance(fields, basestring):
-                fields = [fields]
-            for field in fields:
-                try:
-                    actions = self._conn._field_actions[field]._actions
-                except KeyError:
-                    continue
-                for action, kwargslist in actions.iteritems():
-                    if action == FieldActions.INDEX_FREETEXT:
-                        prefix = self._conn._field_mappings.get_prefix(field)
-                        prefixes[prefix] = None
-                        prefixes['Z' + prefix] = None
-                    if action in (FieldActions.INDEX_EXACT,
-                                  FieldActions.TAG,
-                                  FieldActions.FACET,):
-                        prefix = self._conn._field_mappings.get_prefix(field)
-                        prefixes[prefix] = None
-            class decider(_xapian.ExpandDecider):
-                def __call__(self, term):
-                    prefix = []
-                    for char in term:
-                        if char == ':': break
-                        if char.islower(): break
-                        prefix += char
-                    prefix = ''.join(prefix)
-                    if prefix in prefixes:
-                        return True
-                    return False
-            ds.set_expand_decider(decider())
+            ds.set_expand_decider(self._make_expand_decider(fields))
 
         tophits = []
         nottophits = []
@@ -321,7 +384,7 @@ class SearchResults(object):
             maxsim = 0.0
             for tophit in tophits[-1:]:
                 sim_count += 1
-                sim = ds.calculate_similarity(hit.document, tophit.document)
+                sim = ds.similarity(hit.document, tophit.document)
                 if sim > maxsim:
                     maxsim = sim
 
