@@ -40,6 +40,12 @@ Traceback (most recent call last):
 ...
 KeyError: "Unique ID '1000' not found"
 
+If we open a search connection for a database which doesn't exist, we get an
+exception:
+>>> sconn = SearchConnection('notpresent')
+Traceback (most recent call last):
+...
+DatabaseOpeningError: Couldn't detect type of database
 
 If we open a search connection before flushing, we can't see the recent
 modifications:

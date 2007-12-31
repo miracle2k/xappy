@@ -1,3 +1,10 @@
+Mon Dec 31 13:09:33 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py,xappy/searchconnection_doctest1.txt:
+	  Test opening of a database which doesn't exist, and set _index to
+	  None in class initialiser to avoid assertion error when calling
+	  close() from __del__() in this situation.
+
 Mon Dec 17 09:28:01 GMT 2007  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Add _cluster method, and

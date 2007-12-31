@@ -695,6 +695,8 @@ class SearchConnection(object):
                          _xapian.QueryParser.FLAG_AUTO_MULTIWORD_SYNONYMS)
     _qp_flags_bool = _xapian.QueryParser.FLAG_BOOLEAN
 
+    _index = None
+
     def __init__(self, indexpath):
         """Create a new connection to the index for searching.
 
