@@ -63,6 +63,7 @@ svn update
 echo "Updating head"
 cd $basedir/head/trunk
 svn update
+head_rev=`svn info | grep Revision | cut -f 2 -d ' '`
 
 echo "Exporting clean trees"
 rm -rf $basedir/branchpoints/matchspy_export
@@ -158,17 +159,17 @@ tar zxf $xappylibdir/tmp/xapian-core-${rev}.tar.gz
 tar zxf $xappylibdir/tmp/xapian-bindings-${rev}.tar.gz
 mv xapian-core-${rev} xapian-core
 mv xapian-bindings-${rev} xapian-bindings
-tar -H ustar -zcf xapian-core.tgz xapian-core
-tar -H ustar -zcf xapian-bindings.tgz xapian-bindings
+tar -H ustar -zcf xapian-core-${head_rev}.tgz xapian-core
+tar -H ustar -zcf xapian-bindings-${head_rev}.tgz xapian-bindings
 rm -r xapian-core xapian-bindings
 rm xapian-core-${rev}.tar.gz
 rm xapian-bindings-${rev}.tar.gz
 
 cd $xappylibdir
-mv tmp/xapian-core.tgz .
-mv tmp/xapian-bindings.tgz .
+mv tmp/xapian-core-${head_rev}.tgz .
+mv tmp/xapian-bindings-${head_rev}.tgz .
 
 # Make a tarball of the windows build files
 cd $basedir/head/trunk_export/xapian-maintainer-tools/
-tar -H ustar -zcf win32msvc.tgz win32msvc
-cp win32msvc.tgz $xappylibdir/
+tar -H ustar -zcf win32msvc-${head_rev}.tgz win32msvc
+cp win32msvc-${head_rev}.tgz $xappylibdir/

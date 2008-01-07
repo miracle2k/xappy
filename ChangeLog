@@ -1,3 +1,12 @@
+Mon Jan 07 19:47:36 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: New script (taken from flax) to download the
+	  xapian tarballs and unpack them, ready to be built.
+	* libs/*.tgz: Remove the tarballs from svn - they were too big to
+	  be kept here.  They're now hosted on the googlecode download
+	  area, which should be as reliable as the googlecode svn server.
+	* utils/make_xappy_tarballs: Update with new version numbers.
+
 Mon Jan 07 16:59:22 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: Update version numbers for latest
