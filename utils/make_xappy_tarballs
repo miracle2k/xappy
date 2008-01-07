@@ -35,10 +35,10 @@
 #
 #  $xappylibdir: a checkout of xappy/trunk.
 
-rev="1.0.4"
-matchspy_branchpoint="9807"
-opsynonym_branchpoint="9816"
-clustering_branchpoint="9832"
+rev="1.0.5"
+matchspy_branchpoint="9960"
+opsynonym_branchpoint="9960"
+clustering_branchpoint="9960"
 basedir="$HOME/private/Working/xapian/pristine/"
 xappylibdir="$HOME/xappy/libs/"
 
