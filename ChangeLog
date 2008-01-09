@@ -1,3 +1,15 @@
+Wed Jan 09 22:46:31 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update with version numbers for latest
+	  branches.
+	* libs/get_xapian.py: Update with details of latest tarballs, which
+	  include OP_VALUE_GE and OP_VALUE_LE.
+	* xappy/searchconnection.py: Allow None to be specified as the
+	  begin or end or a range query - allows half ranges to be
+	  specified.
+	* xappy/searchconnection_doctest2.txt: Test passing None as the
+	  end parameters of a range query.
+
 Mon Jan 07 19:47:36 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/get_xapian.py: New script (taken from flax) to download the

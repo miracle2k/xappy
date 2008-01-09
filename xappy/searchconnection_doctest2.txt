@@ -316,6 +316,27 @@ example, dates:
 ['20070207'],'20070207'
 
 
+We can specify semi-infinite ranges by specifying None for one of the
+endpoints:
+>>> fq = sconn.query_filter(q, sconn.query_range('date', None, '20070104'))
+>>> results = sconn.search(fq, 0, 30, sortby="date")
+>>> for result in results:
+...     print "%r,%r" % (result.data['date'], result.get_value('date', 'collsort'))
+['20070101'],'20070101'
+['20070102'],'20070102'
+['20070103'],'20070103'
+['20070104'],'20070104'
+
+
+>>> fq = sconn.query_filter(q, sconn.query_range('date', '20071214', None))
+>>> results = sconn.search(fq, 0, 30, sortby="date")
+>>> for result in results:
+...     print "%r,%r" % (result.data['date'], result.get_value('date', 'collsort'))
+['20071214'],'20071214'
+['20071215'],'20071215'
+['20071216'],'20071216'
+
+
 We can use a filter to exclude results which match a particular sub-query,
 instead of to include only those which match.
 

@@ -916,20 +916,39 @@ class SearchConnection(object):
         value equal to begin or end will be returned (unless end is less than
         begin, in which case no documents will be returned).
 
+        Begin or end may be set to None in order to create an open-ended
+        range.  (They may also both be set to None, which will generate a query
+        which matches all documents containing any value for the field.)
+
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
 
-        sorttype = self._get_sort_type(field)
-        marshaller = SortableMarshaller(False)
-        fn = marshaller.get_marshall_function(field, sorttype)
-        begin = fn(field, begin)
-        end = fn(field, end)
+        if begin is None and end is None:
+            # Return a "match everything" query
+            return _log(_xapian.Query, '')
 
         try:
             slot = self._field_mappings.get_slot(field, 'collsort')
         except KeyError:
+            # Return a "match nothing" query
             return _log(_xapian.Query)
+
+        sorttype = self._get_sort_type(field)
+        marshaller = SortableMarshaller(False)
+        fn = marshaller.get_marshall_function(field, sorttype)
+
+        if begin is not None:
+            begin = fn(field, begin)
+        if end is not None:
+            end = fn(field, end)
+
+        if begin is None:
+            return _log(_xapian.Query, _xapian.Query.OP_VALUE_LE, slot, end)
+
+        if end is None:
+            return _log(_xapian.Query, _xapian.Query.OP_VALUE_GE, slot, begin)
+
         return _log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end)
 
     def query_facet(self, field, val):
