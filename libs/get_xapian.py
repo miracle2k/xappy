@@ -39,26 +39,21 @@ import zipfile
 #  - URL to download
 #  - Filename to store downloaded package as
 #  - SHA1 sum of package
-#  - Directories that needs to be moved to install dir after running setup.py
-#    (relative to install dir)  (with unix-style slashes, and globs)
 archives = (
     ('Xapian core',
-     'http://xappy.googlecode.com/files/xapian-core-9974.tgz',
+     'http://xappy.googlecode.com/files/xapian-core-9977.tgz',
      'xapian-core.tgz',
-     'd49404fa3a7ae5a66668b31fb83e76ba40064d21',
-     (),
+     'c3afa2e3ef72c94e288ab6155a5c286d6f5c828d',
     ),
     ('Xapian bindings',
-     'http://xappy.googlecode.com/files/xapian-bindings-9974.tgz',
+     'http://xappy.googlecode.com/files/xapian-bindings-9977.tgz',
      'xapian-bindings.tgz',
-     'd3ae4d502f4cad5a1b32ae7ee4274a35beb751cf',
-     (),
+     '4b1c4fc69576678f546cc8e0530434c38e71da7e',
     ),
     ('Xapian win32 build system',
-     'http://xappy.googlecode.com/files/win32msvc-9974.tgz',
+     'http://xappy.googlecode.com/files/win32msvc-9977.tgz',
      'win32msvc.tgz',
-     '2875dd29ccfa1064d6764acc9736b87c2f147fdb',
-     (),
+     'ecafb607b3035ebae6555fe1b8f7ef27e0519d21',
     ),
 )
 
@@ -216,7 +211,7 @@ def get_archives(archives):
 
     """
     package_dir = get_package_dir()
-    for name, url, archivename, expected_hash, movedirs in archives:
+    for name, url, archivename, expected_hash in archives:
         archivepath = get_archive_from_url(name, url, archivename, expected_hash)
         if archivepath is None:
             return False
