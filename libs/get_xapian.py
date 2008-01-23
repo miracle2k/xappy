@@ -41,19 +41,19 @@ import zipfile
 #  - SHA1 sum of package
 archives = (
     ('Xapian core',
-     'http://xappy.googlecode.com/files/xapian-core-9977.tgz',
+     'http://xappy.googlecode.com/files/xapian-core-9999.tgz',
      'xapian-core.tgz',
-     'c3afa2e3ef72c94e288ab6155a5c286d6f5c828d',
+     'c9880b9d9045919350743e972ef3c318294bc438',
     ),
     ('Xapian bindings',
-     'http://xappy.googlecode.com/files/xapian-bindings-9977.tgz',
+     'http://xappy.googlecode.com/files/xapian-bindings-9999.tgz',
      'xapian-bindings.tgz',
-     '4b1c4fc69576678f546cc8e0530434c38e71da7e',
+     '16c67e3709cc5dd0f3f5aed375b784996bdf2897',
     ),
     ('Xapian win32 build system',
-     'http://xappy.googlecode.com/files/win32msvc-9977.tgz',
+     'http://xappy.googlecode.com/files/win32msvc-9999.tgz',
      'win32msvc.tgz',
-     'ecafb607b3035ebae6555fe1b8f7ef27e0519d21',
+     'dc8f57b2944a7b003b63a59461cb8a1058c128e1',
     ),
 )
 
