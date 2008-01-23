@@ -30,7 +30,6 @@ import sys
 import tarfile
 import tempfile
 import urllib2
-import zipfile
 
 # List of the archives.
 #
@@ -41,19 +40,22 @@ import zipfile
 #  - SHA1 sum of package
 archives = (
     ('Xapian core',
-     'http://xappy.googlecode.com/files/xapian-core-9999.tgz',
+     'http://xappy.googlecode.com/files/xapian-core-10001.tgz',
      'xapian-core.tgz',
-     'c9880b9d9045919350743e972ef3c318294bc438',
+     'f1e61826134092c95ad88f7e922733aa72c323d2',
+     '',
     ),
     ('Xapian bindings',
-     'http://xappy.googlecode.com/files/xapian-bindings-9999.tgz',
+     'http://xappy.googlecode.com/files/xapian-bindings-10001.tgz',
      'xapian-bindings.tgz',
-     '16c67e3709cc5dd0f3f5aed375b784996bdf2897',
+     '299f245108730b94343592d4b815891de98979a8',
+     '',
     ),
     ('Xapian win32 build system',
-     'http://xappy.googlecode.com/files/win32msvc-9999.tgz',
+     'http://xappy.googlecode.com/files/win32msvc-10001.tgz',
      'win32msvc.tgz',
-     'dc8f57b2944a7b003b63a59461cb8a1058c128e1',
+     '24c9aa0df6543f79ccb51a25087aa58c016d3974',
+     'xapian-core/win32',
     ),
 )
 
@@ -129,50 +131,6 @@ def unpack_tar_archive(filename, tempdir):
     finally:
         tf.close()
 
-def unpack_zip_archive(filename, tempdir):
-    """Unpack the zip archive at filename.
-
-    Puts the contents in a directory with basename tempdir.
-
-    """
-    zf = zipfile.ZipFile(filename, mode="r")
-    try:
-        dirname = None
-        for membername in zf.namelist():
-            topdir = membername.split('/', 1)[0]
-            if dirname is None:
-                dirname = topdir
-            else:
-                if dirname != topdir:
-                    raise ValueError('Archive has multiple toplevel directories: %s and %s' % (topdir, dirname))
-            info = zf.getinfo(membername)
-            outfile = os.path.join(tempdir, membername)
-            outdir = os.path.dirname(outfile)
-            if not os.path.exists(outdir):
-                os.makedirs(outdir)
-            if os.path.isdir(outfile):
-                continue
-            data = zf.read(membername)
-            outfd = file(outfile, "wb")
-            try:
-                outfd.write(data)
-            finally:
-                outfd.close()
-        return os.path.join(tempdir, dirname)
-    finally:
-        zf.close()
-
-def unpack_archive(filename, tempdir):
-    """Unpack the archive at filename.
-
-    Puts the contents in a directory with basename tempdir.
-
-    """
-    if filename.lower().endswith('.zip'):
-        return unpack_zip_archive(filename, tempdir)
-    else:
-        return unpack_tar_archive(filename, tempdir)
-
 def get_archive_from_url(name, url, archivename, expected_hash):
     """Download an archive from the specified URL.
 
@@ -211,13 +169,23 @@ def get_archives(archives):
 
     """
     package_dir = get_package_dir()
-    for name, url, archivename, expected_hash in archives:
+    for name, url, archivename, expected_hash, target_location in archives:
         archivepath = get_archive_from_url(name, url, archivename, expected_hash)
         if archivepath is None:
             return False
 
         print("Unpacking %s" % name)
-        archivedir = unpack_archive(archivepath, package_dir)
+        archivedir = unpack_tar_archive(archivepath, package_dir)
+
+        if target_location != '':
+            target_path = os.path.join(package_dir, target_location)
+            if os.path.exists(target_path):
+                print("Removing old unpacked copy of archive from %s" %
+                      target_location)
+                shutil.rmtree(target_path)
+
+            print("Moving %s to %s" % (name, target_location))
+            shutil.move(archivedir, target_path)
 
     return True
 
