@@ -111,27 +111,23 @@ class IndexerConnection(object):
         databases. this will be used instead of a file.
 
         """
+        assert self._index is not None
         config_str = _cPickle.dumps((
                                      self._field_actions,
                                      self._field_mappings.serialise(),
                                      self._next_docid,
                                     ), 2)
-        config_file = _os.path.join(self._indexpath, 'config')
-        fd = open(config_file, "wb")
-        fd.write(config_str)
-        fd.close()
+        _log(self._index.set_metadata, '_xappy_config', config_str)
         self._config_modified = False
 
     def _load_config(self):
         """Load the configuration for the database.
 
         """
-        config_file = _os.path.join(self._indexpath, 'config')
-        if not _os.path.exists(config_file):
+        assert self._index is not None
+        config_str = _log(self._index.get_metadata, '_xappy_config')
+        if len(config_str) == 0:
             return
-        fd = open(config_file, 'rb')
-        config_str = fd.read()
-        fd.close()
 
         (self._field_actions, mappings, self._next_docid) = _cPickle.loads(config_str)
         self._field_mappings = _fieldmappings.FieldMappings(mappings)
