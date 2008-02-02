@@ -117,7 +117,16 @@ class IndexerConnection(object):
                                      self._field_mappings.serialise(),
                                      self._next_docid,
                                     ), 2)
-        _log(self._index.set_metadata, '_xappy_config', config_str)
+
+        # Old versions of xapian (before 1.0.3) didn't support metadata, so we
+        # may have to store the metadata in a file if we're using them.
+        if hasattr(self._index, 'set_metadata_'):
+            _log(self._index.set_metadata, '_xappy_config', config_str)
+        else:
+            config_file = _os.path.join(self._indexpath, 'config')
+            fd = open(config_file, "wb")
+            fd.write(config_str)
+            fd.close()
         self._config_modified = False
 
     def _load_config(self):
@@ -125,9 +134,23 @@ class IndexerConnection(object):
 
         """
         assert self._index is not None
-        config_str = _log(self._index.get_metadata, '_xappy_config')
+
+        if hasattr(self._index, 'get_metadata'):
+            config_str = _log(self._index.get_metadata, '_xappy_config')
+        else:
+            config_str = ''
         if len(config_str) == 0:
-            return
+            # Backwards compatibility - the configuration used to be stored in
+            # a file.
+            config_file = _os.path.join(self._indexpath, 'config')
+            if not _os.path.exists(config_file):
+                return
+            fd = open(config_file, 'rb')
+            config_str = fd.read()
+            fd.close()
+            # Write it to a metadata key for future use
+            if hasattr(self._index, 'set_metadata_'):
+                _log(self._index.set_metadata, '_xappy_config', config_str)
 
         (self._field_actions, mappings, self._next_docid) = _cPickle.loads(config_str)
         self._field_mappings = _fieldmappings.FieldMappings(mappings)

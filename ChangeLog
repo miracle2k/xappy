@@ -1,3 +1,14 @@
+Sat Feb 02 13:14:29 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py,xappy/searchconnection.py: Backwards
+	  compatibility fix for reading the metadata: if the config isn't
+	  in the metadata key, or metadata isn't supported by the version
+	  of xapian in use, read it from the file.  When writing the
+	  config, if it can't be stored in the metadata, store it in a
+	  file.  A database can now be upgraded to use the new metadata
+	  method simply by opening an indexerconnection on it, and then
+	  closing it.
+
 Sat Feb 02 12:47:33 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: Tidy up tarball making script.
