@@ -459,6 +459,25 @@ Do a similarity search with an ID which isn't in the database:
 'Xapian::Query()'
 
 
+Check the expand decider used by similarity reordering of queries.
+>>> res = sconn.search(q2, 0, 5)
+>>> ed = res._make_expand_decider('title')
+>>> ed('foo')
+False
+>>> ed('XBA:foo')
+False
+>>> ed('XBAfoo')
+False
+>>> ed('XB:foo')
+True
+>>> ed('XBfoo')
+True
+>>> ed('ZXBfoo')
+True
+>>> ed('ZXBfoo')
+True
+
+
 Find the interesting terms in a set of documents:
 >>> [(docid, sconn.significant_terms(docid, 3)) for docid in sconn.iterids()][:3]
 [('0', [('title', '0'), ('title', 'test'), ('title', 'document')]), ('1', [('title', '1'), ('title', 'test'), ('title', 'document')]), ('10', [('title', '16'), ('title', 'test'), ('title', 'document')])]

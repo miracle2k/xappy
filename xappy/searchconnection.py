@@ -31,6 +31,7 @@ import fieldmappings as _fieldmappings
 import highlight as _highlight 
 import errors as _errors
 import indexerconnection as _indexerconnection
+import re as _re
 from replaylog import log as _log
 
 class SearchResult(ProcessedDocument):
@@ -328,17 +329,10 @@ class SearchResults(object):
                               FieldActions.FACET,):
                     prefix = self._conn._field_mappings.get_prefix(field)
                     prefixes[prefix] = None
+        prefix_re = _re.compile('|'.join([_re.escape(x) + '[^A-Z]' for x in prefixes.keys()]))
         class decider(_xapian.ExpandDecider):
             def __call__(self, term):
-                prefix = []
-                for char in term:
-                    if char == ':': break
-                    if char.islower(): break
-                    prefix += char
-                prefix = ''.join(prefix)
-                if prefix in prefixes:
-                    return True
-                return False
+                return prefix_re.match(term) is not None
         return decider()
 
     def _reorder_by_similarity(self, count, maxcount, max_similarity,
