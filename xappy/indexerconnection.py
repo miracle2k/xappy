@@ -344,8 +344,31 @@ class IndexerConnection(object):
         # Add the prefix to the start of each word.
         return ' '.join((prefix + word for word in original.split(' ')))
 
-    def add_synonym(self, original, synonym, field=None):
+    def add_synonym(self, original, synonym, field=None,
+                    original_field=None, synonym_field=None):
         """Add a synonym to the index.
+
+         - `original` is the word or words which will be synonym expanded in
+           searches (if multiple words are specified, each word should be
+           separated by a single space).
+         - `synonym` is a synonym for `original`.
+         - `field` is the field which the synonym is specific to.  If no field
+           is specified, the synonym will be used for searches which are not
+           specific to any particular field.
+
+        """
+        if original_field is None:
+            original_field = field
+        if synonym_field is None:
+            synonym_field = field
+        key = self._make_synonym_key(original, original_field)
+        # FIXME - this only works for exact fields which have no upper case
+        # characters, or single words
+        value = self._make_synonym_key(synonym, synonym_field)
+        self._index.add_synonym(key, value)
+
+    def remove_synonym(self, original, synonym, field=None):
+        """Remove a synonym from the index.
 
          - `original` is the word or words which will be synonym expanded in
            searches (if multiple words are specified, each word should be
@@ -357,18 +380,7 @@ class IndexerConnection(object):
 
         """
         key = self._make_synonym_key(original, field)
-        self._index.add_synonym(key, synonym.lower())
-
-    def remove_synonym(self, original, synonym, field=None):
-        """Remove a synonym from the index.
-
-         - `field` is the field which this synonym is specific to.  If no field
-           is specified, the synonym will be used for searches which are not
-           specific to any particular field.
-
-        """
-        key = self._make_synonym_key(original, field)
-        self._index.remove_synonym(key, synonym)
+        self._index.remove_synonym(key, synonym.lower())
 
     def clear_synonyms(self, original, field=None):
         """Remove all synonyms for a word (or phrase).

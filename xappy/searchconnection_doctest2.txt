@@ -103,7 +103,7 @@ Add a set of documents, which dates and prices, to test sorting:
 Add some synonyms:
 
 >>> iconn.add_synonym('document', 'record')
->>> iconn.add_synonym('basic test', 'exam', field='text')
+>>> iconn.add_synonym('basic test', 'exam', original_field='text')
 >>> iconn.add_synonym('document', 'notrecord')
 >>> iconn.add_synonym('documents', 'notrecord')
 >>> iconn.remove_synonym('document', 'notrecord')

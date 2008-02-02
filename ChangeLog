@@ -1,3 +1,14 @@
+Sat Feb 02 17:59:24 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py: Add simple work-around for synonyms -
+	  allow a field to be specified for the original word separately
+	  from the synonym.  Needs tidying up, but allows slightly more
+	  flexibility in synonyms.  Needs tidying up, but allows slightly
+	  more flexibility in synonyms.  Needs tidying up, but allows
+	  slightly more flexibility in synonyms.  Needs tidying up, but
+	  allows slightly more flexibility in synonyms.
+	* xappy/searchconnection_doctest2.txt: Adjust test accordingly.
+
 Sat Feb 02 13:14:29 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py,xappy/searchconnection.py: Backwards
