@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh
 # This script is used to generate the tarballs of xapian for xappy.
 #
 # These tarballs are based on SVN HEAD, but with the changes from two branches
@@ -173,3 +173,5 @@ mv tmp/xapian-bindings-${head_rev}.tgz .
 cd $basedir/head/trunk_export/xapian-maintainer-tools/
 tar -H ustar -zcf win32msvc-${head_rev}.tgz win32msvc
 cp win32msvc-${head_rev}.tgz $xappylibdir/
+
+rmdir tmp
