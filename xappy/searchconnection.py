@@ -994,7 +994,8 @@ class SearchConnection(object):
                 slot = self._field_mappings.get_slot(field, 'facet')
             except KeyError:
                 return _log(_xapian.Query)
-            sorttype = self._get_sort_type(field)
+            # FIXME - check that sorttype == self._get_sort_type(field)
+            sorttype = 'float'
             marshaller = SortableMarshaller(False)
             fn = marshaller.get_marshall_function(field, sorttype)
             begin = fn(field, val[0])

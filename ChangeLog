@@ -1,12 +1,17 @@
+Mon Feb 04 00:58:05 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Cope with a facet being declared as
+	  SORTABLE, but without a type, but of facet type float. (Treat the
+	  facet search as a numeric range, correctly - used to fail to
+	  serialise the numbers correctly.)
+	* xappy/searchconnection_doctest2.txt: Add regression test.
+
 Sat Feb 02 17:59:24 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py: Add simple work-around for synonyms -
 	  allow a field to be specified for the original word separately
 	  from the synonym.  Needs tidying up, but allows slightly more
-	  flexibility in synonyms.  Needs tidying up, but allows slightly
-	  more flexibility in synonyms.  Needs tidying up, but allows
-	  slightly more flexibility in synonyms.  Needs tidying up, but
-	  allows slightly more flexibility in synonyms.
+	  flexibility in synonyms.
 	* xappy/searchconnection_doctest2.txt: Adjust test accordingly.
 
 Sat Feb 02 13:14:29 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
