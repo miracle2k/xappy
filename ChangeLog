@@ -1,3 +1,8 @@
+Tue Feb 05 09:59:50 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Upgrade version of xapian used to one which
+	  contains database replication functionality.
+
 Tue Feb 05 09:45:27 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py,xappy/searchconnection.py,
