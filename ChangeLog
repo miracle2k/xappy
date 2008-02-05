@@ -1,3 +1,10 @@
+Tue Feb 05 09:45:27 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py,xappy/searchconnection.py,
+	  xappy/searchconnection_doctest3.txt: Add interface to
+	  IndexerConnection for setting and getting metadata, and interface
+	  to SearchConnection for getting metadata.
+
 Mon Feb 04 00:58:05 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Cope with a facet being declared as

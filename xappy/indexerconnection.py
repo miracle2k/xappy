@@ -120,7 +120,7 @@ class IndexerConnection(object):
 
         # Old versions of xapian (before 1.0.3) didn't support metadata, so we
         # may have to store the metadata in a file if we're using them.
-        if hasattr(self._index, 'set_metadata_'):
+        if hasattr(self._index, 'set_metadata'):
             _log(self._index.set_metadata, '_xappy_config', config_str)
         else:
             config_file = _os.path.join(self._indexpath, 'config')
@@ -357,6 +357,8 @@ class IndexerConnection(object):
            specific to any particular field.
 
         """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
         if original_field is None:
             original_field = field
         if synonym_field is None:
@@ -379,6 +381,8 @@ class IndexerConnection(object):
            specific to any particular field.
 
         """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
         key = self._make_synonym_key(original, field)
         self._index.remove_synonym(key, synonym.lower())
 
@@ -390,8 +394,49 @@ class IndexerConnection(object):
            specific to any particular field.
 
         """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
         key = self._make_synonym_key(original, field)
         self._index.clear_synonyms(key)
+
+    def set_metadata(self, key, value):
+        """Set an item of metadata stored in the connection.
+
+        The value supplied will be returned by subsequent calls to
+        get_metadata() which use the same key.
+
+        Keys with a leading underscore are reserved for internal use - you
+        should not use such keys unless you really know what you are doing.
+
+        This will store the value supplied in the database.  It will not be
+        visible to readers (ie, search connections) until after the next flush.
+
+        The key is limited to about 200 characters (the same length as a term
+        is limited to).  The value can be several megabytes in size.
+
+        To remove an item of metadata, simply call this with a `value`
+        parameter containing an empty string.
+
+        """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
+        if not hasattr(self._index, 'set_metadata'):
+            raise _errors.IndexerError("Version of xapian in use does not support metadata")
+        _log(self._index.set_metadata, key, value)
+
+    def get_metadata(self, key):
+        """Get an item of metadata stored in the connection.
+
+        This returns a value stored by a previous call to set_metadata.
+
+        If the value is not found, this will return the empty string.
+
+        """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
+        if not hasattr(self._index, 'get_metadata'):
+            raise _errors.IndexerError("Version of xapian in use does not support metadata")
+        return _log(self._index.get_metadata, key)
 
     def delete(self, id):
         """Delete a document from the search engine index.

@@ -1724,7 +1724,20 @@ class SearchConnection(object):
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
         return _indexerconnection.SynonymIter(self._index, self._field_mappings, prefix)
+    def get_metadata(self, key):
+        """Get an item of metadata stored in the connection.
 
+        This returns a value stored by a previous call to
+        IndexerConnection.set_metadata.
+
+        If the value is not found, this will return the empty string.
+
+        """
+        if self._index is None:
+            raise _errors.IndexerError("SearchConnection has been closed")
+        if not hasattr(self._index, 'get_metadata'):
+            raise _errors.IndexerError("Version of xapian in use does not support metadata")
+        return _log(self._index.get_metadata, key)
 
 if __name__ == '__main__':
     import doctest, sys

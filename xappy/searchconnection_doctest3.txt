@@ -26,8 +26,15 @@ Open a connection for indexing:
 ...     doc.fields.append(Field('text', 'This is basic test document %d.' % i))
 ...     doc.fields.append(Field('title', 'Test document %d' % i))
 ...     id = iconn.add(doc)
->>> iconn.flush()
 
+Test getting and setting metadata:
+>>> iconn.get_metadata('foo')
+''
+>>> iconn.set_metadata('foo', 'bar')
+>>> iconn.get_metadata('foo')
+'bar'
+
+>>> iconn.flush()
 
 Now, open a search connection:
 >>> sconn = SearchConnection('foo')
@@ -101,4 +108,11 @@ Asking for suggested facets if none were calculated raises a SearchError:
 Traceback (most recent call last):
 ...
 SearchError: Facet selection wasn't enabled when the search was run
+
+
+Test getting metadata:
+>>> sconn.get_metadata('foo1')
+''
+>>> sconn.get_metadata('foo')
+'bar'
 
