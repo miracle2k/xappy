@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -e
 # This script is used to generate the tarballs of xapian for xappy.
 #
 # These tarballs are based on SVN HEAD, but with the changes from two branches
@@ -36,9 +36,9 @@
 #  $xappylibdir: a checkout of xappy/trunk.
 
 rev="1.0.5"
-matchspy_branchpoint="9995"
-opsynonym_branchpoint="9995"
-clustering_branchpoint="9995"
+matchspy_branchpoint="10119"
+opsynonym_branchpoint="10119"
+clustering_branchpoint="10119"
 basedir="$HOME/private/Working/xapian/pristine/"
 xappylibdir="$HOME/xappy/libs/"
 
