@@ -1064,8 +1064,9 @@ class SearchConnection(object):
                     for kwargs in kwargslist:
                         try:
                             lang = kwargs['language']
-                            qp.my_stemmer = _log(_xapian.Stem, lang)
-                            qp.set_stemmer(qp.my_stemmer)
+                            my_stemmer = _log(_xapian.Stem, lang)
+                            qp.my_stemmer = my_stemmer
+                            qp.set_stemmer(my_stemmer)
                             qp.set_stemming_strategy(qp.STEM_SOME)
                         except KeyError:
                             pass
