@@ -8,8 +8,13 @@ the GPL license; see the file COPYING_GPL in this directory for details.
 Major code and design
 ---------------------
 
-Richard Boulton (initial author)
+Richard Boulton (lead developer)
 Tom Mortimer (highlighting and summarisation)
+Tom Winch (facet heirarchy)
+
+
+Thanks are due to MyDeco (http://mydeco.com/) who have supported much of the
+development of Xappy.
 
 
 Bug reports and comments
