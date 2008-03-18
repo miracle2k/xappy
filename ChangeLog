@@ -1,3 +1,11 @@
+Tue Mar 18 21:29:25 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* testsuite/unittests/facet_hierarchy_1.py,xappy/indexerconnection.py,
+	  xappy/searchconnection.py: Add support for defining a facet
+	  heirarchy, for use when selecting facets.  Not yet used, but is
+	  stored in the database configuration, and available to both the
+	  indexer connection and the search connection.
+
 Mon Mar 17 16:46:33 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Fix setting of stemmer so that it

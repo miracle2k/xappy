@@ -51,6 +51,7 @@ class IndexerConnection(object):
         # Read existing actions.
         self._field_actions = {}
         self._field_mappings = _fieldmappings.FieldMappings()
+        self._facet_hierarchy = {}
         self._next_docid = 0
         self._config_modified = False
         self._load_config()
@@ -115,6 +116,7 @@ class IndexerConnection(object):
         config_str = _cPickle.dumps((
                                      self._field_actions,
                                      self._field_mappings.serialise(),
+                                     self._facet_hierarchy,
                                      self._next_docid,
                                     ), 2)
 
@@ -152,7 +154,12 @@ class IndexerConnection(object):
             if hasattr(self._index, 'set_metadata_'):
                 _log(self._index.set_metadata, '_xappy_config', config_str)
 
-        (self._field_actions, mappings, self._next_docid) = _cPickle.loads(config_str)
+        try:
+            (self._field_actions, mappings, self._facet_hierarchy, self._next_docid) = _cPickle.loads(config_str)
+        except ValueError:
+            # Backwards compatibility - configuration used to lack _facet_hierarchy
+            (self._field_actions, mappings, self._next_docid) = _cPickle.loads(config_str)
+            self._facet_hierarchy = {}
         self._field_mappings = _fieldmappings.FieldMappings(mappings)
         self._config_modified = False
 
@@ -399,6 +406,48 @@ class IndexerConnection(object):
         key = self._make_synonym_key(original, field)
         self._index.clear_synonyms(key)
 
+    def _assert_facet(self, facet):
+        """Raise an error if facet is not a declared facet field.
+
+        """
+        for action in self._field_actions[facet]._actions:
+            if action == FieldActions.FACET:
+                return
+        raise _errors.IndexerError("Field %r is not indexed as a facet" % facet)
+
+    def add_subfacet(self, subfacet, facet):
+        """Add a subfacet-facet relationship to the facet hierarchy.
+        
+        Any existing relationship for that subfacet is replaced.
+
+        Raises a KeyError if either facet or subfacet is not a field,
+        and an IndexerError if either facet or subfacet is not a facet field.
+        """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
+        self._assert_facet(facet)
+        self._assert_facet(subfacet)
+        self._facet_hierarchy[subfacet] = facet
+        self._config_modified = True
+
+    def remove_subfacet(self, subfacet):
+        """Remove any existing facet hierarchy relationship for a subfacet.
+
+        """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
+        if subfacet in self._facet_hierarchy:
+            del self._facet_hierarchy[subfacet]
+            self._config_modified = True
+
+    def get_subfacets(self, facet):
+        """Get a list of subfacets of a facet.
+
+        """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
+        return [k for k, v in self._facet_hierarchy.iteritems() if v == facet] 
+
     def set_metadata(self, key, value):
         """Set an item of metadata stored in the connection.
 
@@ -573,6 +622,27 @@ class IndexerConnection(object):
             raise _errors.IndexerError("IndexerConnection has been closed")
         return SynonymIter(self._index, self._field_mappings, prefix)
 
+    def iter_subfacets(self):
+        """Get an iterator over the facet hierarchy.
+
+        The iterator returns 2-tuples, in which the first item is the
+        subfacet and the second item is its parent facet.
+
+        The return values are suitable for the dict() builtin, for example:
+
+         >>> conn = IndexerConnection('db')
+         >>> conn.add_field_action('foo', FieldActions.FACET)
+         >>> conn.add_field_action('bar', FieldActions.FACET)
+         >>> conn.add_field_action('baz', FieldActions.FACET)
+         >>> conn.add_subfacet('foo', 'bar')
+         >>> conn.add_subfacet('baz', 'bar')
+         >>> dict(conn.iter_subfacets())
+         {'foo': 'bar', 'baz': 'bar'}
+
+        """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
+        return self._facet_hierarchy.iteritems()
 
 class PrefixedTermIter(object):
     """Iterate through all the terms with a given prefix.

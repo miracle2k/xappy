@@ -234,7 +234,7 @@ class SearchResults(object):
 
     """
     def __init__(self, conn, enq, query, mset, fieldmappings, tagspy,
-                 tagfields, facetspy, facetfields):
+                 tagfields, facetspy, facetfields, facethierarchy):
         self._conn = conn
         self._enq = enq
         self._query = query
@@ -248,6 +248,7 @@ class SearchResults(object):
             self._tagfields = set(tagfields)
         self._facetspy = facetspy
         self._facetfields = facetfields
+        self._facethierarchy = facethierarchy
         self._numeric_ranges_built = {}
 
     def _cluster(self, num_clusters, maxdocs, fields=None):
@@ -588,6 +589,13 @@ class SearchResults(object):
         facets will be returned (ie, obeying the required_facets parameter is
         considered more important than the maxfacets parameter).
 
+        If facet_hierarchy was indicated when search() was called, and the
+        query included facets, then only subfacets of those query facets and
+        top-level facets will be included in the returned list. Furthermore
+        top-level facets will only be returned if there are remaining places
+        in the list after it has been filled with subfacets. Note that
+        required_facets is still respected regardless of the facet hierarchy.
+
         """
         if self._facetspy is None:
             raise _errors.SearchError("Facet selection wasn't enabled when the search was run")
@@ -607,10 +615,16 @@ class SearchResults(object):
                     self._facetspy.build_numeric_ranges(slot, desired_num_of_categories)
                     self._numeric_ranges_built[field] = None
             facettypes[field] = type
-            score = self._facetspy.score_categorisation(slot,
-                                                        desired_num_of_categories)
+            score = self._facetspy.score_categorisation(slot, desired_num_of_categories)
             scores.append((score, field, slot))
-        scores.sort()
+
+        if self._facethierarchy:
+            # Sort on whether facet is top-level ahead of score (use subfacets first)
+            scores = [(field not in self._facethierarchy, score, field, slot) for score, field, slot in scores]
+            scores.sort()
+            scores = [(score, field, slot) for istoplevel, score, field, slot in scores]
+        else:
+            scores.sort()
 
         results = []
         required_results = []
@@ -675,7 +689,7 @@ class SearchResults(object):
         # algorithm.
         results = [(field, newvalues) for (score, field, newvalues) in results]
         return results
-        
+
 
 class SearchConnection(object):
     """A connection to the search engine for searching.
@@ -765,7 +779,12 @@ class SearchConnection(object):
             config_str = fd.read()
             fd.close()
 
-        (self._field_actions, mappings, next_docid) = _cPickle.loads(config_str)
+        try:
+            (self._field_actions, mappings, self._facet_hierarchy, next_docid) = _cPickle.loads(config_str)
+        except ValueError:
+            # Backwards compatibility - configuration used to lack _facet_hierarchy
+            (self._field_actions, mappings, next_docid) = _cPickle.loads(config_str)
+            self._facet_hierarchy = {}
         self._field_mappings = _fieldmappings.FieldMappings(mappings)
 
     def reopen(self):
@@ -1474,11 +1493,25 @@ class SearchConnection(object):
         except KeyError:
             return False
         return True
+        
+    def _get_prefix_from_term(self, term):
+        """Get the prefix of a term.
+   
+        Prefixes are any initial capital letters, with the exception that R always
+        ends a prefix, even if followed by capital letters.
+        
+        """
+        for p in xrange(len(term)):
+            if term[p].islower():
+                return term[:p]
+            elif term[p] == 'R':
+                return term[:p+1]
+        return term
 
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
                gettags=None,
-               getfacets=None, allowfacets=None, denyfacets=None,
+               getfacets=None, allowfacets=None, denyfacets=None, usesubfacets=None,
                percentcutoff=None, weightcutoff=None):
         """Perform a search, for documents matching a query.
 
@@ -1509,13 +1542,16 @@ class SearchConnection(object):
         - `allowfacets` is a list of the fieldnames of facets to consider.
         - `denyfacets` is a list of fieldnames of facets which will not be
           considered.
+        - `usesubfacets` is a boolean - if True, only top-level facets and
+          subfacets of facets appearing in the query are considered (taking
+          precedence over `allowfacets` and `denyfacets`).
         - `percentcutoff` is the minimum percentage a result must have to be
           returned.
         - `weightcutoff` is the minimum weight a result must have to be
           returned.
 
         If neither 'allowfacets' or 'denyfacets' is specified, all fields
-        holding facets will be considered.
+        holding facets will be considered (but see 'usesubfacets').
 
         """
         if self._index is None:
@@ -1587,6 +1623,21 @@ class SearchConnection(object):
             if denyfacets is not None:
                 allowfacets = [key for key in allowfacets if key not in denyfacets]
 
+            # include None in queryfacets so a top-level facet will
+            # satisfy self._facet_hierarchy.get(field) in queryfacets
+            # (i.e. always include top-level facets)
+            queryfacets = set([None])
+            if usesubfacets:
+                # add facets used in the query to queryfacets
+                termsiter = query.get_terms_begin()
+                termsend = query.get_terms_end()
+                while termsiter != termsend:
+                    prefix = self._get_prefix_from_term(termsiter.get_term())
+                    field = self._field_mappings.get_fieldname_from_prefix(prefix)
+                    if field and FieldActions.FACET in self._field_actions[field]._actions:
+                        queryfacets.add(field)
+                    termsiter.next()
+
             for field in allowfacets:
                 try:
                     actions = self._field_actions[field]._actions
@@ -1594,6 +1645,10 @@ class SearchConnection(object):
                     actions = {}
                 for action, kwargslist in actions.iteritems():
                     if action == FieldActions.FACET:
+                        # filter out non-top-level facets that aren't subfacets
+                        # of a facet in the query
+                        if usesubfacets and self._facet_hierarchy.get(field) not in queryfacets:
+                            continue
                         slot = self._field_mappings.get_slot(field, 'facet')
                         if facetspy is None:
                             facetspy = _log(_xapian.CategorySelectMatchSpy)
@@ -1607,6 +1662,7 @@ class SearchConnection(object):
                         else:
                             facetspy.add_slot(slot)
                         facetfields.append((field, slot, kwargslist))
+
             if facetspy is None:
                 # Set facetspy to False, to distinguish from no facet
                 # calculation being performed.  (This will prevent an
@@ -1646,7 +1702,8 @@ class SearchConnection(object):
             except _xapian.DatabaseModifiedError, e:
                 self.reopen()
         return SearchResults(self, enq, query, mset, self._field_mappings,
-                             tagspy, gettags, facetspy, facetfields)
+                             tagspy, gettags, facetspy, facetfields,
+                             self._facet_hierarchy if usesubfacets else None)
 
     def iterids(self):
         """Get an iterator which returns all the ids in the database.
@@ -1725,6 +1782,7 @@ class SearchConnection(object):
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
         return _indexerconnection.SynonymIter(self._index, self._field_mappings, prefix)
+
     def get_metadata(self, key):
         """Get an item of metadata stored in the connection.
 
