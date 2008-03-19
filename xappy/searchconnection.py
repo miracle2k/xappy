@@ -763,21 +763,13 @@ class SearchConnection(object):
         # Note: this code is basically duplicated in the IndexerConnection
         # class.  Move it to a shared location.
         assert self._index is not None
-        if hasattr(self._index, 'get_metadata'):
-            config_str = _log(self._index.get_metadata, '_xappy_config')
-        else:
-            config_str = ''
+
+        config_str = _log(self._index.get_metadata, '_xappy_config')
         if len(config_str) == 0:
-            # Backwards compatibility - the configuration used to be stored in
-            # a file.
-            config_file = _os.path.join(self._indexpath, 'config')
-            if not _os.path.exists(config_file):
-                self._field_actions = {}
-                self._field_mappings = _fieldmappings.FieldMappings()
-                return
-            fd = open(config_file, 'rb')
-            config_str = fd.read()
-            fd.close()
+            self._field_actions = {}
+            self._field_mappings = _fieldmappings.FieldMappings()
+            self._facet_hierarchy = {}
+            return
 
         try:
             (self._field_actions, mappings, self._facet_hierarchy, next_docid) = _cPickle.loads(config_str)
