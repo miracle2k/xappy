@@ -1,3 +1,13 @@
+Tue Mar 25 12:46:33 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* testsuite/unittests/facet_query_type_1.py,xappy/indexerconnection.py,
+	  xappy/searchconnection.py: More facet selection improvements from
+	  Tom Winch: allow a set of associations between query types and
+	  facets to be stored in the database configuration, and use these
+	  facets to either prevent or prefer certain facets from being
+	  chosen for a particular query type.  (Query types are specified
+	  by an additional parameter to the search() method.)
+
 Wed Mar 19 01:42:29 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py,xappy/searchconnection.py: Remove

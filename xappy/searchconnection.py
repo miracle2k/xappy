@@ -234,7 +234,8 @@ class SearchResults(object):
 
     """
     def __init__(self, conn, enq, query, mset, fieldmappings, tagspy,
-                 tagfields, facetspy, facetfields, facethierarchy):
+                 tagfields, facetspy, facetfields, facethierarchy,
+                 facetassocs):
         self._conn = conn
         self._enq = enq
         self._query = query
@@ -249,6 +250,7 @@ class SearchResults(object):
         self._facetspy = facetspy
         self._facetfields = facetfields
         self._facethierarchy = facethierarchy
+        self._facetassocs = facetassocs
         self._numeric_ranges_built = {}
 
     def _cluster(self, num_clusters, maxdocs, fields=None):
@@ -596,6 +598,12 @@ class SearchResults(object):
         in the list after it has been filled with subfacets. Note that
         required_facets is still respected regardless of the facet hierarchy.
 
+        If a query type was specified when search() was called, and the query
+        included facets, then facets with an association of Never to the
+        query type are never returned, even if mentioned in required_facets.
+        Facets with an association of Preferred are listed before others in
+        the returned list.
+
         """
         if self._facetspy is None:
             raise _errors.SearchError("Facet selection wasn't enabled when the search was run")
@@ -618,13 +626,19 @@ class SearchResults(object):
             score = self._facetspy.score_categorisation(slot, desired_num_of_categories)
             scores.append((score, field, slot))
 
+        # Sort on whether facet is top-level ahead of score (use subfacets first),
+        # and on whether facet is preferred for the query type ahead of anything else
         if self._facethierarchy:
-            # Sort on whether facet is top-level ahead of score (use subfacets first)
-            scores = [(field not in self._facethierarchy, score, field, slot) for score, field, slot in scores]
-            scores.sort()
-            scores = [(score, field, slot) for istoplevel, score, field, slot in scores]
-        else:
-            scores.sort()
+            # Note, tuple[-2] is the value of 'field' in a scores tuple
+            scores = [(tuple[-2] not in self._facethierarchy,) + tuple for tuple in scores]
+        if self._facetassocs:
+            preferred = _indexerconnection.IndexerConnection.FacetQueryType_Preferred
+            scores = [(self._facetassocs.get(tuple[-2]) != preferred,) + tuple for tuple in scores]
+        scores.sort()
+        index = 1 if self._facethierarchy else 0
+        index += 1 if self._facetassocs else 0
+        if index > 0:
+            scores = [tuple[index:] for tuple in scores]
 
         results = []
         required_results = []
@@ -769,14 +783,16 @@ class SearchConnection(object):
             self._field_actions = {}
             self._field_mappings = _fieldmappings.FieldMappings()
             self._facet_hierarchy = {}
+            self._facet_query_table = {}
             return
 
         try:
-            (self._field_actions, mappings, self._facet_hierarchy, next_docid) = _cPickle.loads(config_str)
+            (self._field_actions, mappings, self._facet_hierarchy, self._facet_query_table, self._next_docid) = _cPickle.loads(config_str)
         except ValueError:
-            # Backwards compatibility - configuration used to lack _facet_hierarchy
-            (self._field_actions, mappings, next_docid) = _cPickle.loads(config_str)
+            # Backwards compatibility - configuration used to lack _facet_hierarchy and _facet_query_table
+            (self._field_actions, mappings, self._next_docid) = _cPickle.loads(config_str)
             self._facet_hierarchy = {}
+            self._facet_query_table = {}
         self._field_mappings = _fieldmappings.FieldMappings(mappings)
 
     def reopen(self):
@@ -1500,11 +1516,30 @@ class SearchConnection(object):
                 return term[:p+1]
         return term
 
+    def _facet_query_never(self, facet, query_type):
+        """Check if a facet must never be returned by a particular query type.
+
+        Returns True if the facet must never be returned.
+
+        Returns False if the facet may be returned - either becuase there is no
+        entry for the query type, or because the entry is not
+        FacetQueryType_Never.
+
+        """
+        if query_type is None:
+            return False
+        if query_type not in self._facet_query_table:
+            return False
+        if facet not in self._facet_query_table[query_type]:
+            return False
+        return self._facet_query_table[query_type][facet] == _indexerconnection.IndexerConnection.FacetQueryType_Never
+
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
                gettags=None,
                getfacets=None, allowfacets=None, denyfacets=None, usesubfacets=None,
-               percentcutoff=None, weightcutoff=None):
+               percentcutoff=None, weightcutoff=None,
+               query_type=None):
         """Perform a search, for documents matching a query.
 
         - `query` is the query to perform.
@@ -1541,6 +1576,10 @@ class SearchConnection(object):
           returned.
         - `weightcutoff` is the minimum weight a result must have to be
           returned.
+        - `query_type` is a value indicating the type of query being
+          performed. If not None, the value is used to influence which facets
+          are be returned by the get_suggested_facets() function. If the
+          value of `getfacets` is False, it has no effect.
 
         If neither 'allowfacets' or 'denyfacets' is specified, all fields
         holding facets will be considered (but see 'usesubfacets').
@@ -1641,6 +1680,9 @@ class SearchConnection(object):
                         # of a facet in the query
                         if usesubfacets and self._facet_hierarchy.get(field) not in queryfacets:
                             continue
+                        # filter out facets that should never be returned for the query type
+                        if self._facet_query_never(field, query_type):
+                            continue
                         slot = self._field_mappings.get_slot(field, 'facet')
                         if facetspy is None:
                             facetspy = _log(_xapian.CategorySelectMatchSpy)
@@ -1695,7 +1737,8 @@ class SearchConnection(object):
                 self.reopen()
         return SearchResults(self, enq, query, mset, self._field_mappings,
                              tagspy, gettags, facetspy, facetfields,
-                             self._facet_hierarchy if usesubfacets else None)
+                             self._facet_hierarchy if usesubfacets else None,
+                             self._facet_query_table.get(query_type))
 
     def iterids(self):
         """Get an iterator which returns all the ids in the database.

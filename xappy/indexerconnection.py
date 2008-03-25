@@ -52,6 +52,7 @@ class IndexerConnection(object):
         self._field_actions = {}
         self._field_mappings = _fieldmappings.FieldMappings()
         self._facet_hierarchy = {}
+        self._facet_query_table = {}
         self._next_docid = 0
         self._config_modified = False
         self._load_config()
@@ -118,6 +119,7 @@ class IndexerConnection(object):
                                      self._field_actions,
                                      self._field_mappings.serialise(),
                                      self._facet_hierarchy,
+                                     self._facet_query_table,
                                      self._next_docid,
                                     ), 2)
         _log(self._index.set_metadata, '_xappy_config', config_str)
@@ -135,11 +137,12 @@ class IndexerConnection(object):
             return
 
         try:
-            (self._field_actions, mappings, self._facet_hierarchy, self._next_docid) = _cPickle.loads(config_str)
+            (self._field_actions, mappings, self._facet_hierarchy, self._facet_query_table, self._next_docid) = _cPickle.loads(config_str)
         except ValueError:
-            # Backwards compatibility - configuration used to lack _facet_hierarchy
+            # Backwards compatibility - configuration used to lack _facet_hierarchy and _facet_query_table
             (self._field_actions, mappings, self._next_docid) = _cPickle.loads(config_str)
             self._facet_hierarchy = {}
+            self._facet_query_table = {}
         self._field_mappings = _fieldmappings.FieldMappings(mappings)
 
         self._config_modified = False
@@ -429,6 +432,51 @@ class IndexerConnection(object):
             raise _errors.IndexerError("IndexerConnection has been closed")
         return [k for k, v in self._facet_hierarchy.iteritems() if v == facet] 
 
+    FacetQueryType_Preferred = 1;
+    FacetQueryType_Never = 2;
+    def set_facet_for_query_type(self, query_type, facet, association):
+        """Set the association between a query type and a facet.
+
+        The value of `association` must be one of
+        IndexerConnection.FacetQueryType_Preferred,
+        IndexerConnection.FacetQueryType_Never or None. A value of None removes
+        any previously set association.
+
+        """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
+        if query_type is None:
+            raise _errors.IndexerError("Cannot set query type information for None")
+        self._assert_facet(facet)
+        if query_type not in self._facet_query_table:
+            self._facet_query_table[query_type] = {}
+        if association is None:
+            if facet in self._facet_query_table[query_type]:
+                del self._facet_query_table[query_type][facet]
+        else:
+            self._facet_query_table[query_type][facet] = association;
+        if self._facet_query_table[query_type] == {}:
+            del self._facet_query_table[query_type]
+        self._config_modified = True
+
+    def get_facets_for_query_type(self, query_type, association):
+        """Get the set of facets associated with a query type.
+
+        Only those facets associated with the query type in the specified
+        manner are returned; `association` must be one of
+        IndexerConnection.FacetQueryType_Preferred or
+        IndexerConnection.FacetQueryType_Never.
+
+        If the query type has no facets associated with it, None is returned.
+
+        """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
+        if query_type not in self._facet_query_table:
+            return None
+        facet_dict = self._facet_query_table[query_type]
+        return set([facet for facet, assoc in facet_dict.iteritems() if assoc == association])
+
     def set_metadata(self, key, value):
         """Set an item of metadata stored in the connection.
 
@@ -625,6 +673,36 @@ class IndexerConnection(object):
             raise _errors.IndexerError("IndexerConnection has been closed")
         return self._facet_hierarchy.iteritems()
 
+    def iter_facet_query_types(self, association):
+        """Get an iterator over query types and their associated facets.
+
+        Only facets associated with the query types in the specified manner
+        are returned; `association` must be one of IndexerConnection.FacetQueryType_Preferred
+        or IndexerConnection.FacetQueryType_Never.
+
+        The iterator returns 2-tuples, in which the first item is the query
+        type and the second item is the associated set of facets.
+
+        The return values are suitable for the dict() builtin, for example:
+
+         >>> conn = IndexerConnection('db')
+         >>> conn.add_field_action('foo', FieldActions.FACET)
+         >>> conn.add_field_action('bar', FieldActions.FACET)
+         >>> conn.add_field_action('baz', FieldActions.FACET)
+         >>> conn.set_facet_for_query_type('type1', 'foo', conn.FacetQueryType_Preferred)
+         >>> conn.set_facet_for_query_type('type1', 'bar', conn.FacetQueryType_Never)
+         >>> conn.set_facet_for_query_type('type1', 'baz', conn.FacetQueryType_Never)
+         >>> conn.set_facet_for_query_type('type2', 'bar', conn.FacetQueryType_Preferred)
+         >>> dict(conn.iter_facet_query_types(conn.FacetQueryType_Preferred))
+         {'type1': set(['foo']), 'type2': set(['bar'])}
+         >>> dict(conn.iter_facet_query_types(conn.FacetQueryType_Never))
+         {'type1': set(['bar', 'baz'])}
+
+        """
+        if self._index is None:
+            raise _errors.IndexerError("IndexerConnection has been closed")
+        return FacetQueryTypeIter(self._facet_query_table, association)
+
 class PrefixedTermIter(object):
     """Iterate through all the terms with a given prefix.
 
@@ -705,6 +783,35 @@ class SynonymIter(object):
             terms = ' '.join((term[pos:] for term in synkey.split(' ')))
         synval = tuple(self._index.synonyms(synkey))
         return ((terms, fieldname), synval)
+
+class FacetQueryTypeIter(object):
+    """Iterate through all the query types and their associated facets.
+
+    """
+    def __init__(self, facet_query_table, association):
+        """Initialise the query type facet iterator.
+
+        Only facets associated with each query type in the specified
+        manner are returned (`association` must be one of
+        IndexerConnection.FacetQueryType_Preferred or
+        IndexerConnection.FacetQueryType_Never).
+
+        """
+        self._table_iter = facet_query_table.iteritems()
+        self._association = association
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        """Get the next (query type, facet set) 2-tuple.
+
+        """
+        query_type, facet_dict = self._table_iter.next()
+        facet_list = [facet for facet, association in facet_dict.iteritems() if association == self._association]
+        if len(facet_list) == 0:
+            return self.next()
+        return (query_type, set(facet_list))
 
 if __name__ == '__main__':
     import doctest, sys
