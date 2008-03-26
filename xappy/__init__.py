@@ -24,8 +24,9 @@ details of how to use the xappy package.
 """
 __docformat__ = "restructuredtext en"
 
-from datastructures import *
+from datastructures import Field, UnprocessedDocument, ProcessedDocument
 from errors import *
-from indexerconnection import *
-from searchconnection import *
+from fieldactions import FieldActions
+from indexerconnection import IndexerConnection
+from searchconnection import SearchConnection
 from replaylog import set_replay_path

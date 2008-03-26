@@ -20,10 +20,10 @@ r"""datastructures.py: Datastructures for search engine core.
 """
 __docformat__ = "restructuredtext en"
 
-import errors as _errors
-from replaylog import log as _log
-import xapian as _xapian
-import cPickle as _cPickle
+import errors
+from replaylog import log
+import xapian
+import cPickle
 
 class Field(object):
     # Use __slots__ because we're going to have very many Field objects in
@@ -89,7 +89,7 @@ class ProcessedDocument(object):
 
         """
         if xapdoc is None:
-            self._doc = _log(_xapian.Document)
+            self._doc = log(xapian.Document)
         else:
             self._doc = xapdoc
         self._fieldmappings = fieldmappings
@@ -134,7 +134,7 @@ class ProcessedDocument(object):
         # characters after position 64 are hashed (we obviously need to do this
         # hashing at search time, too).
         if len(prefix + term) > 220:
-            raise _errors.IndexerError("Field %r is too long: maximum length "
+            raise errors.IndexerError("Field %r is too long: maximum length "
                                        "220 - was %d (%r)" %
                                        (field, len(prefix + term),
                                         prefix + term))
@@ -182,7 +182,7 @@ class ProcessedDocument(object):
 
         """
         if self._data is not None:
-            self._doc.set_data(_cPickle.dumps(self._data, 2))
+            self._doc.set_data(cPickle.dumps(self._data, 2))
             self._data = None
         return self._doc
 
@@ -192,7 +192,7 @@ class ProcessedDocument(object):
             if rawdata == '':
                 self._data = {}
             else:
-                self._data = _cPickle.loads(rawdata)
+                self._data = cPickle.loads(rawdata)
         return self._data
     def _set_data(self, data):
         if not isinstance(data, dict):

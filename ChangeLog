@@ -1,3 +1,12 @@
+Wed Mar 26 07:52:47 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/__init__.py,xappy/datastructures.py,
+	  xappy/indexerconnection.py: Remove several "import *" lines from
+	  __init__.py, replacing them by importing the specific symbols
+	  desired.  Remove the nasty renaming of imported symbols in the
+	  files thus imported, since this was to work around polluting the
+	  namespace when "import *" was used.
+
 Tue Mar 25 12:46:33 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* testsuite/unittests/facet_query_type_1.py,xappy/indexerconnection.py,

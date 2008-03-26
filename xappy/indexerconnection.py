@@ -20,15 +20,15 @@ r"""indexerconnection.py: A connection to the search engine for indexing.
 """
 __docformat__ = "restructuredtext en"
 
-import xapian as _xapian
+import cPickle
+import xapian
+
 from datastructures import *
+import errors
 from fieldactions import *
-import fieldmappings as _fieldmappings
-import memutils as _memutils
-import errors as _errors
-from replaylog import log as _log
-import os as _os
-import cPickle as _cPickle
+import fieldmappings
+import memutils
+from replaylog import log
 
 class IndexerConnection(object):
     """A connection to the search engine for indexing.
@@ -45,12 +45,12 @@ class IndexerConnection(object):
         If the database doesn't already exist, it will be created.
 
         """
-        self._index = _log(_xapian.WritableDatabase, indexpath, _xapian.DB_CREATE_OR_OPEN)
+        self._index = log(xapian.WritableDatabase, indexpath, xapian.DB_CREATE_OR_OPEN)
         self._indexpath = indexpath
 
         # Read existing actions.
         self._field_actions = {}
-        self._field_mappings = _fieldmappings.FieldMappings()
+        self._field_mappings = fieldmappings.FieldMappings()
         self._facet_hierarchy = {}
         self._facet_query_table = {}
         self._next_docid = 0
@@ -89,16 +89,16 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         if max_mem is not None and max_mem_proportion is not None:
-            raise _errors.IndexerError("Only one of max_mem and "
+            raise errors.IndexerError("Only one of max_mem and "
                                        "max_mem_proportion may be specified")
 
         if max_mem is None and max_mem_proportion is None:
             self._max_mem = None
 
         if max_mem_proportion is not None:
-            physmem = _memutils.get_physical_memory()
+            physmem = memutils.get_physical_memory()
             if physmem is not None:
                 max_mem = int(physmem * max_mem_proportion)
 
@@ -115,14 +115,14 @@ class IndexerConnection(object):
         """
         assert self._index is not None
 
-        config_str = _cPickle.dumps((
+        config_str = cPickle.dumps((
                                      self._field_actions,
                                      self._field_mappings.serialise(),
                                      self._facet_hierarchy,
                                      self._facet_query_table,
                                      self._next_docid,
                                     ), 2)
-        _log(self._index.set_metadata, '_xappy_config', config_str)
+        log(self._index.set_metadata, '_xappy_config', config_str)
 
         self._config_modified = False
 
@@ -132,18 +132,18 @@ class IndexerConnection(object):
         """
         assert self._index is not None
 
-        config_str = _log(self._index.get_metadata, '_xappy_config')
+        config_str = log(self._index.get_metadata, '_xappy_config')
         if len(config_str) == 0:
             return
 
         try:
-            (self._field_actions, mappings, self._facet_hierarchy, self._facet_query_table, self._next_docid) = _cPickle.loads(config_str)
+            (self._field_actions, mappings, self._facet_hierarchy, self._facet_query_table, self._next_docid) = cPickle.loads(config_str)
         except ValueError:
             # Backwards compatibility - configuration used to lack _facet_hierarchy and _facet_query_table
-            (self._field_actions, mappings, self._next_docid) = _cPickle.loads(config_str)
+            (self._field_actions, mappings, self._next_docid) = cPickle.loads(config_str)
             self._facet_hierarchy = {}
             self._facet_query_table = {}
-        self._field_mappings = _fieldmappings.FieldMappings(mappings)
+        self._field_mappings = fieldmappings.FieldMappings(mappings)
 
         self._config_modified = False
 
@@ -167,7 +167,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         if fieldname in self._field_actions:
             actions = self._field_actions[fieldname]
         else:
@@ -187,7 +187,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         if fieldname in self._field_actions:
             del self._field_actions[fieldname]
             self._config_modified = True
@@ -197,7 +197,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         return self._field_actions.keys()
 
     def process(self, document):
@@ -215,7 +215,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         result = ProcessedDocument(self._field_mappings)
         result.id = document.id
         context = ActionContext(self._index)
@@ -265,7 +265,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         if not hasattr(document, '_doc'):
             # It's not a processed document.
             document = self.process(document)
@@ -278,7 +278,7 @@ class IndexerConnection(object):
         else:
             id = orig_id
             if self._index.term_exists('Q' + id):
-                raise _errors.IndexerError("Document ID of document supplied to add() is not unique.")
+                raise errors.IndexerError("Document ID of document supplied to add() is not unique.")
             
         # Add the document.
         xapdoc = document.prepare()
@@ -304,7 +304,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         if not hasattr(document, '_doc'):
             # It's not a processed document.
             document = self.process(document)
@@ -312,7 +312,7 @@ class IndexerConnection(object):
         # Ensure that we have a id
         id = document.id
         if id is None:
-            raise _errors.IndexerError("No document ID set for document supplied to replace().")
+            raise errors.IndexerError("No document ID set for document supplied to replace().")
 
         xapdoc = document.prepare()
         self._index.replace_document('Q' + id, xapdoc)
@@ -349,7 +349,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         if original_field is None:
             original_field = field
         if synonym_field is None:
@@ -373,7 +373,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         key = self._make_synonym_key(original, field)
         self._index.remove_synonym(key, synonym.lower())
 
@@ -386,7 +386,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         key = self._make_synonym_key(original, field)
         self._index.clear_synonyms(key)
 
@@ -397,7 +397,7 @@ class IndexerConnection(object):
         for action in self._field_actions[facet]._actions:
             if action == FieldActions.FACET:
                 return
-        raise _errors.IndexerError("Field %r is not indexed as a facet" % facet)
+        raise errors.IndexerError("Field %r is not indexed as a facet" % facet)
 
     def add_subfacet(self, subfacet, facet):
         """Add a subfacet-facet relationship to the facet hierarchy.
@@ -408,7 +408,7 @@ class IndexerConnection(object):
         and an IndexerError if either facet or subfacet is not a facet field.
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         self._assert_facet(facet)
         self._assert_facet(subfacet)
         self._facet_hierarchy[subfacet] = facet
@@ -419,7 +419,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         if subfacet in self._facet_hierarchy:
             del self._facet_hierarchy[subfacet]
             self._config_modified = True
@@ -429,7 +429,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         return [k for k, v in self._facet_hierarchy.iteritems() if v == facet] 
 
     FacetQueryType_Preferred = 1;
@@ -444,9 +444,9 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         if query_type is None:
-            raise _errors.IndexerError("Cannot set query type information for None")
+            raise errors.IndexerError("Cannot set query type information for None")
         self._assert_facet(facet)
         if query_type not in self._facet_query_table:
             self._facet_query_table[query_type] = {}
@@ -471,7 +471,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         if query_type not in self._facet_query_table:
             return None
         facet_dict = self._facet_query_table[query_type]
@@ -497,10 +497,10 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         if not hasattr(self._index, 'set_metadata'):
-            raise _errors.IndexerError("Version of xapian in use does not support metadata")
-        _log(self._index.set_metadata, key, value)
+            raise errors.IndexerError("Version of xapian in use does not support metadata")
+        log(self._index.set_metadata, key, value)
 
     def get_metadata(self, key):
         """Get an item of metadata stored in the connection.
@@ -511,10 +511,10 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         if not hasattr(self._index, 'get_metadata'):
-            raise _errors.IndexerError("Version of xapian in use does not support metadata")
-        return _log(self._index.get_metadata, key)
+            raise errors.IndexerError("Version of xapian in use does not support metadata")
+        return log(self._index.get_metadata, key)
 
     def delete(self, id):
         """Delete a document from the search engine index.
@@ -524,7 +524,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         self._index.delete_document('Q' + id)
 
     def flush(self):
@@ -535,7 +535,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         if self._config_modified:
             self._store_config()
         self._index.flush()
@@ -582,7 +582,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         return self._index.get_doccount()
 
     def iterids(self):
@@ -593,7 +593,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         return PrefixedTermIter('Q', self._index.allterms())
 
     def get_document(self, id):
@@ -604,7 +604,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         postlist = self._index.postlist('Q' + id)
         try:
             plitem = postlist.next()
@@ -613,7 +613,7 @@ class IndexerConnection(object):
             raise KeyError('Unique ID %r not found' % id)
         try:
             postlist.next()
-            raise _errors.IndexerError("Multiple documents " #pragma: no cover
+            raise errors.IndexerError("Multiple documents " #pragma: no cover
                                        "found with same unique ID")
         except StopIteration:
             # Only one instance of the unique ID found, as it should be.
@@ -648,7 +648,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         return SynonymIter(self._index, self._field_mappings, prefix)
 
     def iter_subfacets(self):
@@ -670,7 +670,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         return self._facet_hierarchy.iteritems()
 
     def iter_facet_query_types(self, association):
@@ -700,7 +700,7 @@ class IndexerConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("IndexerConnection has been closed")
+            raise errors.IndexerError("IndexerConnection has been closed")
         return FacetQueryTypeIter(self._facet_query_table, association)
 
 class PrefixedTermIter(object):
