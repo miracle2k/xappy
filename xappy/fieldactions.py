@@ -20,11 +20,11 @@ r"""fieldactions.py: Definitions and implementations of field actions.
 """
 __docformat__ = "restructuredtext en"
 
-import errors as _errors
-import marshall as _marshall
-from replaylog import log as _log
-import xapian as _xapian
-import parsedate as _parsedate
+import errors
+import marshall
+from replaylog import log
+import xapian
+import parsedate
 
 def _act_store_content(fieldname, doc, value, context):
     """Perform the STORE_CONTENT action.
@@ -56,7 +56,7 @@ def _act_facet(fieldname, doc, value, context, type=None):
     if type is None or type == 'string':
         value = value.lower()
         doc.add_term(fieldname, value, 0)
-        serialiser = _log(_xapian.StringListSerialiser,
+        serialiser = log(xapian.StringListSerialiser,
                           doc.get_value(fieldname, 'facet'))
         serialiser.append(value)
         doc.add_value(fieldname, serialiser.get(), 'facet')
@@ -71,12 +71,12 @@ def _act_index_freetext(fieldname, doc, value, context, weight=1,
     """Perform the INDEX_FREETEXT action.
     
     """
-    termgen = _log(_xapian.TermGenerator)
+    termgen = log(xapian.TermGenerator)
     if language is not None:
-        termgen.set_stemmer(_log(_xapian.Stem, language))
+        termgen.set_stemmer(log(xapian.Stem, language))
         
     if stop is not None:
-        stopper = _log(_xapian.SimpleStopper)
+        stopper = log(xapian.SimpleStopper)
         for term in stop:
             stopper.add (term)
         termgen.set_stopper (stopper)
@@ -114,9 +114,9 @@ class SortableMarshaller(object):
     """
     def __init__(self, indexing=True):
         if indexing:
-            self._err = _errors.IndexerError
+            self._err = errors.IndexerError
         else:
-            self._err = _errors.SearchError
+            self._err = errors.SearchError
 
     def marshall_string(self, fieldname, value):
         """Marshall a value for sorting in lexicograpical order.
@@ -138,19 +138,19 @@ class SortableMarshaller(object):
             raise self._err("Value supplied to field %r must be a "
                             "valid floating point number: was %r" %
                             (fieldname, value))
-        return _marshall.float_to_string(value)
+        return marshall.float_to_string(value)
 
     def marshall_date(self, fieldname, value):
         """Marshall a value for sorting as a date.
 
         """
         try:
-            value = _parsedate.date_from_string(value)
+            value = parsedate.date_from_string(value)
         except ValueError, e:
             raise self._err("Value supplied to field %r must be a "
                             "valid date: was %r: error is '%s'" %
                             (fieldname, value, str(e)))
-        return _marshall.date_to_string(value)
+        return marshall.date_to_string(value)
 
     def get_marshall_function(self, fieldname, sorttype):
         """Get a function used to marshall values of a given sorttype.
@@ -294,26 +294,26 @@ class FieldActions(object):
                           FieldActions.TAG,
                           FieldActions.FACET,
                          ):
-            raise _errors.IndexerError("Unknown field action: %r" % action)
+            raise errors.IndexerError("Unknown field action: %r" % action)
 
         info = self._action_info[action]
 
         # Check parameter names
         for key in kwargs.keys():
             if key not in info[1]:
-                raise _errors.IndexerError("Unknown parameter name for action %r: %r" % (info[0], key))
+                raise errors.IndexerError("Unknown parameter name for action %r: %r" % (info[0], key))
 
         # Fields cannot be indexed both with "EXACT" and "FREETEXT": whilst we
         # could implement this, the query parser wouldn't know what to do with
         # searches.
         if action == FieldActions.INDEX_EXACT:
             if FieldActions.INDEX_FREETEXT in self._actions:
-                raise _errors.IndexerError("Field %r is already marked for indexing "
+                raise errors.IndexerError("Field %r is already marked for indexing "
                                    "as free text: cannot mark for indexing "
                                    "as exact text as well" % self._fieldname)
         if action == FieldActions.INDEX_FREETEXT:
             if FieldActions.INDEX_EXACT in self._actions:
-                raise _errors.IndexerError("Field %r is already marked for indexing "
+                raise errors.IndexerError("Field %r is already marked for indexing "
                                    "as exact text: cannot mark for indexing "
                                    "as free text as well" % self._fieldname)
 
@@ -349,7 +349,7 @@ class FieldActions(object):
                     # Use old type
                     return
                 else:
-                    raise _errors.IndexerError("Field %r is already marked for "
+                    raise errors.IndexerError("Field %r is already marked for "
                                                "sorting, with a different "
                                                "sort type" % self._fieldname)
 
