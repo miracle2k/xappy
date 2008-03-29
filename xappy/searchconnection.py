@@ -635,8 +635,12 @@ class SearchResults(object):
             preferred = _indexerconnection.IndexerConnection.FacetQueryType_Preferred
             scores = [(self._facetassocs.get(tuple[-2]) != preferred,) + tuple for tuple in scores]
         scores.sort()
-        index = 1 if self._facethierarchy else 0
-        index += 1 if self._facetassocs else 0
+        if self._facethierarchy:
+            index = 1
+        else:
+            index = 0
+        if self._facetassocs:
+            index += 1
         if index > 0:
             scores = [tuple[index:] for tuple in scores]
 
@@ -1735,9 +1739,13 @@ class SearchConnection(object):
                 break
             except _xapian.DatabaseModifiedError, e:
                 self.reopen()
+        facet_hierarchy = None
+        if usesubfacets:
+            facet_hierarchy = self._facet_hierarchy
+            
         return SearchResults(self, enq, query, mset, self._field_mappings,
                              tagspy, gettags, facetspy, facetfields,
-                             self._facet_hierarchy if usesubfacets else None,
+                             facet_hierarchy,
                              self._facet_query_table.get(query_type))
 
     def iterids(self):

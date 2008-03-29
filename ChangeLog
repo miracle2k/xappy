@@ -1,3 +1,8 @@
+Sat Mar 29 16:59:23 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Fix some "foo if bar" constructions
+	  which broken python2.4.  Should now work with python 2.4 again.
+
 Wed Mar 26 08:14:27 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/fieldactions.py: Tidy up the imports in this file, too.
