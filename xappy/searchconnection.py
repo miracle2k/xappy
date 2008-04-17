@@ -1091,6 +1091,11 @@ class SearchConnection(object):
                     #qp.add_exact_prefix(field, self._field_mappings.get_prefix(field))
                     qp.add_prefix(field, self._field_mappings.get_prefix(field))
                 if action == FieldActions.INDEX_FREETEXT:
+                    allow_field_specific = True
+                    for kwargs in kwargslist:
+                        allow_field_specific = allow_field_specific or kwargs.get('allow_field_specific', True)
+                    if not allow_field_specific:
+                        continue
                     qp.add_prefix(field, self._field_mappings.get_prefix(field))
                     for kwargs in kwargslist:
                         try:
@@ -1184,15 +1189,17 @@ class SearchConnection(object):
         "search for richard in the author field".  By default, any fields in
         the database which are indexed with INDEX_EXACT or INDEX_FREETEXT will
         be available for field specific searching in this way - however, this
-        can be modified using the "allow" or "deny" parameters.
+        can be modified using the "allow" or "deny" parameters, and also by the
+        allow_field_specific tag on INDEX_FREETEXT fields.
 
         Any text which isn't prefixed by a field specifier is used to search
         the "default set" of fields.  By default, this is the full set of
-        fields in the database which are indexed with INDEX_FREETEXT (ie, if
-        the text is found in any of those fields, the query will match).
-        However, this may be modified with the "default_allow" and
-        "default_deny" parameters.  (Note that fields which are indexed with
-        INDEX_EXACT aren't allowed to be used in the default list of fields.)
+        fields in the database which are indexed with INDEX_FREETEXT and for
+        which the search_by_default flag set (ie, if the text is found in any
+        of those fields, the query will match).  However, this may be modified
+        with the "default_allow" and "default_deny" parameters.  (Note that
+        fields which are indexed with INDEX_EXACT aren't allowed to be used in
+        the default list of fields.)
 
         - `string`: The string to parse.
         - `allow`: A list of fields to allow in the query.

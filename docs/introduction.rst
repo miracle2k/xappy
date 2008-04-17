@@ -132,12 +132,15 @@ action.  This action takes various optional parameters:
    reduced, resulting in a lower database size, faster indexing, and
    potentially faster searching.
 
- - ``noprefix``: this is a boolean flag; if supplied and true, the contents of
-   the field will be indexed only for a general, non-field-specific search.
-   This should only be used in special cases to reduce the index size with very
-   large datasets, and will probably be removed in future when new Xapian
-   features are developed which remove the overhead of performing field
-   specific searches.
+ - ``allow_field_specific``: this is a boolean flag - if False, prevents terms
+   with the field prefix being generated.  This means that searches specific to
+   this field will not work, and thus should only be used when only non-field
+   specific searches are desired.  Defaults to True.
+
+ - ``search_by_default``: this is a boolean flag - if False, the field will not
+   be searched by non-field specific searches.  If True, or omitted, the field
+   will be included in searches for non field-specific searches.
+
 
 All text passed to the interface is assumed to be UTF-8 encoded Unicode.
 

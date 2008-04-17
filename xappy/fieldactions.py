@@ -67,7 +67,9 @@ def _act_facet(fieldname, doc, value, context, type=None):
 
 def _act_index_freetext(fieldname, doc, value, context, weight=1, 
                         language=None, stop=None, spell=False,
-                        nopos=False, noprefix=False):
+                        nopos=False,
+                        allow_field_specific=True,
+                        search_by_default=True):
     """Perform the INDEX_FREETEXT action.
     
     """
@@ -86,13 +88,17 @@ def _act_index_freetext(fieldname, doc, value, context, weight=1,
         termgen.set_flags(termgen.FLAG_SPELLING)
     
     termgen.set_document(doc._doc)
-    termgen.set_termpos(context.current_position)
-    if nopos:
-        termgen.index_text_without_positions(value, weight, '')
-    else:
-        termgen.index_text(value, weight, '')
 
-    if not noprefix:
+    if search_by_default:
+        termgen.set_termpos(context.current_position)
+        # Store a copy of the field without a prefix, for non-field-specific
+        # searches.
+        if nopos:
+            termgen.index_text_without_positions(value, weight, '')
+        else:
+            termgen.index_text(value, weight, '')
+
+    if allow_field_specific:
         # Store a second copy of the term with a prefix, for field-specific
         # searches.
         prefix = doc._fieldmappings.get_prefix(fieldname)
@@ -218,9 +224,13 @@ class FieldActions(object):
         used for spelling correction.
       - 'nopos' is a boolean flag - if true, positional information is not
         stored.
-      - 'noprefix' is a boolean flag - if true, prevents terms with the field
+      - 'allow_field_specific' is a boolean flag - if False, prevents terms with the field
         prefix being generated.  This means that searches specific to this
-        field will not work, and thus should only be used for special cases.
+        field will not work, and thus should only be used when only non-field
+        specific searches are desired.  Defaults to True.
+      - 'search_by_default' is a boolean flag - if False, the field will not be
+        searched by non-field specific searches.  If True, or omitted, the
+        field will be included in searches for non field-specific searches.
 
     - `SORTABLE`: index the content of the field such that it can be used to
       sort result sets.  It also allows result sets to be restricted to those
@@ -396,7 +406,7 @@ class FieldActions(object):
     _action_info = {
         STORE_CONTENT: ('STORE_CONTENT', (), _act_store_content, {}, ),
         INDEX_EXACT: ('INDEX_EXACT', (), _act_index_exact, {'prefix': True}, ),
-        INDEX_FREETEXT: ('INDEX_FREETEXT', ('weight', 'language', 'stop', 'spell', 'nopos', 'noprefix', ), 
+        INDEX_FREETEXT: ('INDEX_FREETEXT', ('weight', 'language', 'stop', 'spell', 'nopos', 'allow_field_specific', 'search_by_default', ), 
             _act_index_freetext, {'prefix': True, }, ),
         SORTABLE: ('SORTABLE', ('type', ), None, {'slot': 'collsort',}, ),
         COLLAPSE: ('COLLAPSE', (), None, {'slot': 'collsort',}, ),
