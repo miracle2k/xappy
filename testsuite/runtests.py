@@ -171,7 +171,14 @@ def teardown_test(dtobj):
                 if not isinstance(val, type):
                     val.close()
         del dtobj.globs[key]
+    del key
+    del val
     dtobj.globs.clear()
+    # Try really hard to make sure any xapian databases have been closed
+    # properly, so that windows doesn't give errors when we try and delete
+    # them.
+    import gc
+    gc.collect()
     tmpdir = 'test_tmp'
     os.chdir(_orig_vals['wd'])
     sys.path = _orig_vals['path']
@@ -243,7 +250,7 @@ def run_tests(topdir, modnames, other_files, use_coverage):
     # Add any other files with doctests in them.
     for file in other_files:
         fullpath = os.path.join(topdir, file)
-        globs = {'__file__': modpath,}
+        globs = {'__file__': os.path.join(canonical_path("xappy"), '__init__'),}
         suite.addTest(doctest.DocFileSuite(fullpath,
                                            module_relative=False,
                                            globs=globs,
