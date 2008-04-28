@@ -1,3 +1,12 @@
+Mon Apr 28 23:25:46 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/: Add check that xapian is at at least version 1.0.6; raise
+	  ImportError at import time if version is too old.  Add checks for
+	  a version of xapian with sufficient features to support tags and
+	  facets, and disable those features if they're not present: an
+	  exception will be raised when tag or facet features are used if
+	  the xapian version is too old.
+
 Fri Apr 25 12:23:09 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* testsuite/runtests.py: Copy fixes from xapian_1.0 branch to make

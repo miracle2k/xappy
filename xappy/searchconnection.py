@@ -20,6 +20,7 @@ r"""searchconnection.py: A connection to the search engine for searching.
 """
 __docformat__ = "restructuredtext en"
 
+import _checkxapian
 import os as _os
 import cPickle as _cPickle
 import math
@@ -555,6 +556,8 @@ class SearchResults(object):
         matches seen (as an integer).
 
         """
+        if 'tags' in _checkxapian.missing_features:
+            raise errors.SearchError("Tags unsupported with this release of xapian")
         if self._tagspy is None or field not in self._tagfields:
             raise _errors.SearchError("Field %r was not specified for getting tags" % field)
         prefix = self._conn._field_mappings.get_prefix(field)
@@ -605,6 +608,8 @@ class SearchResults(object):
         the returned list.
 
         """
+        if 'facets' in _checkxapian.missing_features:
+            raise errors.SearchError("Facets unsupported with this release of xapian")
         if self._facetspy is None:
             raise _errors.SearchError("Facet selection wasn't enabled when the search was run")
         if isinstance(required_facets, basestring):
@@ -1002,6 +1007,8 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
+        if 'facets' in _checkxapian.missing_features:
+            raise errors.SearchError("Facets unsupported with this release of xapian")
 
         try:
             actions = self._field_actions[field]._actions
@@ -1598,6 +1605,16 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
+        if 'facets' in _checkxapian.missing_features:
+            if getfacets is not None or \
+               allowfacets is not None or \
+               denyfacets is not None or \
+               usesubfacets is not None or \
+               query_type is not None:
+                raise errors.SearchError("Facets unsupported with this release of xapian")
+        if 'tags' in _checkxapian.missing_features:
+            if gettags is not None:
+                raise errors.SearchError("Tags unsupported with this release of xapian")
         if checkatleast == -1:
             checkatleast = self._index.get_doccount()
 
@@ -1741,8 +1758,11 @@ class SearchConnection(object):
         # Repeat the search until we don't get a DatabaseModifiedError
         while True:
             try:
-                mset = enq.get_mset(startrank, maxitems, checkatleast, None,
-                                    None, matchspy)
+                if matchspy is None:
+                    mset = enq.get_mset(startrank, maxitems, checkatleast)
+                else:
+                    mset = enq.get_mset(startrank, maxitems, checkatleast,
+                                        None, None, matchspy)
                 break
             except _xapian.DatabaseModifiedError, e:
                 self.reopen()

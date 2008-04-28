@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-"""Search engine Core.
+"""Xappy.
 
 See the accompanying documentation for details.  In particular, there should be
 an accompanying file "introduction.html" (or "introduction.rst") which gives
@@ -24,6 +24,9 @@ details of how to use the xappy package.
 """
 __docformat__ = "restructuredtext en"
 
+__version__ = '0.5'
+
+import _checkxapian
 from datastructures import Field, UnprocessedDocument, ProcessedDocument
 from errors import *
 from fieldactions import FieldActions

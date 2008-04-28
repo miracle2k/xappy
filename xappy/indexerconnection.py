@@ -20,6 +20,7 @@ r"""indexerconnection.py: A connection to the search engine for indexing.
 """
 __docformat__ = "restructuredtext en"
 
+import _checkxapian
 import cPickle
 import xapian
 
@@ -671,6 +672,8 @@ class IndexerConnection(object):
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
+        if 'facets' in _checkxapian.missing_features:
+            raise errors.IndexerError("Facets unsupported with this release of xapian")
         return self._facet_hierarchy.iteritems()
 
     def iter_facet_query_types(self, association):
@@ -701,6 +704,8 @@ class IndexerConnection(object):
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
+        if 'facets' in _checkxapian.missing_features:
+            raise errors.IndexerError("Facets unsupported with this release of xapian")
         return FacetQueryTypeIter(self._facet_query_table, association)
 
 class PrefixedTermIter(object):

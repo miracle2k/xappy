@@ -20,6 +20,7 @@ r"""fieldactions.py: Definitions and implementations of field actions.
 """
 __docformat__ = "restructuredtext en"
 
+import _checkxapian
 import errors
 import marshall
 from replaylog import log
@@ -287,6 +288,13 @@ class FieldActions(object):
     # action.
     SORT_AND_COLLAPSE = -1
 
+    _unsupported_actions = []
+
+    if 'tags' in _checkxapian.missing_features:
+        _unsupported_actions.append(TAG)
+    if 'facets' in _checkxapian.missing_features:
+        _unsupported_actions.append(FACET)
+
     def __init__(self, fieldname):
         # Dictionary of actions, keyed by type.
         self._actions = {}
@@ -296,6 +304,9 @@ class FieldActions(object):
         """Add an action to perform on a field.
 
         """
+        if action in self._unsupported_actions:
+            raise errors.IndexerError("Action unsupported with this release of xapian")
+
         if action not in (FieldActions.STORE_CONTENT,
                           FieldActions.INDEX_EXACT,
                           FieldActions.INDEX_FREETEXT,
