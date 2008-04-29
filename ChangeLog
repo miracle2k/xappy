@@ -1,3 +1,8 @@
+Tue Apr 29 07:58:10 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Update scripts to
+	  get custom version of xapian to latest version.
+
 Mon Apr 28 23:25:46 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/: Add check that xapian is at at least version 1.0.6; raise

@@ -88,7 +88,7 @@ cd $basedir
 diff -Nur --ignore-matching-lines='\$Author' \
   branchpoints/matchspy_export \
   branches/matchspy_export \
- | filterdiff -x '*/ChangeLog' -x '*/NEWS' \
+ | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
   >$basedir/matchspy_changes.patch
 
 echo "Getting patches from opsynonym branch"
@@ -96,7 +96,7 @@ cd $basedir
 diff -Nur --ignore-matching-lines='\$Author' \
   branchpoints/opsynonym_export \
   branches/opsynonym_export \
- | filterdiff -x '*/ChangeLog' -x '*/NEWS' \
+ | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
   >$basedir/opsynonym_changes.patch
 
 echo "Getting patches from clustering branch"
@@ -104,7 +104,7 @@ cd $basedir
 diff -Nur --ignore-matching-lines='\$Author' \
   branchpoints/clustering_export \
   branches/clustering_export \
- | filterdiff -x '*/ChangeLog' -x '*/NEWS' \
+ | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
   >$basedir/clustering_changes.patch
 
 # Get the diffs made to HEAD since the branch points
