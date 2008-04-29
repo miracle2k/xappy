@@ -77,20 +77,32 @@ if using_setuptools:
     extra_kwargs['test_suite'] = "test.test" # FIXME
 
 long_description = """
-FIXME
+The "xappy" python module is an easy-to-use interface to the Xapian search
+engine. Xapian provides a low level interface, dealing with terms and
+documents, but not really worrying about where terms come from, or how to build
+searches to match the way in which data has been indexed. In contrast, "xappy"
+allows you to design a field structure, specifying what kind of information is
+held in particular fields, and then uses this field structure to index data
+appropriately, and to build and perform searches.
+
+Xappy is not yet stable - in particular, both the API and database format will
+change in future releases.   If you wish to use it, we recommend that you
+subscribe to the xappy-discuss mailing list (see
+http://groups.google.com/group/xappy-discuss) to keep up-to-date with changes
+to Xappy. 
 
 """
 
 
 setup(name = "xappy",
-      version = "0.5",
+      version = "0.5", # update this in xappy/__init__.py, too.  FIXME - get automatically
       author = "Richard Boulton",
       author_email = "richard@lemurconsulting.com",
       maintainer = "Richard Boulton",
       maintainer_email = "richard@lemurconsulting.com",
       url = "http://code.google.com/p/xappy",
       download_url = "http://code.google.com/p/xappy", # FIXME
-      description = "FIXME",
+      description = "Easy-to-use interface to the Xapian search engine",
       long_description = long_description,
       classifiers = [
           'Development Status :: 3 - Alpha',

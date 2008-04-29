@@ -1,5 +1,9 @@
 include MANIFEST.in
+include ChangeLog
 include README
 include setup.py
 include eggsetup.py
 include xappy/*.py
+include docs/api/*
+include docs/introduction.html
+include docs/introduction.rst

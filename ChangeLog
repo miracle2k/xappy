@@ -1,3 +1,8 @@
+Tue Apr 29 08:25:59 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* MANIFEST.in,setup.py: Update setup.py and MANIFEST ready for 0.5
+	  release.
+
 Tue Apr 29 07:58:10 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/get_xapian.py,utils/make_xappy_tarballs: Update scripts to
