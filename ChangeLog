@@ -1,3 +1,9 @@
+Tue May 06 15:39:03 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* secore/,testsuite/runtests.py: Remove secore backwards
+	  compatibility layer - we're about to break compatibility anyway,
+	  so this will shortly be completely useless.
+
 Tue Apr 29 08:25:59 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* MANIFEST.in,setup.py: Update setup.py and MANIFEST ready for 0.5

@@ -36,16 +36,6 @@ __docformat__ = "restructuredtext en"
 # List the modules to test with doctest (please keep this list in alphabetical
 # order, for ease of maintenance).
 MODNAMES = (
-    'secore',
-    'secore.datastructures',
-    'secore.errors',
-    'secore.fieldactions',
-    'secore.fieldmappings',
-    'secore.highlight',
-    'secore.indexerconnection',
-    'secore.marshall',
-    'secore.parsedate',
-    'secore.searchconnection',
     'xappy',
     'xappy.datastructures',
     'xappy.errors',
