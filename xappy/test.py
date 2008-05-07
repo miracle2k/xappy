@@ -15,7 +15,7 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-r"""runtests.py: Run a set of tests with doctest and unittest.
+r"""test.py: Run a set of tests with doctest and unittest.
 
 The list of modules to test is specified at the top of the file, in the
 MODNAMES variable.
@@ -191,25 +191,11 @@ def find_unittests(testdir):
                 unittests.append(relpath)
     return unittests
 
+def get_topdir():
+    return canonical_path(os.path.join(os.path.dirname(__file__), '..'))
 
-def run_tests(topdir, modnames, other_files, use_coverage):
-    """Run tests on the specified modules.
-
-    Returns a list of modules which were tested.
-
-    """
-
-    # Check command line for overrides to module names
-    if len(sys.argv) > 1:
-        newnames = []
-        for arg in sys.argv[1:]:
-            if arg in modnames:
-                newnames.append(arg)
-            else:
-                print "Module `%s' not known" % arg
-                sys.exit(1)
-        modnames = newnames
-
+def make_suite(modnames, other_files, use_coverage, specific_mods):
+    topdir = get_topdir()
     # Make a test suite to put all the tests in.
     suite = unittest.TestSuite()
 
@@ -275,6 +261,28 @@ def run_tests(topdir, modnames, other_files, use_coverage):
         test = loader.loadTestsFromModule(mod)
         suite.addTest(test)
 
+    return modules, suite
+
+
+def run_tests(modnames, other_files, use_coverage, specific_mods):
+    """Run tests on the specified modules.
+
+    Returns a list of modules which were tested.
+
+    """
+
+    # Check command line for overrides to module names
+    if specific_mods:
+        newnames = []
+        for arg in specific_mods:
+            if arg in modnames:
+                newnames.append(arg)
+            else:
+                print "Module `%s' not known" % arg
+                sys.exit(1)
+        modnames = newnames
+
+    modules, suite = make_suite(modnames, other_files, use_coverage, specific_mods)
 
     # Now, run everything.
     runner = unittest.TextTestRunner()
@@ -282,10 +290,12 @@ def run_tests(topdir, modnames, other_files, use_coverage):
 
     if use_coverage:
         # Finished run - stop the coverage tests
+        import coverage
         coverage.stop()
     return modules
 
-def get_coverage(topdir, modules, covered_lines):
+def get_coverage(modules, covered_lines):
+    topdir = get_topdir()
     import coverage
 
     # Compile the expressions in COVERED_LINES
@@ -349,20 +359,26 @@ def display_coverage(stats):
             msg += "\t Missed: %s" % ','.join(missed)
         print msg
 
-def run(use_coverage=False, use_profiling=False):
-    topdir = canonical_path(os.path.join(os.path.dirname(__file__), '..'))
+def run(specific_mods, use_coverage=False, use_profiling=False):
     if use_profiling:
         try:
             import cProfile as profile
         except ImportError:
             import profile
 
-        modules = profile.run('run_tests(%r, MODNAMES, OTHER_FILES, %r)' % (topdir, use_profiling), os.path.join(topdir, '.runtests.prof'))
+        modules = profile.run('run_tests(MODNAMES, OTHER_FILES, %r, %r)' % (use_coverage, specific_mods), os.path.join(get_topdir(), '.runtests.prof'))
     else:
-        modules = run_tests(topdir, MODNAMES, OTHER_FILES, use_coverage)
+        modules = run_tests(MODNAMES, OTHER_FILES, use_coverage,
+                            specific_mods)
 
     if use_coverage:
-        display_coverage(get_coverage(topdir, modules, COVERED_LINES))
+        display_coverage(get_coverage(modules, COVERED_LINES))
 
-run()
-#run(use_profiling=True)
+def make_all_suite():
+    modules, suite = make_suite(MODNAMES, OTHER_FILES, False, ())
+    return suite
+
+if __name__ == '__main__':
+    run(sys.argv[1:])
+    #run(sys.argv[1:], use_profiling=True)
+    #run(sys.argv[1:], use_coverage=True)
