@@ -1,5 +1,5 @@
 from unittest import TestCase, main
-import tempfile, os, sys
+import os, shutil, sys, tempfile
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from xappy.indexerconnection import *
@@ -65,8 +65,8 @@ docvalues = [
 
 class TestFacetHierarchy(TestCase):
     def setUp(self):
-        tempdir = tempfile.mkdtemp()
-        self.indexpath = os.path.join(tempdir, 'foo')
+        self.tempdir = tempfile.mkdtemp()
+        self.indexpath = os.path.join(self.tempdir, 'foo')
         iconn = IndexerConnection(self.indexpath)
         for name in facets:
             iconn.add_field_action(name, FieldActions.INDEX_EXACT)
@@ -108,6 +108,7 @@ class TestFacetHierarchy(TestCase):
 
     def tearDown(self):
         self.sconn.close()
+        shutil.rmtree(self.tempdir)
 
 if __name__ == '__main__':
     main()

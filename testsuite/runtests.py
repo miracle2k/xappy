@@ -96,7 +96,7 @@ def check_whitelist(lines, checklinenum, covered_lines):
         return True
     return False
 
-def create_docfile_suite(mod, modpath):
+def create_docfile_suite(mod, moddir, testpath):
     """Create a suite of tests from a text file containing doctests.
 
     The dictionary of the module is imported into the namespace which the tests
@@ -105,12 +105,13 @@ def create_docfile_suite(mod, modpath):
     dictionary.
 
     """
-    globs = {'__file__': modpath,
+    globs = {
+        '__file__': moddir,
     }
     for key in mod.__dict__.keys():
         if not key.startswith('__'):
             globs[key] = mod.__dict__[key]
-    return doctest.DocFileSuite(modpath,
+    return doctest.DocFileSuite(testpath,
                                 module_relative=False,
                                 globs=globs,
                                 setUp=setup_test,
@@ -143,7 +144,7 @@ def setup_test(dtobj):
     sys.path = copy.copy(sys.path)
     sys.path.insert(0, _orig_vals['wd'])
 
-    testdir = os.path.dirname(dtobj.globs['__file__'])
+    testdir = dtobj.globs['__file__']
     sys.path.insert(0, testdir)
 
     os.mkdir(tmpdir)
@@ -173,6 +174,23 @@ def teardown_test(dtobj):
     os.chdir(_orig_vals['wd'])
     sys.path = _orig_vals['path']
     recursive_rm(tmpdir)
+
+def find_unittests(testdir):
+    """Find all files containing unit tests under a top directory.
+
+    """
+    unittests = []
+    for root, dirnames, filenames in os.walk(testdir):
+        for filename in filenames:
+            filepath = os.path.join(root, filename)
+            relpath = filepath[len(testdir)+1:]
+            if filename == "__init__.py":
+                continue
+
+            if filename.endswith(".py"):
+                unittests.append(relpath)
+    return unittests
+
 
 def run_tests(topdir, modnames, other_files, use_coverage):
     """Run tests on the specified modules.
@@ -227,10 +245,11 @@ def run_tests(topdir, modnames, other_files, use_coverage):
             modules.append(mod)
 
             # Check for additional doctest files
-            modpath = modpath + '_doctest%d.txt'
+            moddir, modfilename = os.path.split(modpath)
+            modpath = os.path.join(moddir, "doctests", modfilename + '_doctest%d.txt')
             num = 1
             while os.path.exists(modpath % num):
-                suite.addTest(create_docfile_suite(mod, modpath % num))
+                suite.addTest(create_docfile_suite(mod, moddir, modpath % num))
                 num += 1
 
         except ImportError, e:
@@ -240,13 +259,22 @@ def run_tests(topdir, modnames, other_files, use_coverage):
     # Add any other files with doctests in them.
     for file in other_files:
         fullpath = os.path.join(topdir, file)
-        globs = {'__file__': os.path.join(canonical_path("xappy"), '__init__'),}
+        globs = {'__file__': canonical_path("xappy"),}
         suite.addTest(doctest.DocFileSuite(fullpath,
                                            module_relative=False,
                                            globs=globs,
                                            setUp=setup_test,
                                            tearDown=teardown_test,
                                           ))
+
+    # Add unittests
+    loader = unittest.TestLoader()
+    for testpath in find_unittests(os.path.join(topdir, "xappy", "unittests")):
+        modpath = "xappy.unittests." + testpath.replace('/', '.')[:-3]
+        mod = __import__(modpath, None, None, [''])
+        test = loader.loadTestsFromModule(mod)
+        suite.addTest(test)
+
 
     # Now, run everything.
     runner = unittest.TextTestRunner()

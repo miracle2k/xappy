@@ -107,7 +107,7 @@ class TestFreeText(TestCase):
 
     def tearDown(self):
         self.sconn.close()
-        #shutil.rmtree(self.tempdir)
+        shutil.rmtree(self.tempdir)
 
 if __name__ == '__main__':
     main()
