@@ -54,7 +54,7 @@ coverage.py -a [-d dir] [-o dir1,dir2,...] FILE1 FILE2 ...
 Coverage data is saved in the file .coverage by default.  Set the
 COVERAGE_FILE environment variable to save it somewhere else."""
 
-__version__ = "2.77.20070729"    # see detailed history at the end of this file.
+__version__ = "2.78.20070930"    # see detailed history at the end of this file.
 
 import compiler
 import compiler.visitor
@@ -334,7 +334,7 @@ class coverage:
     def __init__(self):
         global the_coverage
         if the_coverage:
-            raise CoverageException, "Only one coverage object allowed."
+            raise CoverageException("Only one coverage object allowed.")
         self.usecache = 1
         self.cache = None
         self.clear_cache = False
@@ -352,7 +352,7 @@ class coverage:
     # See [van Rossum 2001-07-20a, 3.2] for a description of frame and code
     # objects.
     
-    def t(self, f, w, unused):                                   #pragma: no cover
+    def t(self, f, w, unused):                                 #pragma: no cover
         if w == 'line':
             #print "Executing %s @ %d" % (f.f_code.co_filename, f.f_lineno)
             self.c[(f.f_code.co_filename, f.f_lineno)] = 1
@@ -602,7 +602,7 @@ class coverage:
     def morf_filename(self, morf):
         if isinstance(morf, types.ModuleType):
             if not hasattr(morf, '__file__'):
-                raise CoverageException, "Module has no __file__ attribute."
+                raise CoverageException("Module has no __file__ attribute.")
             f = morf.__file__
         else:
             f = morf
@@ -622,16 +622,21 @@ class coverage:
         filename = self.morf_filename(morf)
         ext = os.path.splitext(filename)[1]
         if ext == '.pyc':
-            if not os.path.exists(filename[0:-1]):
-                raise CoverageException, ("No source for compiled code '%s'."
-                                   % filename)
-            filename = filename[0:-1]
-        elif ext != '.py':
-            raise CoverageException, "File '%s' not Python source." % filename
+            if not os.path.exists(filename[:-1]):
+                raise CoverageException(
+                    "No source for compiled code '%s'." % filename
+                    )
+            filename = filename[:-1]
         source = open(filename, 'r')
-        lines, excluded_lines, line_map = self.find_executable_statements(
-            source.read(), exclude=self.exclude_re
-            )
+        try:
+            lines, excluded_lines, line_map = self.find_executable_statements(
+                source.read(), exclude=self.exclude_re
+                )
+        except SyntaxError, synerr:
+            raise CoverageException(
+                "Couldn't parse '%s' as Python source: '%s' at line %d" %
+                    (filename, synerr.msg, synerr.lineno)
+                )            
         source.close()
         result = filename, lines, excluded_lines, line_map
         self.analysis_cache[morf] = result
@@ -886,7 +891,7 @@ class coverage:
                 raise
             except:
                 if not ignore_errors:
-                    typ, msg = sys.exc_info()[0:2]
+                    typ, msg = sys.exc_info()[:2]
                     print >>file, fmt_err % (name, typ, msg)
         if len(morfs) > 1:
             print >>file, "-" * len(header)
@@ -1149,4 +1154,4 @@ if __name__ == '__main__':
 # USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 # DAMAGE.
 #
-# $Id: coverage.py 74 2007-07-29 22:28:35Z nedbat $
+# $Id: coverage.py 79 2007-10-01 01:01:52Z nedbat $
