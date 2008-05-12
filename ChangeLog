@@ -1,3 +1,16 @@
+Mon May 12 13:16:33 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs,xappy/_checkxapian.py,
+	  xappy/doctests/searchconnection_doctest2.txt,xappy/fieldactions.py,
+	  xappy/indexerconnection.py,xappy/searchconnection.py: Add links
+	  to new xapian packages with support for ValueWeightPostingSource.
+	  Tidy up error handling in search and indexer connections if an
+	  error occurs while reading the configuration.  Update a test case
+	  which has slightly different behaviour with the new xapian.  Add
+	  support for "WEIGHT" action for fields when indexing (no
+	  corresponding support at search time yet, so this isn't useful
+	  currently).
+
 Wed May 07 22:34:59 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* setup.py,testsuite/coverage.py,testsuite/runtests.py,xappy/test.py:

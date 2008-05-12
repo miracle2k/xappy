@@ -42,3 +42,5 @@ if not hasattr(xapian, 'TermCountMatchSpy'):
     missing_features['tags'] = 1
 if not hasattr(xapian, 'CategorySelectMatchSpy'):
     missing_features['facets'] = 1
+if not hasattr(xapian, 'ValueWeightPostingSource'):
+    missing_features['valueweight'] = 1

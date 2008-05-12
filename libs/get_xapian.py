@@ -40,21 +40,21 @@ import urllib2
 #  - SHA1 sum of package
 archives = (
     ('Xapian core',
-     'http://xappy.googlecode.com/files/xapian-core-10411.tgz',
+     'http://xappy.googlecode.com/files/xapian-core-10521.tgz',
      'xapian-core.tgz',
-     '8cb209a20492dcb825aad26bae9da52e42e50e3d',
+     '31d4379b6ecee5cdafb94cfe38d7c19e9acdbef5',
      '',
     ),
     ('Xapian bindings',
-     'http://xappy.googlecode.com/files/xapian-bindings-10411.tgz',
+     'http://xappy.googlecode.com/files/xapian-bindings-10521.tgz',
      'xapian-bindings.tgz',
-     '795c45683624e8e1691591c1b36a15215a41b1ad',
+     '3708103de8a2cdcd9316c4e8dd19ffa77860407f',
      '',
     ),
     ('Xapian win32 build system',
-     'http://xappy.googlecode.com/files/win32msvc-10411.tgz',
+     'http://xappy.googlecode.com/files/win32msvc-10521.tgz',
      'win32msvc.tgz',
-     'f48b542ca5f3896923f8a0e1e677d15de417f5a2',
+     'b1380cc8486b24a93ed83fe066eaa0189ef6a87b',
      'xapian-core/win32',
     ),
 )
@@ -147,7 +147,7 @@ def get_archive_from_url(name, url, archivename, expected_hash):
     if os.path.exists(filepath):
         calculated_hash = calc_sha_hash(filepath)
         if expected_hash != calculated_hash:
-            print("Package of %s at '%s' has wrong hash - discarding" % (name, archivename))
+            print("Package of %s at '%s' has wrong hash (probably an old version) - discarding" % (name, archivename))
             print("(Got %s, expected %s)" % (calculated_hash, expected_hash))
             os.unlink(filepath)
 

@@ -36,6 +36,8 @@ class IndexerConnection(object):
 
     """
 
+    _index = None
+
     def __init__(self, indexpath):
         """Create a new connection to the index.
 
@@ -56,12 +58,19 @@ class IndexerConnection(object):
         self._facet_query_table = {}
         self._next_docid = 0
         self._config_modified = False
-        self._load_config()
+        try:
+            self._load_config()
+        except:
+            self._index = None
+            raise
 
         # Set management of the memory used.
         # This can be removed once Xapian implements this itself.
         self._mem_buffered = 0
         self.set_max_mem_use()
+
+    def __del__(self):
+        self.close()
 
     def set_max_mem_use(self, max_mem=None, max_mem_proportion=None):
         """Set the maximum memory to use.
@@ -570,6 +579,8 @@ class IndexerConnection(object):
             # _index straight away.  A close() method is planned to be added to
             # xapian at some point - when it is, we should call it here to make
             # the code more robust.
+            # FIXME - add a call to xapian's close method (and also do that in
+            # the exception handler in __init__)
             self._index = None
             self._indexpath = None
             self._field_actions = None

@@ -66,6 +66,13 @@ def _act_facet(fieldname, doc, value, context, type=None):
         fn = marshaller.get_marshall_function(fieldname, type)
         doc.add_value(fieldname, fn(fieldname, value), 'facet')
 
+def _act_weight(fieldname, doc, value, context, type=None):
+    """Perform the WEIGHT action.
+    
+    """
+    value = _log(xapian.sortable_serialise, value)
+    doc.add_value(fieldname, value, 'weight')
+
 def _act_index_freetext(fieldname, doc, value, context, weight=1, 
                         language=None, stop=None, spell=False,
                         nopos=False,
@@ -272,6 +279,10 @@ class FieldActions(object):
         - 'string' - the facet values are exact binary strings.
         - 'float' - the facet values are floating point numbers.
 
+    - `WEIGHT`: the field represents a document weight, which can be used at
+      search time as part of the ranking formula.  The values in the field
+      should be (string representations of) floating point numbers.
+
     """
 
     # See the class docstring for the meanings of the following constants.
@@ -282,6 +293,7 @@ class FieldActions(object):
     COLLAPSE = 5
     TAG = 6
     FACET = 7
+    WEIGHT = 8
 
     # Sorting and collapsing store the data in a value, but the format depends
     # on the sort type.  Easiest way to implement is to treat them as the same
@@ -294,6 +306,8 @@ class FieldActions(object):
         _unsupported_actions.append(TAG)
     if 'facets' in _checkxapian.missing_features:
         _unsupported_actions.append(FACET)
+    if 'valueweight' in _checkxapian.missing_features:
+        _unsupported_actions.append(WEIGHT)
 
     def __init__(self, fieldname):
         # Dictionary of actions, keyed by type.
@@ -314,6 +328,7 @@ class FieldActions(object):
                           FieldActions.COLLAPSE,
                           FieldActions.TAG,
                           FieldActions.FACET,
+                          FieldActions.WEIGHT,
                          ):
             raise errors.IndexerError("Unknown field action: %r" % action)
 
@@ -423,6 +438,7 @@ class FieldActions(object):
         COLLAPSE: ('COLLAPSE', (), None, {'slot': 'collsort',}, ),
         TAG: ('TAG', (), _act_tag, {'prefix': True,}, ),
         FACET: ('FACET', ('type', ), _act_facet, {'prefix': True, 'slot': 'facet',}, ),
+        WEIGHT: ('WEIGHT', (), _act_weight, {'slot': 'weight',}, ),
 
         SORT_AND_COLLAPSE: ('SORT_AND_COLLAPSE', ('type', ), _act_sort_and_collapse, {'slot': 'collsort',}, ),
     }
