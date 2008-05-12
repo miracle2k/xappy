@@ -1237,8 +1237,18 @@ class SearchConnection(object):
                                        default_deny)
         return self._query_parse_with_fallback(qp, string)
 
-    def query_field(self, field, value, default_op=OP_AND):
+    def query_field(self, field, value=None, default_op=OP_AND):
         """A query for a single field.
+
+        If field is an exact field, a tag field, or a facet, the resulting
+        query will return only those documents which have the exact value
+        supplied in the `value` parameter in the field.
+
+        If field is a freetext field, the resulting query will return documents
+        with field contents relevant to the text supplied in the `value`
+        parameter.
+
+        If field is a weight field, the value parameter will be ignored.
 
         """
         if self._index is None:
@@ -1253,6 +1263,8 @@ class SearchConnection(object):
             if action in (FieldActions.INDEX_EXACT,
                           FieldActions.TAG,
                           FieldActions.FACET,):
+                if value is None:
+                    raise _errors.SearchError("Supplied value must not be None")
                 prefix = self._field_mappings.get_prefix(field)
                 if len(value) > 0:
                     chval = ord(value[0])
@@ -1260,6 +1272,8 @@ class SearchConnection(object):
                         prefix = prefix + ':'
                 return _log(_xapian.Query, prefix + value)
             if action == FieldActions.INDEX_FREETEXT:
+                if value is None:
+                    raise _errors.SearchError("Supplied value must not be None")
                 qp = _log(_xapian.QueryParser)
                 qp.set_default_op(default_op)
                 prefix = self._field_mappings.get_prefix(field)
@@ -1271,6 +1285,14 @@ class SearchConnection(object):
                     except KeyError:
                         pass
                 return self._query_parse_with_fallback(qp, value, prefix)
+            if action == FieldActions.WEIGHT:
+                if value is not None:
+                    raise _errors.SearchError("Value supplied for a WEIGHT field must be None")
+                slot = self._field_mappings.get_slot(field, 'weight')
+                postingsource = _xapian.ValueWeightPostingSource(self._index, slot)
+                query = _log(_xapian.Query, postingsource)
+                query._postingsource = postingsource
+                return query
 
         return _log(_xapian.Query)
 
@@ -1555,6 +1577,43 @@ class SearchConnection(object):
         if facet not in self._facet_query_table[query_type]:
             return False
         return self._facet_query_table[query_type][facet] == _indexerconnection.IndexerConnection.FacetQueryType_Never
+
+    def get_max_possible_weight(self, query):
+        """Calculate the maximum possible weight returned by a search.
+
+        This looks only at the term statistics, and not at the lists of
+        documents indexed by the terms, and returns a weight value.  As a
+        result, it is usually very fast.
+        
+        However, the returned value is an upper bound on the weight which could
+        be attained by a document in the database.  It is very unusual for this
+        weight to actually be attained (indeed, with most weighting schemes, it
+        is impossible for the bound to be attained).
+
+        As a very rough rule of thumb, for a textual search in which the top
+        document matches all the terms in the query, the maximum weight
+        attained is usually about half the maximum possible weight.
+
+        The bound may reasonably be used to normalise weights returned from
+        various distinct queries when joining them together - for example, if
+        the full search involves a textual part, and some fixed scores for
+        documents, it may be useful to normalise weights for a textual part of
+        a query by multiplying them by the reciprocal of this value, to get
+        them into a similar range as the fixed document scores.
+
+        """
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
+        enq = _log(_xapian.Enquire, self._index)
+        enq.set_query(query)
+        enq.set_docid_order(enq.DONT_CARE)
+        while True:
+            try:
+                mset = enq.get_mset(0, 0)
+                break
+            except _xapian.DatabaseModifiedError, e:
+                self.reopen()
+        return mset.get_max_possible()
 
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
