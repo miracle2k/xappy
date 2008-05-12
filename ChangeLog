@@ -1,3 +1,9 @@
+Mon May 12 19:58:34 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/introduction.rst: Add documentation of the WEIGHT action.
+	* xappy/fieldactions.py: Convert field values for WEIGHT fields to
+	  float before storing them.
+
 Mon May 12 18:32:14 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
  
 	* xappy/fieldactions.py: Fix typo.

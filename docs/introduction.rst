@@ -212,6 +212,22 @@ suggested list of facets).  The default is "string"::
   >>> conn.add_field_action('price', xappy.FieldActions.FACET, type='float')
   >>> conn.add_field_action('category', xappy.FieldActions.FACET, type='string')
 
+
+Sometimes, you need to use external sources of weight information to adjust the
+order in which results are returned.  For example, you might know the
+popularity of a document, and want to use that in some way to influence the
+rankings.  The ``WEIGHT`` action is designed for this situation.  Simply add
+the field action to a new field, whose values will be (string representations
+of) positive floating point numbers.  You may want to experiment with various
+methods for converting your information into a floating point number: you
+probably want to ensure that the range of values you have is reasonably evenly
+distributed - often, a non-linear transform of your original data (like a sqrt,
+or log) will help to produce a more uniform spread.  At search time, you will
+be able to combine multiple weights together, by adding them (with optional
+linear multiples).
+
+  >>> conn.add_field_action('price', xappy.FieldActions.WEIGHT)
+
 Indexing
 --------
 
@@ -229,7 +245,7 @@ the ``fields`` member::
   >>> doc.fields.append(xappy.Field("title", "Our first document"))
   >>> doc.fields.append(xappy.Field("text", "This is a paragraph of text.  It's quite short."))
   >>> doc.fields.append(xappy.Field("text", "We can create another paragraph of text.  "
-  ...                               "We can have as many of these as we like."))
+  ...                               "We can have as many of these as we like.  The next bit"))
   >>> doc.fields.append(xappy.Field("category", "Test documents"))
   >>> doc.fields.append(xappy.Field("tag", "Tag1"))
   >>> doc.fields.append(xappy.Field("tag", "Test document"))
@@ -620,6 +636,51 @@ setting the collapse parameter of the ``search()`` method to the field name::
   ['Bible1', '0', 'Bible2']
   >>> [result.id for result in conn.search(q, 0, 10, collapse='category')]
   ['Bible1', '0']
+
+Modifying weights with other factors
+------------------------------------
+
+By default, Xappy calculates the weights of documents by looking at factors
+such as the terms in the query, their frequencies in the database and in the
+document.  Xappy allows you to sort entirely by other factors, but sometimes it
+is desirable to combine the normal weights with other factors to get a combined
+ranking.  For example, you may wish to include popularity information about
+pages with their relevance, to bias the search results towards returning more
+popular pages. (Or perhaps, returning less popular pages, to increase the
+variety!)
+
+To do this, you must first store the weight factors you wish to have available
+in fields, marked with the WEIGHT action.  Then, at search time, you can obtain
+a query which will return all the documents which that field was present for,
+with each document assigned the corresponding weight, by using
+``SearchConnection.query_field()``.  Note that in this case, you don't need to
+supply a value for the field, since we're just looking for all values in the
+field:
+
+  >>> q_price = conn.query_field('price')
+  >>> [(result.id, "%.2f" % result.weight) for result in conn.search(q_price, 0, 10)]
+  [('0', '20.56'), ('Bible2', '16.56'), ('Bible1', '12.20')]
+
+To combine this with another search, we need to use ``query_adjust()`` to
+build a composite query.  However, the weights calculated by searches can vary
+wildly between queries (depending on the number of terms in the query and their
+distributions), so it is first neccessary to normalise them.  To assist with
+this, xappy provides a method ``get_max_possible_weight()``, which provides an
+upper bound on the weight which could be returned by a query.  This bound is
+rarely attained, but may be used to get some idea of the size of the actual
+weights returned by the query - typically, the bound is at least double the
+actual maximum weight attained.  So, to combine it all together, we would do
+something like:
+
+  >>> q_text = conn.query_field('text', 'the spirit', default_op=conn.OP_OR)
+  >>> [(result.id, "%.2f" % result.weight) for result in conn.search(q_text, 0, 10)]
+  [('Bible2', '1.40'), ('Bible1', '0.22'), ('0', '0.13')]
+
+  >>> maxwt = conn.get_max_possible_weight(q_text)
+  >>> q_text_norm = conn.query_multweight(q_text, 40.0 / maxwt)
+  >>> q = conn.query_adjust(q_text_norm, q_price)
+  >>> [(result.id, "%.2f" % result.weight) for result in conn.search(q, 0, 10)]
+  [('Bible2', '37.25'), ('0', '22.52'), ('Bible1', '15.40')]
 
 Errors
 ======

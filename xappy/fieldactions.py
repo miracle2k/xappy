@@ -70,6 +70,7 @@ def _act_weight(fieldname, doc, value, context, type=None):
     """Perform the WEIGHT action.
     
     """
+    value = float(value)
     value = log(xapian.sortable_serialise, value)
     doc.add_value(fieldname, value, 'weight')
 
