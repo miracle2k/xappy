@@ -148,6 +148,12 @@ class IndexerConnection(object):
 
         try:
             (self._field_actions, mappings, self._facet_hierarchy, self._facet_query_table, self._next_docid) = cPickle.loads(config_str)
+            # Backwards compatibility; there used to only be one parent.
+            for key in self._facet_hierarchy:
+                parents = self._facet_hierarchy[key]
+                if isinstance(parents, basestring):
+                    parents = [parents]
+                    self._facet_hierarchy[subfacet] = parents
         except ValueError:
             # Backwards compatibility - configuration used to lack _facet_hierarchy and _facet_query_table
             (self._field_actions, mappings, self._next_docid) = cPickle.loads(config_str)
@@ -421,7 +427,12 @@ class IndexerConnection(object):
             raise errors.IndexerError("IndexerConnection has been closed")
         self._assert_facet(facet)
         self._assert_facet(subfacet)
-        self._facet_hierarchy[subfacet] = facet
+        if subfacet in self._facet_hierarchy:
+            parents = self._facet_hierarchy[subfacet]
+            parents.append(facet)
+        else:
+            parents = [facet]
+            self._facet_hierarchy[subfacet] = parents
         self._config_modified = True
 
     def remove_subfacet(self, subfacet):
@@ -440,7 +451,7 @@ class IndexerConnection(object):
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
-        return [k for k, v in self._facet_hierarchy.iteritems() if v == facet] 
+        return [k for k, v in self._facet_hierarchy.iteritems() if facet in v] 
 
     FacetQueryType_Preferred = 1;
     FacetQueryType_Never = 2;
@@ -667,7 +678,7 @@ class IndexerConnection(object):
         """Get an iterator over the facet hierarchy.
 
         The iterator returns 2-tuples, in which the first item is the
-        subfacet and the second item is its parent facet.
+        subfacet and the second item is a list of its parent facets.
 
         The return values are suitable for the dict() builtin, for example:
 
@@ -675,10 +686,12 @@ class IndexerConnection(object):
          >>> conn.add_field_action('foo', FieldActions.FACET)
          >>> conn.add_field_action('bar', FieldActions.FACET)
          >>> conn.add_field_action('baz', FieldActions.FACET)
+         >>> conn.add_field_action('bar2', FieldActions.FACET)
          >>> conn.add_subfacet('foo', 'bar')
          >>> conn.add_subfacet('baz', 'bar')
+         >>> conn.add_subfacet('baz', 'bar2')
          >>> dict(conn.iter_subfacets())
-         {'foo': 'bar', 'baz': 'bar'}
+         {'foo': ['bar'], 'baz': ['bar', 'bar2']}
 
         """
         if self._index is None:

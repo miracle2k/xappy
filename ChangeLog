@@ -1,3 +1,9 @@
+Fri May 30 11:00:59 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py,xappy/searchconnection.py,
+	  xappy/unittests/facet_hierarchy_1.py: Allow multiple parent
+	  facets to be defined for each child.
+
 Mon May 12 19:58:34 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* docs/introduction.rst: Add documentation of the WEIGHT action.

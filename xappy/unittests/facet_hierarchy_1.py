@@ -8,12 +8,12 @@ from xappy.searchconnection import *
 
 # Facets used in documents and their parent facets (or None for top-level facets)
 facets = {
-            'category': None,
-            'colour': None,
-            'type': 'category',
-            'make': 'category',
-            'species': 'category',
-            'strings': 'type',
+            'category': [None,],
+            'colour': [None,],
+            'type': ['category',],
+            'make': ['category', 'colour',],
+            'species': ['category',],
+            'strings': ['type',],
          }
 
 # Documents
@@ -55,6 +55,7 @@ docvalues = [
                     'category': 'animal',
                     'colour': 'black',
                     'species': 'Persian',
+                    'make': 'God',
                 },
                 {
                     'category': 'animal',
@@ -72,8 +73,10 @@ class TestFacetHierarchy(TestCase):
             iconn.add_field_action(name, FieldActions.INDEX_EXACT)
             iconn.add_field_action(name, FieldActions.STORE_CONTENT)
             iconn.add_field_action(name, FieldActions.FACET)
-        for name, parent in facets.iteritems():
-            if parent: iconn.add_subfacet(name, parent)
+        for name, parents in facets.iteritems():
+            for parent in parents:
+                if parent:
+                    iconn.add_subfacet(name, parent)
         for values in docvalues:
             doc = UnprocessedDocument()
             for name, value in values.iteritems():
@@ -83,6 +86,7 @@ class TestFacetHierarchy(TestCase):
         iconn.close()
         self.sconn = SearchConnection(self.indexpath)
         self.faceted_query = self.sconn.query_facet('category', 'instrument')
+        self.faceted_query2 = self.sconn.query_facet('colour', 'black')
 
     def _get_facets(self, query, usesubfacets=None, maxfacets=100, required_facets=None):
         results = self.sconn.search(query, 0, 10, getfacets=True, usesubfacets=usesubfacets)
@@ -97,14 +101,18 @@ class TestFacetHierarchy(TestCase):
 
     def test_hierarchy(self):
         # Test that only top-level facets are suggested for a non-faceted query for all documents
-        assert self._get_facets(self.sconn.query_all(), usesubfacets=True) == set(['colour', 'category'])
+        self.assertEqual(self._get_facets(self.sconn.query_all(), usesubfacets=True), set(['colour', 'category']))
         # Test that only top-level facets and subfacets of category are suggested for the faceted query,
         # but not 'category' for which there is only 1 value
-        assert self._get_facets(self.faceted_query, usesubfacets=True) == set(['make', 'type', 'colour'])
+        self.assertEqual(self._get_facets(self.faceted_query, usesubfacets=True), set(['make', 'type', 'colour']))
         # Test that subfacets 'make' and 'type' are suggested first over the top-level facet 'colour'
-        assert self._get_facets(self.faceted_query, usesubfacets=True, maxfacets=2) == set(['make', 'type'])
+        self.assertEqual(self._get_facets(self.faceted_query, usesubfacets=True, maxfacets=2), set(['make', 'type']))
         # Test that if we explicitely ask for 'category' then we get it regardless
-        assert self._get_facets(self.faceted_query, usesubfacets=True, required_facets='category') == set(['make', 'type', 'colour', 'category'])
+        self.assertEqual(self._get_facets(self.faceted_query, usesubfacets=True, required_facets='category'), set(['make', 'type', 'colour', 'category']))
+
+        # Test that subfacet 'make' is suggested first over the top-level facet 'colour'
+        self.assertEqual(self._get_facets(self.faceted_query2, usesubfacets=True, maxfacets=2), set(['category', 'make']))
+        self.assertEqual(self._get_facets(self.faceted_query2, usesubfacets=True, maxfacets=1), set(['make']))
 
     def tearDown(self):
         self.sconn.close()

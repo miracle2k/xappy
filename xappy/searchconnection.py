@@ -799,6 +799,12 @@ class SearchConnection(object):
 
         try:
             (self._field_actions, mappings, self._facet_hierarchy, self._facet_query_table, self._next_docid) = _cPickle.loads(config_str)
+            # Backwards compatibility; there used to only be one parent.
+            for key in self._facet_hierarchy:
+                parents = self._facet_hierarchy[key]
+                if isinstance(parents, basestring):
+                    parents = [parents]
+                    self._facet_hierarchy[subfacet] = parents
         except ValueError:
             # Backwards compatibility - configuration used to lack _facet_hierarchy and _facet_query_table
             (self._field_actions, mappings, self._next_docid) = _cPickle.loads(config_str)
@@ -1769,8 +1775,13 @@ class SearchConnection(object):
                     if action == FieldActions.FACET:
                         # filter out non-top-level facets that aren't subfacets
                         # of a facet in the query
-                        if usesubfacets and self._facet_hierarchy.get(field) not in queryfacets:
-                            continue
+                        if usesubfacets:
+                            is_subfacet = False
+                            for parent in self._facet_hierarchy.get(field, [None]):
+                                if parent in queryfacets:
+                                    is_subfacet = True
+                            if not is_subfacet:
+                                continue
                         # filter out facets that should never be returned for the query type
                         if self._facet_query_never(field, query_type):
                             continue
