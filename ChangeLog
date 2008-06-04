@@ -1,3 +1,12 @@
+Wed Jun 04 07:46:31 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py,xappy/searchconnection.py,
+	  xappy/unittests/facet_hierarchy_1.py,
+	  xappy/unittests/testdata/old_facet_db/: Fix bug in the backwards
+	  compatibility code for facet hierarchies.  Add a database in the
+	  old format, and a test which uses this to check the backwards
+	  compatibility code.
+
 Fri May 30 11:00:59 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py,xappy/searchconnection.py,

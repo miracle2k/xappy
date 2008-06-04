@@ -114,6 +114,13 @@ class TestFacetHierarchy(TestCase):
         self.assertEqual(self._get_facets(self.faceted_query2, usesubfacets=True, maxfacets=2), set(['category', 'make']))
         self.assertEqual(self._get_facets(self.faceted_query2, usesubfacets=True, maxfacets=1), set(['make']))
 
+    def test_backwards_compatibility1(self):
+        path = os.path.join(os.path.dirname(__file__), 'testdata', 'old_facet_db')
+        iconn = IndexerConnection(path)
+        iconn.close()
+        sconn = SearchConnection(path)
+        sconn.close()
+
     def tearDown(self):
         self.sconn.close()
         shutil.rmtree(self.tempdir)

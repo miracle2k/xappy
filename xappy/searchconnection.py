@@ -804,7 +804,7 @@ class SearchConnection(object):
                 parents = self._facet_hierarchy[key]
                 if isinstance(parents, basestring):
                     parents = [parents]
-                    self._facet_hierarchy[subfacet] = parents
+                    self._facet_hierarchy[key] = parents
         except ValueError:
             # Backwards compatibility - configuration used to lack _facet_hierarchy and _facet_query_table
             (self._field_actions, mappings, self._next_docid) = _cPickle.loads(config_str)
