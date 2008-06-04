@@ -48,7 +48,10 @@ class IndexerConnection(object):
         If the database doesn't already exist, it will be created.
 
         """
-        self._index = log(xapian.flint_open, indexpath, xapian.DB_CREATE_OR_OPEN)
+        try:
+            self._index = log(xapian.flint_open, indexpath, xapian.DB_CREATE_OR_OPEN)
+        except xapian.DatabaseOpeningError:
+            self._index = log(xapian.WritableDatabase, indexpath, xapian.DB_OPEN)
         self._indexpath = indexpath
 
         # Read existing actions.
