@@ -1,3 +1,15 @@
+Thu Jun 05 06:06:49 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add a new parameter, "weight_params",
+	  to the search() method, to allow the weighting system to be
+	  modified.
+	* docs/weighting.rst: Document the available weighting parameters.
+	* build.py: Add weighting.rst to the documentation build.
+	* xappy/unittests/weight_action.py: Modify the path so this test
+	  can be run standalone.
+	* xappy/unittests/weight_params.py: Add test of the weight_params
+	  parameter to search().
+
 Wed Jun 04 14:10:59 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py,xappy/unittests/db_type_compat1.py:

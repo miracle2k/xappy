@@ -1626,7 +1626,7 @@ class SearchConnection(object):
                gettags=None,
                getfacets=None, allowfacets=None, denyfacets=None, usesubfacets=None,
                percentcutoff=None, weightcutoff=None,
-               query_type=None):
+               query_type=None, weight_params=None):
         """Perform a search, for documents matching a query.
 
         - `query` is the query to perform.
@@ -1667,6 +1667,11 @@ class SearchConnection(object):
           performed. If not None, the value is used to influence which facets
           are be returned by the get_suggested_facets() function. If the
           value of `getfacets` is False, it has no effect.
+        - `weight_params` is a dictionary (from string to number) of named
+          parameters to pass to the weighting function.  Currently, the
+          defined names are "k1", "k2", "k3", "b", "min_normlen".  Any
+          unrecognised names will be ignored.  For documentation of the
+          parameters, see the docs/weighting.rst document.
 
         If neither 'allowfacets' or 'denyfacets' is specified, all fields
         holding facets will be considered (but see 'usesubfacets').
@@ -1828,6 +1833,16 @@ class SearchConnection(object):
             if weightcutoff is None:
                 weightcutoff = 0
             enq.set_cutoff(percentcutoff, weightcutoff)
+
+        # Set weighting scheme
+        if weight_params is not None:
+            k1 = weight_params.get('k1', 1)
+            k2 = weight_params.get('k2', 0)
+            k3 = weight_params.get('k3', 1)
+            b = weight_params.get('b', 0.5)
+            min_normlen = weight_params.get('min_normlen', 0.5)
+            wt = xapian.BM25Weight(k1, k2, k3, b, min_normlen)
+            enq.set_weighting_scheme(wt)
 
         # Repeat the search until we don't get a DatabaseModifiedError
         while True:

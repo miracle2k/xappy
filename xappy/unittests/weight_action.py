@@ -1,5 +1,6 @@
 from unittest import TestCase, main
 import os, shutil, sys, tempfile
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 import xappy
 

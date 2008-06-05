@@ -47,5 +47,6 @@ def call_epydoc(*args):
 
 
 call_rst2html('docs/introduction.rst', 'docs/introduction.html')
+call_rst2html('docs/weighting.rst', 'docs/weighting.html')
 call_rst2html('README', 'README.html')
 call_epydoc('-o', 'docs/api', '--name', 'xappy', '--no-private', 'xappy')
