@@ -1,3 +1,10 @@
+Wed Jun 11 13:36:02 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py,xappy/unittests/db_type1.py,
+	  xappy/unittests/db_type_compat1.py: Add dbtype parameter to
+	  IndexerConnection constructor, allowing the type of newly created
+	  databases to be specified.
+
 Thu Jun 05 06:06:49 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Add a new parameter, "weight_params",

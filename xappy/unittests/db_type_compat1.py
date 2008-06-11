@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
 
 from xappy.indexerconnection import *
 
-class TestFacetHierarchy(TestCase):
+class TestTypeCompat(TestCase):
     def test_backwards_compatibility1(self):
         path = os.path.join(os.path.dirname(__file__), 'testdata', 'chert_db')
         iconn = IndexerConnection(path)

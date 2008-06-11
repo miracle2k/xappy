@@ -38,7 +38,7 @@ class IndexerConnection(object):
 
     _index = None
 
-    def __init__(self, indexpath):
+    def __init__(self, indexpath, dbtype=None):
         """Create a new connection to the index.
 
         There may only be one indexer connection for a particular database open
@@ -47,9 +47,22 @@ class IndexerConnection(object):
 
         If the database doesn't already exist, it will be created.
 
+        `dbtype` is the database type to use when creating the database.  If
+        the database already exists, this parameter will be ignored.  A
+        sensible default value for the version of xapian in use will be chosen,
+        but you may wish to tweak this (most likely for performance, or
+        backward compatibility, reasons).
+
         """
+        if dbtype is None:
+            dbtype = 'flint'
         try:
-            self._index = log(xapian.flint_open, indexpath, xapian.DB_CREATE_OR_OPEN)
+            if dbtype == 'flint':
+                self._index = log(xapian.flint_open, indexpath, xapian.DB_CREATE_OR_OPEN)
+            elif dbtype == 'chert':
+                self._index = log(xapian.chert_open, indexpath, xapian.DB_CREATE_OR_OPEN)
+            else:
+                raise xapian.InvalidArgumentError("Database type '%s' not known" % dbtype)
         except xapian.DatabaseOpeningError:
             self._index = log(xapian.WritableDatabase, indexpath, xapian.DB_OPEN)
         self._indexpath = indexpath
