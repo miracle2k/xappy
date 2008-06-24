@@ -1,44 +1,57 @@
-from unittest import TestCase, main
-import os, shutil, sys, tempfile
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-
-from xappy import *
+# Copyright (C) 2008 Lemur Consulting Ltd
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+from xappytest import *
 
 class TestFreeText(TestCase):
-    def setUp(self):
-        self.tempdir = tempfile.mkdtemp()
+    def pre_test(self):
         self.indexpath = os.path.join(self.tempdir, 'foo')
-        iconn = IndexerConnection(self.indexpath)
-        iconn.add_field_action('a', FieldActions.INDEX_FREETEXT)
-        iconn.add_field_action('b', FieldActions.INDEX_FREETEXT, search_by_default=False)
-        iconn.add_field_action('c', FieldActions.INDEX_FREETEXT, search_by_default=True)
-        iconn.add_field_action('d', FieldActions.INDEX_FREETEXT, allow_field_specific=False)
-        iconn.add_field_action('e', FieldActions.INDEX_FREETEXT, allow_field_specific=True)
-        iconn.add_field_action('f', FieldActions.INDEX_FREETEXT, search_by_default=False,  allow_field_specific=False)
+        iconn = xappy.IndexerConnection(self.indexpath)
+        iconn.add_field_action('a', xappy.FieldActions.INDEX_FREETEXT)
+        iconn.add_field_action('b', xappy.FieldActions.INDEX_FREETEXT, search_by_default=False)
+        iconn.add_field_action('c', xappy.FieldActions.INDEX_FREETEXT, search_by_default=True)
+        iconn.add_field_action('d', xappy.FieldActions.INDEX_FREETEXT, allow_field_specific=False)
+        iconn.add_field_action('e', xappy.FieldActions.INDEX_FREETEXT, allow_field_specific=True)
+        iconn.add_field_action('f', xappy.FieldActions.INDEX_FREETEXT, search_by_default=False,  allow_field_specific=False)
 
-        iconn.add_field_action('a', FieldActions.STORE_CONTENT)
-        iconn.add_field_action('b', FieldActions.STORE_CONTENT)
-        iconn.add_field_action('c', FieldActions.STORE_CONTENT)
+        iconn.add_field_action('a', xappy.FieldActions.STORE_CONTENT)
+        iconn.add_field_action('b', xappy.FieldActions.STORE_CONTENT)
+        iconn.add_field_action('c', xappy.FieldActions.STORE_CONTENT)
 
         for i in xrange(32):
-            doc = UnprocessedDocument()
+            doc = xappy.UnprocessedDocument()
             if i % 2:
-                doc.fields.append(Field('a', 'termA'))
+                doc.fields.append(xappy.Field('a', 'termA'))
             if (i / 2) % 2:
-                doc.fields.append(Field('b', 'termB'))
+                doc.fields.append(xappy.Field('b', 'termB'))
             if (i / 4) % 2:
-                doc.fields.append(Field('c', 'termC'))
+                doc.fields.append(xappy.Field('c', 'termC'))
             if (i / 8) % 2:
-                doc.fields.append(Field('d', 'termD'))
+                doc.fields.append(xappy.Field('d', 'termD'))
             if (i / 16) % 2:
-                doc.fields.append(Field('e', 'termE'))
+                doc.fields.append(xappy.Field('e', 'termE'))
             if (i / 3) % 3 == 0:
-                doc.fields.append(Field('f', 'termF'))
+                doc.fields.append(xappy.Field('f', 'termF'))
             iconn.add(doc)
 
         iconn.flush()
         iconn.close()
-        self.sconn = SearchConnection(self.indexpath)
+        self.sconn = xappy.SearchConnection(self.indexpath)
+
+    def post_test(self):
+        self.sconn.close()
 
     def test_search_by_default1(self):
         # Search by default (due to default handling)
@@ -104,10 +117,6 @@ class TestFreeText(TestCase):
         q = self.sconn.query_parse('termF')
         res = self.sconn.search(q, 0, 100)
         self.assertEqual(set([int(item.id, 16) for item in res]), set([]))
-
-    def tearDown(self):
-        self.sconn.close()
-        shutil.rmtree(self.tempdir)
 
 if __name__ == '__main__':
     main()

@@ -1,10 +1,19 @@
-from unittest import TestCase, main
-import os, shutil, sys, tempfile
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-
-from xappy.indexerconnection import *
-from xappy.fieldactions import *
-from xappy.searchconnection import *
+# Copyright (C) 2008 Lemur Consulting Ltd
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+from xappytest import *
 
 # Facets used in documents and their parent facets (or None for top-level facets)
 facets = {
@@ -65,28 +74,30 @@ docvalues = [
             ]
 
 class TestFacetHierarchy(TestCase):
-    def setUp(self):
-        self.tempdir = tempfile.mkdtemp()
+    def pre_test(self):
         self.indexpath = os.path.join(self.tempdir, 'foo')
-        iconn = IndexerConnection(self.indexpath)
+        iconn = xappy.IndexerConnection(self.indexpath)
         for name in facets:
-            iconn.add_field_action(name, FieldActions.INDEX_EXACT)
-            iconn.add_field_action(name, FieldActions.STORE_CONTENT)
-            iconn.add_field_action(name, FieldActions.FACET)
+            iconn.add_field_action(name, xappy.FieldActions.INDEX_EXACT)
+            iconn.add_field_action(name, xappy.FieldActions.STORE_CONTENT)
+            iconn.add_field_action(name, xappy.FieldActions.FACET)
         for name, parents in facets.iteritems():
             for parent in parents:
                 if parent:
                     iconn.add_subfacet(name, parent)
         for values in docvalues:
-            doc = UnprocessedDocument()
+            doc = xappy.UnprocessedDocument()
             for name, value in values.iteritems():
-                doc.fields.append(Field(name, value))
+                doc.fields.append(xappy.Field(name, value))
             iconn.add(doc)
         iconn.flush()
         iconn.close()
-        self.sconn = SearchConnection(self.indexpath)
+        self.sconn = xappy.SearchConnection(self.indexpath)
         self.faceted_query = self.sconn.query_facet('category', 'instrument')
         self.faceted_query2 = self.sconn.query_facet('colour', 'black')
+
+    def post_test(self):
+        self.sconn.close()
 
     def _get_facets(self, query, usesubfacets=None, maxfacets=100, required_facets=None):
         results = self.sconn.search(query, 0, 10, getfacets=True, usesubfacets=usesubfacets)
@@ -116,14 +127,10 @@ class TestFacetHierarchy(TestCase):
 
     def test_backwards_compatibility1(self):
         path = os.path.join(os.path.dirname(__file__), 'testdata', 'old_facet_db')
-        iconn = IndexerConnection(path)
+        iconn = xappy.IndexerConnection(path)
         iconn.close()
-        sconn = SearchConnection(path)
+        sconn = xappy.SearchConnection(path)
         sconn.close()
-
-    def tearDown(self):
-        self.sconn.close()
-        shutil.rmtree(self.tempdir)
 
 if __name__ == '__main__':
     main()

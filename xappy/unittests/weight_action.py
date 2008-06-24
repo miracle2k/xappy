@@ -1,12 +1,22 @@
-from unittest import TestCase, main
-import os, shutil, sys, tempfile
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-
-import xappy
+# Copyright (C) 2008 Lemur Consulting Ltd
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+from xappytest import *
 
 class TestWeightAction(TestCase):
-    def setUp(self):
-        self.tempdir = tempfile.mkdtemp()
+    def pre_test(self):
         self.indexpath = os.path.join(self.tempdir, 'foo')
         iconn = xappy.IndexerConnection(self.indexpath)
         iconn.add_field_action('name', xappy.FieldActions.INDEX_FREETEXT,)
@@ -20,6 +30,9 @@ class TestWeightAction(TestCase):
         iconn.flush()
         iconn.close()
         self.sconn = xappy.SearchConnection(self.indexpath)
+
+    def post_test(self):
+        self.sconn.close()
 
     def test_pure_weight(self):
         q = self.sconn.query_field("weight")
@@ -48,10 +61,6 @@ class TestWeightAction(TestCase):
         q = self.sconn.query_composite(self.sconn.OP_OR, (q1b, q2))
         r = self.sconn.search(q, 0, 10)
         self.assertEqual([int(i.id) for i in r], [4, 0, 3, 2, 1])
-
-    def tearDown(self):
-        self.sconn.close()
-        shutil.rmtree(self.tempdir)
 
 if __name__ == '__main__':
     main()

@@ -1,10 +1,19 @@
-from unittest import TestCase, main
-import os, shutil, sys, tempfile
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../..'))
-
-from xappy.indexerconnection import *
-from xappy.fieldactions import *
-from xappy.searchconnection import *
+# Copyright (C) 2008 Lemur Consulting Ltd
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+from xappytest import *
 
 # Facets used in documents
 facets = [
@@ -53,18 +62,17 @@ docvalues = [
             ]
 
 class TestFacetHierarchy(TestCase):
-    def setUp(self):
-        self.tempdir = tempfile.mkdtemp()
+    def pre_test(self):
         indexpath = os.path.join(self.tempdir, 'foo')
-        self.iconn = IndexerConnection(indexpath)
+        self.iconn = xappy.IndexerConnection(indexpath)
         for name in facets:
-            self.iconn.add_field_action(name, FieldActions.INDEX_EXACT)
-            self.iconn.add_field_action(name, FieldActions.STORE_CONTENT)
-            self.iconn.add_field_action(name, FieldActions.FACET)
+            self.iconn.add_field_action(name, xappy.FieldActions.INDEX_EXACT)
+            self.iconn.add_field_action(name, xappy.FieldActions.STORE_CONTENT)
+            self.iconn.add_field_action(name, xappy.FieldActions.FACET)
         for values in docvalues:
-            doc = UnprocessedDocument()
+            doc = xappy.UnprocessedDocument()
             for name, value in values.iteritems():
-                doc.fields.append(Field(name, value))
+                doc.fields.append(xappy.Field(name, value))
             self.iconn.add(doc)
         self.iconn.set_facet_for_query_type('type1', 'colour', self.iconn.FacetQueryType_Preferred)
         self.iconn.set_facet_for_query_type('type1', 'colour', self.iconn.FacetQueryType_Never)
@@ -73,7 +81,11 @@ class TestFacetHierarchy(TestCase):
         self.iconn.set_facet_for_query_type('type3', 'colour', self.iconn.FacetQueryType_Preferred)
         self.iconn.set_facet_for_query_type('type3', 'colour', None)
         self.iconn.flush()
-        self.sconn = SearchConnection(indexpath)
+        self.sconn = xappy.SearchConnection(indexpath)
+
+    def post_test(self):
+        self.iconn.close()
+        self.sconn.close()
 
     def _get_facets(self, query, maxfacets=100, query_type=None):
         results = self.sconn.search(query, 0, 10, getfacets=True, query_type=query_type)
@@ -96,11 +108,6 @@ class TestFacetHierarchy(TestCase):
         assert self._get_facets(query, query_type='type1') == set(['type', 'make', 'strings']);
         # Test 'colour' and 'make' preferred for query_type 'type2'
         assert self._get_facets(query, query_type='type2', maxfacets=2) == set(['colour', 'make']);
-
-    def tearDown(self):
-        self.iconn.close()
-        self.sconn.close()
-        shutil.rmtree(self.tempdir)
 
 if __name__ == '__main__':
     main()
