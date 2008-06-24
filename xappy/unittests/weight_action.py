@@ -20,6 +20,7 @@ class TestWeightAction(TestCase):
         self.indexpath = os.path.join(self.tempdir, 'foo')
         iconn = xappy.IndexerConnection(self.indexpath)
         iconn.add_field_action('name', xappy.FieldActions.INDEX_FREETEXT,)
+        iconn.add_field_action('exact', xappy.FieldActions.INDEX_EXACT,)
         iconn.add_field_action('weight', xappy.FieldActions.WEIGHT,)
         for i in xrange(5):
             doc = xappy.UnprocessedDocument()
@@ -61,6 +62,26 @@ class TestWeightAction(TestCase):
         q = self.sconn.query_composite(self.sconn.OP_OR, (q1b, q2))
         r = self.sconn.search(q, 0, 10)
         self.assertEqual([int(i.id) for i in r], [4, 0, 3, 2, 1])
+
+    def test_regression(self):
+        """This test is an attempt to reproduce a segfault.
+
+        """
+        query1 = self.sconn.query_field("exact", "33")
+        query2 = self.sconn.query_parse("name:bruno")
+        query2 = self.sconn.query_multweight(query2, 0.5)
+        query = self.sconn.query_adjust(query1, query2)
+        q_weight = self.sconn.query_field("weight")
+        query_max_weight = self.sconn.get_max_possible_weight(query)
+        multiplier = 1.0 / query_max_weight
+
+        str(query)
+        str(q_weight)
+        str(multiplier)
+        q_norm = self.sconn.query_multweight(query, multiplier) 
+        str(q_norm)
+        adj = self.sconn.query_adjust(q_norm, q_weight)
+        str(adj)
 
 if __name__ == '__main__':
     main()
