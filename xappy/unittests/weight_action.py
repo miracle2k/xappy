@@ -36,6 +36,8 @@ class TestWeightAction(TestCase):
         self.sconn.close()
 
     def test_pure_weight(self):
+        """Check that a search purely by a weight field works.
+        """
         q = self.sconn.query_field("weight")
         r = self.sconn.search(q, 0, 10)
         self.assertEqual([int(i.id) for i in r], [4, 3, 2, 1, 0])
@@ -67,21 +69,16 @@ class TestWeightAction(TestCase):
         """This test is an attempt to reproduce a segfault.
 
         """
-        query1 = self.sconn.query_field("exact", "33")
-        query2 = self.sconn.query_parse("name:bruno")
-        query2 = self.sconn.query_multweight(query2, 0.5)
-        query = self.sconn.query_adjust(query1, query2)
-        q_weight = self.sconn.query_field("weight")
-        query_max_weight = self.sconn.get_max_possible_weight(query)
-        multiplier = 1.0 / query_max_weight
-
-        str(query)
-        str(q_weight)
-        str(multiplier)
-        q_norm = self.sconn.query_multweight(query, multiplier) 
-        str(q_norm)
-        adj = self.sconn.query_adjust(q_norm, q_weight)
+        adj = self.build_regression_query()
         str(adj)
+
+    def build_regression_query(self):
+        """Code for test_regression() which builds a query.
+
+        """
+        query = self.sconn.query_field("exact", "33")
+        q_weight = self.sconn.query_field("weight")
+        return self.sconn.query_adjust(query, q_weight)
 
 if __name__ == '__main__':
     main()

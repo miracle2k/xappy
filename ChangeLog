@@ -1,3 +1,20 @@
+Wed Jun 25 11:33:27 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/weight_action.py: Modify regression test so that
+	  it actually tests the problem.
+	* xappy/searchconnection.py: Add new Query object, which keeps
+	  track of references to necessary extra objects.  Use this to
+	  ensure that the PostingSource for a weight query doesn't get
+	  forgotten before the query does.  This class also provides an
+	  alternative, and hopefully nicer, way to compose queries.  Modify
+	  all methods which create queries to return xappy.Query objects
+	  instead of xapian.Query objects, and add support everywhere for
+	  being supplied with either xapian.Query objects or xappy.Query
+	  objects.  Documentation of this, other than doccomments, is
+	  not yet written.
+	* xappy/__init__.py: Add Query object to external names.
+	* xappy/highlight.py: Add understanding of xappy.Query() objects.
+
 Tue Jun 24 17:47:41 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/weight_action.py: Add an attempt to reproduce a

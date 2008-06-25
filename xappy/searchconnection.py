@@ -35,6 +35,157 @@ import indexerconnection as _indexerconnection
 import re as _re
 from replaylog import log as _log
 
+class Query(object):
+    """A query.
+
+    """
+
+    OP_AND = _xapian.Query.OP_AND
+    OP_OR = _xapian.Query.OP_OR
+
+    def __init__(self, query=None, _refs=None):
+        """Create a new query.
+
+        If `query` is a xappy.Query, or xapian.Query, object, the new query is
+        initialised as a copy of the supplied query.
+
+        """
+        if _refs is None:
+            _refs = []
+        if query is None:
+            self.__query = _log(xapian.Query)
+            self.__refs = _refs
+        elif isinstance(query, xapian.Query):
+            self.__query = query
+            self.__refs = _refs
+        else:
+            self.__query = query.__query
+            self.__refs = []
+            self.__refs.extend(query.__refs)
+            self.__refs.extend(_refs)
+        assert(self.__refs is not None)
+
+    @staticmethod
+    def compose(operator, queries):
+        """Build and return a composite query from a list of queries.
+
+        The queries are combined with the supplied operator, which is either
+        Query.OP_AND or Query.OP_OR.
+
+        `queries` is any iterable which returns a list of queries (either
+        xapian.Query or xappy.Query objects).
+
+        """
+        result = Query()
+        xapqs = []
+        for q in queries:
+            if isinstance(q, xapian.Query):
+                xapqs.append(q)
+            elif isinstance(q, Query):
+                xapqs.append(q.__query)
+                result.__refs.extend(q.__refs)
+            else:
+                raise TypeError("queries must contain a list of xapian.Query or xappy.Query objects")
+        result.__query = _log(_xapian.Query, operator, xapqs)
+        return result
+
+    def __mul__(self, multiplier):
+        """Return a query with the weight scaled by multiplier.
+
+        """
+        result = Query()
+        result.__refs = self.__refs
+
+        try:
+            result.__query = _log(_xapian.Query,
+                                  _xapian.Query.OP_SCALE_WEIGHT,
+                                  self.__query, multiplier)
+        except TypeError:
+            return NotImplemented
+        return result
+
+    def __rmul__(self, lhs):
+        """Return a query with the weight scaled by multiplier.
+
+        """
+        return self.__mul__(lhs)
+
+    def __combine_with(self, operator, other):
+        """Return the result of combining this query with another query.
+
+        """
+        result = Query()
+        # Take a copy of the refs, so we don't modify the original query's
+        # list.
+        result.__refs = []
+        result.__refs.extend(self.__refs)
+
+        if isinstance(other, xapian.Query):
+            oquery = other
+        elif isinstance(other, Query):
+            oquery = other.__query
+            result.__refs.extend(other.__refs)
+        else:
+            raise TypeError("other must be a xapian.Query or xappy.Query object")
+
+        result.__query = _log(_xapian.Query, operator, self.__query, oquery)
+
+        return result
+
+    def and_not(self, other):
+        """Return a query which returns filtered results of this query.
+
+        The query will return only those results which aren't also matched by
+        `other`, which should also be a query.
+
+        """
+        return self.__combine_with(xapian.Query.OP_AND_NOT, other)
+
+    def filter(self, other):
+        """Return a query which returns filtered results of this query.
+
+        The query will return only those results which are also matched by
+        `other`, which should also be a query, but the weights of the results will not be modified by those
+        from `other`.
+
+        """
+        return self.__combine_with(xapian.Query.OP_FILTER, other)
+
+    def adjust(self, other):
+        """Return a query with this query's weights adjusted by another query.
+
+        Documents will be returned from the resulting query if and only if they
+        match this query.  However, the weights of the resulting documents will
+        be adjusted by adding weights from the secondary query (specified by
+        the `other` parameter).
+
+        """
+        return self.__combine_with(xapian.Query.OP_AND_MAYBE, other)
+
+    def _get_xapian_query(self):
+        """Get the query as a xapian object.
+
+        This is intended for internal use in xappy only.
+
+        If you _must_ use it outside xappy, note in particular that the xapian
+        query will only remain valid as long as this object is valid.  Using it
+        after this object has been deleted may result in invalid memory access
+        and segmentation faults.
+
+        """
+        return self.__query
+
+    def __iter__(self):
+        """
+        """
+        return iter(self.__query)
+
+    def __str__(self):
+        return str(self.__query)
+
+    def __repr__(self):
+        return "<xappy.Query(%s)>" % str(self.__query)
+
 class SearchResult(ProcessedDocument):
     """A result from a search.
 
@@ -889,7 +1040,7 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
-        return _log(_xapian.Query, operator, list(queries))
+        return Query.compose(operator, list(queries))
 
     def query_multweight(self, query, multiplier):
         """Build a query which modifies the weights of a subquery.
@@ -905,7 +1056,9 @@ class SearchConnection(object):
         the query to be adjusted.
 
         """
-        return _log(_xapian.Query, _xapian.Query.OP_SCALE_WEIGHT, query, multiplier)
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
+        return Query(query) * multiplier
 
     def query_filter(self, query, filter, exclude=False):
         """Filter a query with another query.
@@ -930,12 +1083,13 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
-        if not isinstance(filter, _xapian.Query):
+        try:
+            if exclude:
+                return query.and_not(filter)
+            else:
+                return query.filter(filter)
+        except TypeError:
             raise _errors.SearchError("Filter must be a Xapian Query object")
-        if exclude:
-            return _log(_xapian.Query, _xapian.Query.OP_AND_NOT, query, filter)
-        else:
-            return _log(_xapian.Query, _xapian.Query.OP_FILTER, query, filter)
 
     def query_adjust(self, primary, secondary):
         """Adjust the weights of one query with a secondary query.
@@ -949,7 +1103,7 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
-        return _log(_xapian.Query, _xapian.Query.OP_AND_MAYBE, primary, secondary)
+        return primary.adjust(secondary)
 
     def query_range(self, field, begin, end):
         """Create a query for a range search.
@@ -974,13 +1128,13 @@ class SearchConnection(object):
 
         if begin is None and end is None:
             # Return a "match everything" query
-            return _log(_xapian.Query, '')
+            return Query(_log(_xapian.Query, ''))
 
         try:
             slot = self._field_mappings.get_slot(field, 'collsort')
         except KeyError:
             # Return a "match nothing" query
-            return _log(_xapian.Query)
+            return Query(_log(_xapian.Query))
 
         sorttype = self._get_sort_type(field)
         marshaller = SortableMarshaller(False)
@@ -992,12 +1146,12 @@ class SearchConnection(object):
             end = fn(field, end)
 
         if begin is None:
-            return _log(_xapian.Query, _xapian.Query.OP_VALUE_LE, slot, end)
+            return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_LE, slot, end))
 
         if end is None:
-            return _log(_xapian.Query, _xapian.Query.OP_VALUE_GE, slot, begin)
+            return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_GE, slot, begin))
 
-        return _log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end)
+        return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end))
 
     def query_facet(self, field, val):
         """Create a query for a facet value.
@@ -1041,18 +1195,18 @@ class SearchConnection(object):
             try:
                 slot = self._field_mappings.get_slot(field, 'facet')
             except KeyError:
-                return _log(_xapian.Query)
+                return Query(_log(_xapian.Query))
             # FIXME - check that sorttype == self._get_sort_type(field)
             sorttype = 'float'
             marshaller = SortableMarshaller(False)
             fn = marshaller.get_marshall_function(field, sorttype)
             begin = fn(field, val[0])
             end = fn(field, val[1])
-            return _log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end)
+            return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end))
         else:
             assert(facettype == 'string' or facettype is None)
             prefix = self._field_mappings.get_prefix(field)
-            return _log(_xapian.Query, prefix + val.lower())
+            return Query(_log(_xapian.Query, prefix + val.lower()))
 
 
     def _prepare_queryparser(self, allow, deny, default_op, default_allow,
@@ -1186,7 +1340,7 @@ class SearchConnection(object):
                                                self._qp_flags_base,
                                                prefix)
 
-        return _log(_xapian.Query, _xapian.Query.OP_AND_MAYBE, q1, q2)
+        return Query(_log(_xapian.Query, _xapian.Query.OP_AND_MAYBE, q1, q2))
 
     def query_parse(self, string, allow=None, deny=None, default_op=OP_AND,
                     default_allow=None, default_deny=None):
@@ -1276,7 +1430,7 @@ class SearchConnection(object):
                     chval = ord(value[0])
                     if chval >= ord('A') and chval <= ord('Z'):
                         prefix = prefix + ':'
-                return _log(_xapian.Query, prefix + value)
+                return Query(_log(_xapian.Query, prefix + value))
             if action == FieldActions.INDEX_FREETEXT:
                 if value is None:
                     raise _errors.SearchError("Supplied value must not be None")
@@ -1296,11 +1450,10 @@ class SearchConnection(object):
                     raise _errors.SearchError("Value supplied for a WEIGHT field must be None")
                 slot = self._field_mappings.get_slot(field, 'weight')
                 postingsource = _xapian.ValueWeightPostingSource(self._index, slot)
-                query = _log(_xapian.Query, postingsource)
-                query._postingsource = postingsource
-                return query
+                return Query(_log(_xapian.Query, postingsource),
+                             _refs=[postingsource])
 
-        return _log(_xapian.Query)
+        return Query()
 
     def query_similar(self, ids, allow=None, deny=None, simterms=10):
         """Get a query which returns documents which are similar to others.
@@ -1333,7 +1486,7 @@ class SearchConnection(object):
         # Use the "elite set" operator, which chooses the terms with the
         # highest query weight to use.
         q = _log(_xapian.Query, _xapian.Query.OP_ELITE_SET, eterms, simterms)
-        return q
+        return Query(q)
 
     def significant_terms(self, ids, maxterms=10, allow=None, deny=None):
         """Get a set of "significant" terms for a document, or documents.
@@ -1465,7 +1618,7 @@ class SearchConnection(object):
         """A query which matches all the documents in the database.
 
         """
-        return _log(_xapian.Query, '')
+        return Query(_log(_xapian.Query, ''))
 
     def query_none(self):
         """A query which matches no documents in the database.
@@ -1473,7 +1626,7 @@ class SearchConnection(object):
         This may be useful as a placeholder in various situations.
 
         """
-        return _log(_xapian.Query)
+        return Query()
 
     def spell_correct(self, querystr, allow=None, deny=None, default_op=OP_AND,
                       default_allow=None, default_deny=None):
@@ -1611,7 +1764,10 @@ class SearchConnection(object):
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
         enq = _log(_xapian.Enquire, self._index)
-        enq.set_query(query)
+        if isinstance(query, xapian.Query):
+            enq.set_query(query)
+        else:
+            enq.set_query(query._get_xapian_query())
         enq.set_docid_order(enq.DONT_CARE)
         while True:
             try:
@@ -1693,7 +1849,10 @@ class SearchConnection(object):
             checkatleast = self._index.get_doccount()
 
         enq = _log(_xapian.Enquire, self._index)
-        enq.set_query(query)
+        if isinstance(query, xapian.Query):
+            enq.set_query(query)
+        else:
+            enq.set_query(query._get_xapian_query())
 
         if sortby is not None:
             asc = True
@@ -1762,14 +1921,11 @@ class SearchConnection(object):
             queryfacets = set([None])
             if usesubfacets:
                 # add facets used in the query to queryfacets
-                termsiter = query.get_terms_begin()
-                termsend = query.get_terms_end()
-                while termsiter != termsend:
-                    prefix = self._get_prefix_from_term(termsiter.get_term())
+                for term in query:
+                    prefix = self._get_prefix_from_term(term)
                     field = self._field_mappings.get_fieldname_from_prefix(prefix)
                     if field and FieldActions.FACET in self._field_actions[field]._actions:
                         queryfacets.add(field)
-                    termsiter.next()
 
             for field in allowfacets:
                 try:
