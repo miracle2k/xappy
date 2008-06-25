@@ -100,6 +100,24 @@ class Query(object):
         """
         return self.__mul__(lhs)
 
+    def __div__(self, rhs):
+        """Return a query with the weight divided by a number.
+
+        """
+        try:
+            return self.__mul__(1.0 / rhs)
+        except TypeError:
+            return NotImplemented
+
+    def __truediv__(self, rhs):
+        """Return a query with the weight divided by a number.
+
+        """
+        try:
+            return self.__mul__(1.0 / rhs)
+        except TypeError:
+            return NotImplemented
+
     def __and__(self, other):
         """Return a query combined using AND with another query.
 
