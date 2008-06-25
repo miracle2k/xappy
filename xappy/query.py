@@ -33,27 +33,50 @@ class Query(object):
     OP_AND = xapian.Query.OP_AND
     OP_OR = xapian.Query.OP_OR
 
-    def __init__(self, query=None, _refs=None):
+    def __init__(self, query=None, _refs=None, _conn=None):
         """Create a new query.
 
         If `query` is a xappy.Query, or xapian.Query, object, the new query is
         initialised as a copy of the supplied query.
 
         """
+        # Copy _refs, and make sure it's a list.
         if _refs is None:
             _refs = []
+        else:
+            _refs = [ref for ref in _refs]
+
         if query is None:
-            self.__query = log(xapian.Query)
-            self.__refs = _refs
-        elif isinstance(query, xapian.Query):
+            query = log(xapian.Query)
+
+        # Set the default query parameters.
+        self.__checkatleast = 0
+        self.__sortby = None
+
+        if isinstance(query, xapian.Query):
             self.__query = query
             self.__refs = _refs
+            self.__conn = _conn
         else:
+            # Assume `query` is a xappy.Query() object.
             self.__query = query.__query
-            self.__refs = []
-            self.__refs.extend(query.__refs)
-            self.__refs.extend(_refs)
-        assert(self.__refs is not None)
+            self.__refs = _refs
+            self.__conn = _conn
+            self.__merge_params(query)
+
+    def __merge_params(self, query):
+        """Merge the parameters in this query with those in another query.
+
+        """
+        # Check that the connection is compatible.
+        if self.__conn is not query.__conn:
+            if self.__conn is None:
+                self.__conn = query.__conn
+            elif query.__conn is not None:
+                raise ValueError("Queries are not from the same connection")
+
+        # Combine the refs
+        self.__refs.extend(query.__refs)
 
     @staticmethod
     def compose(operator, queries):
@@ -73,7 +96,7 @@ class Query(object):
                 xapqs.append(q)
             elif isinstance(q, Query):
                 xapqs.append(q.__query)
-                result.__refs.extend(q.__refs)
+                result.__merge_params(q)
             else:
                 raise TypeError("queries must contain a list of xapian.Query or xappy.Query objects")
         result.__query = log(xapian.Query, operator, xapqs)
@@ -84,12 +107,12 @@ class Query(object):
 
         """
         result = Query()
-        result.__refs = self.__refs
+        result.__merge_params(self)
 
         try:
             result.__query = log(xapian.Query,
-                                  xapian.Query.OP_SCALE_WEIGHT,
-                                  self.__query, multiplier)
+                                 xapian.Query.OP_SCALE_WEIGHT,
+                                 self.__query, multiplier)
         except TypeError:
             return NotImplemented
         return result
@@ -146,17 +169,13 @@ class Query(object):
         """Return the result of combining this query with another query.
 
         """
-        result = Query()
-        # Take a copy of the refs, so we don't modify the original query's
-        # list.
-        result.__refs = []
-        result.__refs.extend(self.__refs)
+        result = Query(self)
 
         if isinstance(other, xapian.Query):
             oquery = other
         elif isinstance(other, Query):
             oquery = other.__query
-            result.__refs.extend(other.__refs)
+            result.__merge_params(other)
         else:
             raise TypeError("other must be a xapian.Query or xappy.Query object")
 
