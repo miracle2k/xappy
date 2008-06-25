@@ -104,7 +104,7 @@ class Highlighter(object):
         if isinstance(query, xapian.Query):
             return [self._strip_prefix(t) for t in query]
         elif hasattr(query, '_get_xapian_query'):
-            return [self._strip_prefix(t) for t in query]
+            return [self._strip_prefix(t) for t in query._get_xapian_query()]
         else:
             return [self.stem(q.lower()) for q in query]
 

@@ -1,3 +1,9 @@
+Wed Jun 25 12:09:21 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/: Move implementation of Query() to a separate file, and
+	  remove the __iter__() method, since it returns raw xapian terms,
+	  which we don't want to expose in the user interface.
+
 Wed Jun 25 11:33:27 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/weight_action.py: Modify regression test so that

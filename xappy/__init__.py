@@ -31,5 +31,6 @@ from datastructures import Field, UnprocessedDocument, ProcessedDocument
 from errors import *
 from fieldactions import FieldActions
 from indexerconnection import IndexerConnection
-from searchconnection import Query, SearchConnection
+from query import Query
+from searchconnection import SearchConnection
 from replaylog import set_replay_path
