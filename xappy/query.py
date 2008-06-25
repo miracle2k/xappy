@@ -100,6 +100,30 @@ class Query(object):
         """
         return self.__mul__(lhs)
 
+    def __and__(self, other):
+        """Return a query combined using AND with another query.
+
+        """
+        if not isinstance(other, (Query, xapian.Query)):
+            return NotImplemented
+        return self.__combine_with(Query.OP_AND, other)
+
+    def __or__(self, other):
+        """Return a query combined using OR with another query.
+
+        """
+        if not isinstance(other, (Query, xapian.Query)):
+            return NotImplemented
+        return self.__combine_with(Query.OP_OR, other)
+
+    def __xor__(self, other):
+        """Return a query combined using XOR with another query.
+
+        """
+        if not isinstance(other, (Query, xapian.Query)):
+            return NotImplemented
+        return self.__combine_with(xapian.Query.OP_XOR, other)
+
     def __combine_with(self, operator, other):
         """Return the result of combining this query with another query.
 
