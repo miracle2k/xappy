@@ -677,8 +677,8 @@ something like:
   [('Bible2', '1.40'), ('Bible1', '0.22'), ('0', '0.13')]
 
   >>> maxwt = conn.get_max_possible_weight(q_text)
-  >>> q_text_norm = conn.query_multweight(q_text, 40.0 / maxwt)
-  >>> q = conn.query_adjust(q_text_norm, q_price)
+  >>> q_text_norm = q_text * 40.0 / maxwt
+  >>> q = q_text_norm.adjust(q_price)
   >>> [(result.id, "%.2f" % result.weight) for result in conn.search(q, 0, 10)]
   [('Bible2', '37.25'), ('0', '22.52'), ('Bible1', '15.40')]
 

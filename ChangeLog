@@ -1,3 +1,13 @@
+Thu Jun 26 06:38:13 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/queries.rst: Add new document describing how to use Query
+	  objects.  Some FIXMEs in sections which are still to be written.
+	* xappy/test.py: Add some useful symbols to the namespace in which
+	  tests are run.  Test weighting.rst and queries.rst
+	* build.py: Build queries.html
+	* docs/introduction.rst: Change some examples to use the new method
+	  of combining queries.
+
 Thu Jun 26 06:35:18 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/query.py: Add methods to get the maximum possible weight,

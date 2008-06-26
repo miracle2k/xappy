@@ -51,6 +51,8 @@ MODNAMES = (
 # List the documentation files which should be valid doctest inputs
 OTHER_FILES = (
     'docs/introduction.rst',
+    'docs/weighting.rst',
+    'docs/queries.rst',
 )
 
 
@@ -130,6 +132,13 @@ def recursive_rm(path):
                 os.rmdir(os.path.join(root, dir))
         os.rmdir(path)
 
+def get_example_search_connection():
+    import os, xappy
+    db_path = os.path.abspath('exampledb')
+    iconn = xappy.IndexerConnection(db_path)
+    iconn.add_field_action('text', xappy.FieldActions.INDEX_FREETEXT, spell=True, stop=("a be not or to"), weight=2, language="en")
+
+    return xappy.SearchConnection(db_path)
 
 _orig_vals = {}
 def setup_test(dtobj):
@@ -143,6 +152,10 @@ def setup_test(dtobj):
     _orig_vals['path'] = sys.path
     sys.path = copy.copy(sys.path)
     sys.path.insert(0, _orig_vals['wd'])
+
+    import xappy
+    dtobj.globs['get_example_search_connection'] = get_example_search_connection
+    dtobj.globs['Query'] = xappy.Query
 
     testdir = dtobj.globs['__file__']
     sys.path.insert(0, testdir)
