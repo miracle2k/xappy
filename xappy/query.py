@@ -63,6 +63,18 @@ class Query(object):
             self.__conn = _conn
             self.__merge_params(query)
 
+    def empty(self):
+        """Test if the query is empty.
+
+        A empty query contains no terms or other sources of documents, and will
+        thus match no documents.
+
+        An empty query may be constructed by the default constructor, or by
+        composing an empty list.
+
+        """
+        return self.__query.empty()
+
     def __merge_params(self, query):
         """Merge the parameters in this query with those in another query.
 
