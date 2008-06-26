@@ -22,7 +22,6 @@ __docformat__ = "restructuredtext en"
 
 import _checkxapian
 import xapian
-import errors
 from replaylog import log
 
 class Query(object):
@@ -218,6 +217,54 @@ class Query(object):
     # Add "and_maybe" as an alternative name for "adjust", since this name is
     # familiar to people with a Xapian background.
     and_maybe = adjust
+
+    def get_max_possible_weight(self):
+        """Calculate the maximum possible weight returned by this query.
+
+        See `SearchConnection.get_max_possible_weight()` for more details.
+
+        """
+        if self.__conn is None:
+            raise ValueError("This Query is not associated with a SearchConnection")
+
+        return self.__conn.get_max_possible_weight(self)
+
+    def norm(self):
+        """Normalise the possible weights returned by a query.
+
+        This will return a new Query, which returns the same documents as this
+        query, but for which the weights will fall strictly in the range 0..1.
+
+        This is equivalent to dividing the query by the result of
+        `get_max_possible_weight()`, except that the case of the maximum
+        possible weight being 0 is handled correctly.  Note that this means
+        that it will be very rare for a resulting document to attain a weight
+        of 1.0.
+
+        """
+        max_possible = self.get_max_possible_weight()
+        if max_possible > 0:
+            return self / max_possible
+        return self
+
+    def search(self, startrank, endrank, *args, **kwargs):
+        """Perform a search using this query.
+
+        - `startrank` is the rank of the start of the range of matching
+          documents to return (ie, the result with this rank will be returned).
+          ranks start at 0, which represents the "best" matching document.
+        - `endrank` is the rank at the end of the range of matching documents
+          to return.  This is exclusive, so the result with this rank will not
+          be returned.
+
+        Additional arguments and keyword arguments may be specified.  These
+        will be interpreted as by SearchConnection.search().
+
+        """
+        if self.__conn is None:
+            raise ValueError("This Query is not associated with a SearchConnection")
+
+        return self.__conn.search(self, startrank, endrank, *args, **kwargs)
 
     def _get_xapian_query(self):
         """Get the query as a xapian object.

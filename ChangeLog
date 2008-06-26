@@ -1,3 +1,13 @@
+Thu Jun 26 06:35:18 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/query.py: Add methods to get the maximum possible weight,
+	  normalise the weight of a Query, and to perform a search, to
+	  Query().
+	* xappy/searchconnection.py: Supply self to newly constructed
+	  Query() objects so they can keep track of the connection.  Allow
+	  weight_params to be specified to get_max_possible_weight(), so
+	  that the return value is compatible with that.
+
 Wed Jun 25 21:32:30 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/query.py: Code tidyup.  Also, make queries keep track of

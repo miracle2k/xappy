@@ -879,8 +879,8 @@ class SearchConnection(object):
             raise _errors.SearchError("SearchConnection has been closed")
         return self._index.get_doccount()
 
-    OP_AND = _xapian.Query.OP_AND
-    OP_OR = _xapian.Query.OP_OR
+    OP_AND = Query.OP_AND
+    OP_OR = Query.OP_OR
     def query_composite(self, operator, queries):
         """Build a composite query from a list of queries.
 
@@ -978,13 +978,13 @@ class SearchConnection(object):
 
         if begin is None and end is None:
             # Return a "match everything" query
-            return Query(_log(_xapian.Query, ''))
+            return Query(_log(_xapian.Query, ''), _conn=self)
 
         try:
             slot = self._field_mappings.get_slot(field, 'collsort')
         except KeyError:
             # Return a "match nothing" query
-            return Query(_log(_xapian.Query))
+            return Query(_log(_xapian.Query), _conn=self)
 
         sorttype = self._get_sort_type(field)
         marshaller = SortableMarshaller(False)
@@ -996,12 +996,12 @@ class SearchConnection(object):
             end = fn(field, end)
 
         if begin is None:
-            return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_LE, slot, end))
+            return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_LE, slot, end), _conn=self)
 
         if end is None:
-            return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_GE, slot, begin))
+            return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_GE, slot, begin), _conn=self)
 
-        return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end))
+        return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end), _conn=self)
 
     def query_facet(self, field, val):
         """Create a query for a facet value.
@@ -1045,18 +1045,18 @@ class SearchConnection(object):
             try:
                 slot = self._field_mappings.get_slot(field, 'facet')
             except KeyError:
-                return Query(_log(_xapian.Query))
+                return Query(_log(_xapian.Query), _conn=self)
             # FIXME - check that sorttype == self._get_sort_type(field)
             sorttype = 'float'
             marshaller = SortableMarshaller(False)
             fn = marshaller.get_marshall_function(field, sorttype)
             begin = fn(field, val[0])
             end = fn(field, val[1])
-            return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end))
+            return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end), _conn=self)
         else:
             assert(facettype == 'string' or facettype is None)
             prefix = self._field_mappings.get_prefix(field)
-            return Query(_log(_xapian.Query, prefix + val.lower()))
+            return Query(_log(_xapian.Query, prefix + val.lower()), _conn=self)
 
 
     def _prepare_queryparser(self, allow, deny, default_op, default_allow,
@@ -1190,7 +1190,8 @@ class SearchConnection(object):
                                                self._qp_flags_base,
                                                prefix)
 
-        return Query(_log(_xapian.Query, _xapian.Query.OP_AND_MAYBE, q1, q2))
+        return Query(_log(_xapian.Query, _xapian.Query.OP_AND_MAYBE, q1, q2),
+        _conn=self)
 
     def query_parse(self, string, allow=None, deny=None, default_op=OP_AND,
                     default_allow=None, default_deny=None):
@@ -1280,7 +1281,7 @@ class SearchConnection(object):
                     chval = ord(value[0])
                     if chval >= ord('A') and chval <= ord('Z'):
                         prefix = prefix + ':'
-                return Query(_log(_xapian.Query, prefix + value))
+                return Query(_log(_xapian.Query, prefix + value), _conn=self)
             if action == FieldActions.INDEX_FREETEXT:
                 if value is None:
                     raise _errors.SearchError("Supplied value must not be None")
@@ -1301,9 +1302,9 @@ class SearchConnection(object):
                 slot = self._field_mappings.get_slot(field, 'weight')
                 postingsource = _xapian.ValueWeightPostingSource(self._index, slot)
                 return Query(_log(_xapian.Query, postingsource),
-                             _refs=[postingsource])
+                             _refs=[postingsource], _conn=self)
 
-        return Query()
+        return Query(_conn=self)
 
     def query_similar(self, ids, allow=None, deny=None, simterms=10):
         """Get a query which returns documents which are similar to others.
@@ -1336,7 +1337,7 @@ class SearchConnection(object):
         # Use the "elite set" operator, which chooses the terms with the
         # highest query weight to use.
         q = _log(_xapian.Query, _xapian.Query.OP_ELITE_SET, eterms, simterms)
-        return Query(q)
+        return Query(q, _conn=self)
 
     def significant_terms(self, ids, maxterms=10, allow=None, deny=None):
         """Get a set of "significant" terms for a document, or documents.
@@ -1468,7 +1469,7 @@ class SearchConnection(object):
         """A query which matches all the documents in the database.
 
         """
-        return Query(_log(_xapian.Query, ''))
+        return Query(_log(_xapian.Query, ''), _conn=self)
 
     def query_none(self):
         """A query which matches no documents in the database.
@@ -1476,7 +1477,7 @@ class SearchConnection(object):
         This may be useful as a placeholder in various situations.
 
         """
-        return Query()
+        return Query(_conn=self)
 
     def spell_correct(self, querystr, allow=None, deny=None, default_op=OP_AND,
                       default_allow=None, default_deny=None):
@@ -1587,7 +1588,24 @@ class SearchConnection(object):
             return False
         return self._facet_query_table[query_type][facet] == _indexerconnection.IndexerConnection.FacetQueryType_Never
 
-    def get_max_possible_weight(self, query):
+    @staticmethod
+    def __set_weight_params(enq, weight_params):
+        """Use a set of weighting parameters to modify the weight scheme.
+
+        `enq` is an Enquire object to set the weighting scheme for.
+
+        """
+        if weight_params is not None:
+            k1 = weight_params.get('k1', 1)
+            k2 = weight_params.get('k2', 0)
+            k3 = weight_params.get('k3', 1)
+            b = weight_params.get('b', 0.5)
+            min_normlen = weight_params.get('min_normlen', 0.5)
+            wt = xapian.BM25Weight(k1, k2, k3, b, min_normlen)
+            enq.set_weighting_scheme(wt)
+            enq._wt = wt # Ensure that wt isn't dereferenced too soon.
+
+    def get_max_possible_weight(self, query, weight_params=None):
         """Calculate the maximum possible weight returned by a search.
 
         This looks only at the term statistics, and not at the lists of
@@ -1610,15 +1628,26 @@ class SearchConnection(object):
         a query by multiplying them by the reciprocal of this value, to get
         them into a similar range as the fixed document scores.
 
+        `weight_params` is a dictionary (from string to number) of named
+        parameters to pass to the weighting function.  Currently, the defined
+        names are "k1", "k2", "k3", "b", "min_normlen".  Any unrecognised names
+        will be ignored.  For documentation of the parameters, see the
+        docs/weighting.rst document.
+
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
         enq = _log(_xapian.Enquire, self._index)
+
         if isinstance(query, xapian.Query):
             enq.set_query(query)
         else:
             enq.set_query(query._get_xapian_query())
         enq.set_docid_order(enq.DONT_CARE)
+
+        # Set weighting scheme
+        self.__set_weight_params(enq, weight_params)
+
         while True:
             try:
                 mset = enq.get_mset(0, 0)
@@ -1753,7 +1782,6 @@ class SearchConnection(object):
                     raise _errors.SearchError("Field %r was not indexed for tagging" % field)
             matchspies.append(tagspy)
 
-
         # add a matchspy for facet selection here.
         facetspy = None
         facetfields = []
@@ -1841,14 +1869,7 @@ class SearchConnection(object):
             enq.set_cutoff(percentcutoff, weightcutoff)
 
         # Set weighting scheme
-        if weight_params is not None:
-            k1 = weight_params.get('k1', 1)
-            k2 = weight_params.get('k2', 0)
-            k3 = weight_params.get('k3', 1)
-            b = weight_params.get('b', 0.5)
-            min_normlen = weight_params.get('min_normlen', 0.5)
-            wt = xapian.BM25Weight(k1, k2, k3, b, min_normlen)
-            enq.set_weighting_scheme(wt)
+        self.__set_weight_params(enq, weight_params)
 
         # Repeat the search until we don't get a DatabaseModifiedError
         while True:
