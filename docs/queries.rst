@@ -103,11 +103,39 @@ document::
  >>> print Query.compose(Query.OP_OR, (query, query2))
  Xapian::Query(((hello:(pos=1) AND_MAYBE hello:(pos=1)) OR (world:(pos=1) AND_MAYBE world:(pos=1))))
 
-FIXME
------
+Combining queries with binary operators
+---------------------------------------
 
-FIXME - describe the other ways of combining queries.
+Instead of using `Query.compose()`, it is often more convenient to use some
+binary operators which Query overrides.  You can use the `&` operator to
+combine two queries with an AND (similar to `Query.compose(Query.OP_AND, ...)`,
+and the `|` operator to combine two queries with an OR::
 
+ >>> print query & query2
+ Xapian::Query(((hello:(pos=1) AND_MAYBE hello:(pos=1)) AND (world:(pos=1) AND_MAYBE world:(pos=1))))
+
+Note that if you have a long list of queries to join with an `AND` or an `OR`,
+it is likely to be more efficient to combine these with `Query.compose()` than
+by repeatedly using the `&` or `|` binary operators.  (Currently,
+Query.compose() scales as O(N) where N is the number of queries, whereas
+repeatedly combining queries with binary operators scales O(N*N).  Clever use
+of the operators by combining queries in a tree-structure could bring this down
+to O(N*log(N)), but why bother?  Just use `Query.compose()` instead!)
+
+You can also use the `^` operator to combine two queries with XOR: the result
+will be a query which returns all those documents which match exactly one of
+the two sub-queries (though this is rarely useful, there may be specialised
+situations where it is helpful).
+
+Restricting a query with another query
+--------------------------------------
+
+FIXME - describe Query.and_not() and Query.filter()
+
+Adjusting the weight from one query with another query
+------------------------------------------------------
+
+FIXME - describe Query.adjust()
 
 Combining Query objects using a SearchConnection
 ------------------------------------------------
