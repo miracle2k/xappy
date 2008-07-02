@@ -74,7 +74,7 @@ else:
 # Extra arguments for setup() which we don't always want to supply.
 extra_kwargs = {}
 if using_setuptools:
-    extra_kwargs['test_suite'] = "xappy.test.make_all_suite"
+    extra_kwargs['test_suite'] = "test.make_all_suite"
 
 long_description = """
 The "xappy" python module is an easy-to-use interface to the Xapian search

@@ -205,7 +205,7 @@ def find_unittests(testdir):
     return unittests
 
 def get_topdir():
-    return canonical_path(os.path.join(os.path.dirname(__file__), '..'))
+    return canonical_path(os.path.dirname(__file__))
 
 def make_suite(modnames, other_files, use_coverage, specific_mods):
     topdir = get_topdir()
