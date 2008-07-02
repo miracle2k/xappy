@@ -1,3 +1,9 @@
+Wed Jul 02 11:53:48 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Fix for issue #21:
+	  "SearchConnection._get_prefix_from_term fails when terms contain
+	  numbers", as supplied by Shane Evans.
+
 Wed Jul 02 11:53:07 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/facet_hierarchy_1.py: Add regression test for

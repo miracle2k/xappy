@@ -1564,7 +1564,7 @@ class SearchConnection(object):
         
         """
         for p in xrange(len(term)):
-            if term[p].islower():
+            if not term[p].isupper():
                 return term[:p]
             elif term[p] == 'R':
                 return term[:p+1]
