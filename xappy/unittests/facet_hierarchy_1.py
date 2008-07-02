@@ -27,50 +27,55 @@ facets = {
 
 # Documents
 docvalues = [
-                {
-                    'category': 'instrument',
-                    'colour': 'blue',
-                    'type': 'drums',
-                    'make': 'Gretsch',
-                },
-                {
-                    'category': 'instrument',
-                    'colour': 'red',
-                    'type': 'drums',
-                    'make': 'Stagg',
-                    'offer': '2 for 1',
-                },
-                {
-                    'category': 'instrument',
-                    'colour': 'black',
-                    'type': 'accessories',
-                    'make': 'Yamaha',
-                },
-                {
-                    'category': 'instrument',
-                    'colour': 'brown',
-                    'type': 'bass guitar',
-                    'make': 'Musicman',
-                    'strings': '4',
-                },
-                {
-                    'category': 'instrument',
-                    'colour': 'green',
-                    'type': 'bass guitar',
-                    'make': 'Yamaha',
-                    'strings': '5',
-                },
-                {
-                    'category': 'animal',
-                    'colour': 'black',
-                    'species': 'Persian',
-                    'make': 'God',
-                },
-                {
-                    'category': 'animal',
-                    'colour': 'grey',
-                    'species': 'husky',
-                },
+                (
+                    ('category', 'instrument'),
+                    ('colour', 'blue'),
+                    ('type', 'drums'),
+                    ('type', '2drums'),
+                    ('make', 'Gretsch'),
+                ),
+                (
+                    ('category', 'instrument'),
+                    ('colour', 'red'),
+                    ('colour', 'red'),
+                    ('type', 'drums'),
+                    ('type', '2drums'),
+                    ('make', 'Stagg'),
+                    ('offer', '2 for 1'),
+                ),
+                (
+                    ('category', 'instrument'),
+                    ('colour', 'black'),
+                    ('type', 'accessories'),
+                    ('make', 'Yamaha'),
+                ),
+                (
+                    ('category', 'instrument'),
+                    ('colour', 'brown'),
+                    ('type', 'bass guitar'),
+                    ('type', '2bass guitar'),
+                    ('make', 'Musicman'),
+                    ('strings', '4'),
+                ),
+                (
+                    ('category', 'instrument'),
+                    ('colour', 'green'),
+                    ('type', 'bass guitar'),
+                    ('type', '2bass guitar'),
+                    ('make', 'Yamaha'),
+                    ('strings', '5'),
+                ),
+                (
+                    ('category', 'animal'),
+                    ('colour', 'black'),
+                    ('species', 'Persian'),
+                    ('make', 'God'),
+                ),
+                (
+                    ('category', 'animal'),
+                    ('colour', 'grey'),
+                    ('species', 'husky'),
+                ),
             ]
 
 class TestFacetHierarchy(TestCase):
@@ -87,7 +92,7 @@ class TestFacetHierarchy(TestCase):
                     iconn.add_subfacet(name, parent)
         for values in docvalues:
             doc = xappy.UnprocessedDocument()
-            for name, value in values.iteritems():
+            for name, value in values:
                 doc.fields.append(xappy.Field(name, value))
             iconn.add(doc)
         iconn.flush()
@@ -131,6 +136,27 @@ class TestFacetHierarchy(TestCase):
         iconn.close()
         sconn = xappy.SearchConnection(path)
         sconn.close()
+
+    def test_start_with_number(self):
+        """Regression test for bug with field contents starting with numbers.
+
+        """
+        # This search should only return the top-level colour facet, and the
+        # "strings" subfacet of "type".
+        query1 = self.sconn.query_facet('type', 'drums')
+        query2 = self.sconn.query_facet('type', 'bass guitar')
+        query = query1 | query2
+        self.assertEqual(self._get_facets(query, usesubfacets=True),
+                         set(['colour', 'strings']))
+
+        # This search should return the same, but used not to because the 2
+        # confused the prefix splitting code.
+        query1 = self.sconn.query_facet('type', '2drums')
+        query2 = self.sconn.query_facet('type', '2bass guitar')
+        query = query1 | query2
+        self.assertEqual(self._get_facets(query, usesubfacets=True),
+                         set(['colour', 'strings']))
+
 
 if __name__ == '__main__':
     main()
