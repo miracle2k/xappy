@@ -1,3 +1,7 @@
+Wed Jul 09 08:23:21 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Updated packages.
+
 Fri Jul 04 17:10:46 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/get_xapian.py,utils/make_xappy_tarballs: Point to updated
