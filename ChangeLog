@@ -1,3 +1,8 @@
+Wed Jul 09 15:12:40 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Yet another version, since the last one
+	  didn't fix autoreconf either.
+
 Wed Jul 09 14:49:35 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/get_xapian.py: And another upload, this time to fix
