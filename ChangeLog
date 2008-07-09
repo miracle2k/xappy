@@ -1,3 +1,7 @@
+Wed Jul 09 11:55:40 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: New version to fix segfault.
+
 Wed Jul 09 08:23:21 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/get_xapian.py: Updated packages.
