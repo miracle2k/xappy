@@ -37,7 +37,7 @@
 
 rev="1.0.7"
 matchspy_branchpoint="10811"
-opsynonym_branchpoint="10811"
+opsynonym_branchpoint="10855"
 clustering_branchpoint="10811"
 basedir="$HOME/private/Working/xapian/pristine/"
 xappylibdir="$HOME/xappy/libs/"
