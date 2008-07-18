@@ -236,6 +236,8 @@ class Query(object):
         See `SearchConnection.get_max_possible_weight()` for more details.
 
         """
+        if self.empty():
+            return 0
         if self.__conn is None:
             raise ValueError("This Query is not associated with a SearchConnection")
 
