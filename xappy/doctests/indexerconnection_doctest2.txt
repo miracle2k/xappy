@@ -226,7 +226,7 @@ If we generate a query for a field with no language set, it won't be stemmed:
 
 If the field is an exact text field, the query will contain a single term:
 >>> str(sconn4.query_field('category', "Clematis Test"))
-'Xapian::Query(XB:Clematis Test)'
+'Xapian::Query(0 * XB:Clematis Test)'
 
 If the field isn't known, we get an empty query:
 >>> q2 = sconn4.query_field('unknown', "clematis Test")

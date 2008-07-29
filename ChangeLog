@@ -1,3 +1,14 @@
+Tue Jul 29 23:09:16 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: For INDEX_EXACT, TAG and FACET term
+	  queries, multiply the weight by 0 to tell xapian that the weight
+	  is always zero, and allow better optimisation.
+	* xappy/doctests/indexerconnection_doctest2.txt: Update expected
+	  query to correspond to this change.
+	* xappy/doctests/searchconnection_doctest2.txt: Modify expected
+	  percentage weight to align with recent rounding fixes in xapian's
+	  percentage weight calculation routines.
+
 Fri Jul 18 12:57:56 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/query.py: If a query is empty, don't require that it has a

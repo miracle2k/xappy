@@ -1281,7 +1281,14 @@ class SearchConnection(object):
                     chval = ord(value[0])
                     if chval >= ord('A') and chval <= ord('Z'):
                         prefix = prefix + ':'
-                return Query(_log(_xapian.Query, prefix + value), _conn=self)
+                # WDF of INDEX_EXACT, TAG or FACET terms is always 0, so the
+                # weight of such terms is also always zero.  However, Xapian
+                # doesn't know this, so can't take advantage of the fact when
+                # performing its optimisations.  We multiply the weight by 0 to
+                # make Xapian know that the weight is always zero.  This means
+                # that Xapian won't bother to ask the query for weights, and
+                # can optimise in various ways.
+                return Query(_log(_xapian.Query, prefix + value), _conn=self) * 0
             if action == FieldActions.INDEX_FREETEXT:
                 if value is None:
                     raise _errors.SearchError("Supplied value must not be None")
