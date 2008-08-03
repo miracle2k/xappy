@@ -31,6 +31,52 @@ Query() object:
 document for examples of using these, and the doccomments for detailed
 usage information.
 
+Approximate Range Queries
+-------------------------
+
+Xappy has the capability to do "approximate" range queries.  In some
+circumstances these can be significatly faster than standard range queries, at
+the cost of some precision in the results (and some overhead in terms of
+indexing time and database size).
+
+In order to use this functionality a field must be specified with the SORTABLE
+or FACET field actions, be of type 'float' and also provide a 'ranges'
+parameter.  For example::
+
+ >>> iconn = get_example_indexer_connection()
+ >>> iconn.add_field_action('foo', FieldActions.SORTABLE,
+ ...                        type='float',
+ ...                        ranges=((0, 1), (1, 2), (2, 3), (3, 4), (4, 5),
+ ...                                (5, 6), (6, 7), (8, 9), (9, 10)))
+ >>> iconn.close()
+
+It is an error to specify 'ranges' when the type is not 'float'.
+
+When a value is added to such a field the indexer will add special "range
+terms" indicating the range(s) that the value falls into.  If the ranges
+overlap it may be that more than one such term is added.  If the value does not
+fall within any range then no such term will be added.  Note that these range
+terms are in addition to the data added to the database that would have been
+there in the absence of a 'ranges' parameter, so an exact range search can
+still be performed.
+
+The `query_range()` and `query_facet()` methods of SeachConnection objects
+accept an optional `approx` parameter, which defaults to False.  If this
+parameter tests true, then the resulting query will return documents for which
+the range terms falling within the limits of the search range occur.  This is
+typically much faster than doing an exact range search, but will lack
+precision.  The degree of these differences will depend on the ranges you have
+used.
+
+These methods also have a `conservative` parameter which defaults to True.  If
+this tests true, then the range terms in the query are those that fall within the
+specified begin and end points for the range query.  If it is False, then range
+terms that intersect the begin and end point are also considered.
+
+The methods also have an `accelerate` parameter which defaults to True, and is
+used only if the `approx` parameter is False. If this tests true, then the
+range terms are used in combination with a normal range search to reduce the
+number of cases in which the (slow) full range check needs to be carried out.
 
 Combining Query objects
 =======================
@@ -48,9 +94,9 @@ modified simply by multiplying or dividing the Query by a number::
  >>> conn = get_example_search_connection()
  >>> query = conn.query_parse("hello")
  >>> print query
- Xapian::Query((hello:(pos=1) AND_MAYBE hello:(pos=1)))
+ Xapian::Query((Zhello:(pos=1) AND_MAYBE hello:(pos=1)))
  >>> print query * 2
- Xapian::Query(2 * (hello:(pos=1) AND_MAYBE hello:(pos=1)))
+ Xapian::Query(2 * (Zhello:(pos=1) AND_MAYBE hello:(pos=1)))
 
 Often, the reason for modifying the weights is to combine different
 queries together.  The absolute value of weights returned by searches
@@ -101,7 +147,7 @@ document::
 
  >>> query2 = conn.query_parse("world")
  >>> print Query.compose(Query.OP_OR, (query, query2))
- Xapian::Query(((hello:(pos=1) AND_MAYBE hello:(pos=1)) OR (world:(pos=1) AND_MAYBE world:(pos=1))))
+ Xapian::Query(((Zhello:(pos=1) AND_MAYBE hello:(pos=1)) OR (Zworld:(pos=1) AND_MAYBE world:(pos=1))))
 
 Combining queries with binary operators
 ---------------------------------------
@@ -112,7 +158,7 @@ combine two queries with an AND (similar to `Query.compose(Query.OP_AND, ...)`,
 and the `|` operator to combine two queries with an OR::
 
  >>> print query & query2
- Xapian::Query(((hello:(pos=1) AND_MAYBE hello:(pos=1)) AND (world:(pos=1) AND_MAYBE world:(pos=1))))
+ Xapian::Query(((Zhello:(pos=1) AND_MAYBE hello:(pos=1)) AND (Zworld:(pos=1) AND_MAYBE world:(pos=1))))
 
 Note that if you have a long list of queries to join with an `AND` or an `OR`,
 it is likely to be more efficient to combine these with `Query.compose()` than

@@ -597,9 +597,9 @@ class SearchResults(object):
 
         If facet_hierarchy was indicated when search() was called, and the
         query included facets, then only subfacets of those query facets and
-        top-level facets will be included in the returned list. Furthermore
+        top-level facets will be included in the returned list.  Furthermore
         top-level facets will only be returned if there are remaining places
-        in the list after it has been filled with subfacets. Note that
+        in the list after it has been filled with subfacets.  Note that
         required_facets is still respected regardless of the facet hierarchy.
 
         If a query type was specified when search() was called, and the query
@@ -955,7 +955,59 @@ class SearchConnection(object):
             raise _errors.SearchError("SearchConnection has been closed")
         return primary.adjust(secondary)
 
-    def query_range(self, field, begin, end):
+    def _range_accel_query(self, field, begin, end, prefix, ranges,
+                           conservative):
+        """Construct a range acceleration query.
+        
+        Returns a query consisting of all range terms that fall within 'begin'
+        and 'end'.  If 'conservative', ranges must fall completely within
+        'begin' and 'end', otherwise they may merely overlap.
+
+        """
+        if begin is not None:
+            begin = float(begin)
+        if end is not None:
+            end = float(end)
+
+        if begin is not None and end is not None:
+            if conservative:
+                test_fn = lambda r: begin <= r[0] and r[1] <= end
+            else:
+                test_fn = lambda r: begin <= r[1] and r[0] <= end
+        elif begin is not None:
+            if conservative:
+                test_fn = (lambda r: begin <= r[0])
+            else:
+                test_fn = (lambda r: begin <= r[1])
+        elif end is not None:
+            if conservative:
+                test_fn = (lambda r: r[1] <= end)
+            else:
+                test_fn = (lambda r: r[0] <= end)
+        else:
+            return self.query_none()
+
+        valid_ranges = filter(test_fn, ranges)
+
+        queries = []
+        for r in valid_ranges:
+            term = convert_range_to_term(prefix, r[0], r[1])
+            queries.append(Query(_xapian.Query(term), _conn=self))
+        return self.query_composite(_xapian.Query.OP_OR, queries)
+
+    def _get_approx_params(self, field, action):
+        action_params = self._field_actions[field]._actions[action][0]
+        ranges = action_params.get('ranges')
+        if ranges is None:
+            return None, None
+        try:
+            range_accel_prefix = action_params['_range_accel_prefix']
+        except KeyError:
+            raise errors.SearchError("Internal xappy error, no _range_accel prefix for field: " + field)
+        return ranges, range_accel_prefix
+
+    def query_range(self, field, begin, end, approx=False,
+                    conservative=True, accelerate=True):
         """Create a query for a range search.
         
         This creates a query which matches only those documents which have a
@@ -972,10 +1024,29 @@ class SearchConnection(object):
         range.  (They may also both be set to None, which will generate a query
         which matches all documents containing any value for the field.)
 
+        If the 'approx' parameter is true then a query that uses the 'ranges'
+        for the field is returned.  The accuracy of the results returned by such
+        a query depends on the ranges supplied when the field action was
+        defined.  It is an error to set 'approx' to true if no 'ranges' were
+        specified at indexing time.
+
+        The 'conservative' parameter is used only if approx is True - if True,
+        the approximation will only return items which are within the range
+        (but may fail to return other items which are within the range).  If
+        False, the approximation will always include all items which are within
+        the range, but may also return others which are outside the range.
+
+        The 'accelerate' parameter is used only if approx is False.  If true,
+        the resulting query will be an exact range search, but will attempt to
+        use the range terms to perform the search faster.
+
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
 
+        ranges, range_accel_prefix = \
+            self._get_approx_params(field, FieldActions.SORT_AND_COLLAPSE)
+             
         if begin is None and end is None:
             # Return a "match everything" query
             return Query(_log(_xapian.Query, ''), _conn=self)
@@ -985,10 +1056,24 @@ class SearchConnection(object):
         except KeyError:
             # Return a "match nothing" query
             return Query(_log(_xapian.Query), _conn=self)
+        
+        if approx:
+            if ranges is None:
+                errors.SearchError("Cannot do approximate range search on fields with no ranges")
+            return self._range_accel_query(field, begin, end,
+                                           range_accel_prefix, ranges,
+                                           conservative) * 0
 
         sorttype = self._get_sort_type(field)
         marshaller = SortableMarshaller(False)
         fn = marshaller.get_marshall_function(field, sorttype)
+
+        if accelerate and ranges is not None:
+            accel_query = self._range_accel_query(field, begin, end,
+                                                  range_accel_prefix, ranges,
+                                                  True)
+        else:
+            accel_query = None
 
         if begin is not None:
             begin = fn(field, begin)
@@ -996,14 +1081,17 @@ class SearchConnection(object):
             end = fn(field, end)
 
         if begin is None:
-            return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_LE, slot, end), _conn=self)
+            result = Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_LE, slot, end), _conn=self)
+        elif end is None:
+            result = Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_GE, slot, begin), _conn=self)
+        else:
+            result = Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end), _conn=self)
+        if accel_query is not None:
+            result = accel_query | result
+        return result * 0
 
-        if end is None:
-            return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_GE, slot, begin), _conn=self)
-
-        return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end), _conn=self)
-
-    def query_facet(self, field, val):
+    def query_facet(self, field, val, approx=False,
+                    conservative=True, accelerate=True):
         """Create a query for a facet value.
         
         This creates a query which matches only those documents which have a
@@ -1017,6 +1105,22 @@ class SearchConnection(object):
         The start and end values are both inclusive - any documents with a
         value equal to start or end will be returned (unless end is less than
         start, in which case no documents will be returned).
+
+        If the 'approx' parameter is true then a query that uses the 'ranges'
+        for the field is returned.  The accuracy of the results returned by such
+        a query depends on the ranges supplied when the field action was
+        defined.  It is an error to set 'approx' to true if no 'ranges' were
+        specified at indexing time.
+
+        The 'conservative' parameter is used only if approx is True - if True,
+        the approximation will only return items which are within the range
+        (but may fail to return other items which are within the range).  If
+        False, the approximation will always include all items which are within
+        the range, but may also return others which are outside the range.
+
+        The 'accelerate' parameter is used only if approx is False.  If true,
+        the resulting query will be an exact range search, but will attempt to
+        use the range terms to perform the search faster.
 
         """
         if self._index is None:
@@ -1048,15 +1152,37 @@ class SearchConnection(object):
                 return Query(_log(_xapian.Query), _conn=self)
             # FIXME - check that sorttype == self._get_sort_type(field)
             sorttype = 'float'
+            ranges, range_accel_prefix = \
+                self._get_approx_params(field, FieldActions.FACET)
+            if approx:
+                if ranges is None:
+                    errors.SearchError("Cannot do approximate range search on fields with no ranges")
+                return self._range_accel_query(field, val[0], val[1],
+                                               range_accel_prefix, ranges,
+                                               conservative) * 0
+ 
+            if accelerate and ranges is not None:
+                accel_query = self._range_accel_query(field, val[0], val[1],
+                                                      range_accel_prefix,
+                                                      ranges, True)
+            else:
+                accel_query = None
+
+
             marshaller = SortableMarshaller(False)
             fn = marshaller.get_marshall_function(field, sorttype)
             begin = fn(field, val[0])
             end = fn(field, val[1])
-            return Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end), _conn=self)
+            result = Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end), _conn=self)
+
+            if accel_query is not None:
+                result = accel_query | result
+
+            return result * 0
         else:
             assert(facettype == 'string' or facettype is None)
             prefix = self._field_mappings.get_prefix(field)
-            return Query(_log(_xapian.Query, prefix + val.lower()), _conn=self)
+            return Query(_log(_xapian.Query, prefix + val.lower()), _conn=self) * 0
 
 
     def _prepare_queryparser(self, allow, deny, default_op, default_allow,
@@ -1706,8 +1832,8 @@ class SearchConnection(object):
         - `weightcutoff` is the minimum weight a result must have to be
           returned.
         - `query_type` is a value indicating the type of query being
-          performed. If not None, the value is used to influence which facets
-          are be returned by the get_suggested_facets() function. If the
+          performed.  If not None, the value is used to influence which facets
+          are be returned by the get_suggested_facets() function.  If the
           value of `getfacets` is False, it has no effect.
         - `weight_params` is a dictionary (from string to number) of named
           parameters to pass to the weighting function.  Currently, the

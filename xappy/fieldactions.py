@@ -50,12 +50,32 @@ def _act_tag(fieldname, doc, value, context):
     """
     doc.add_term(fieldname, value.lower(), 0)
 
-def _act_facet(fieldname, doc, value, context, type=None):
+def convert_range_to_term(prefix, begin, end):
+    begin = log(xapian.sortable_serialise, begin)
+    end = log(xapian.sortable_serialise, end)
+    return prefix + "%d" % len(begin) + begin + end
+
+def _add_range_terms_for_value(doc, value, ranges, prefix):
+    for (begin, end) in ranges:
+        if begin <= value <= end:
+            doc._doc.add_term(convert_range_to_term(prefix, begin, end), 0)
+
+def _range_accel_act(doc, val, ranges=None, _range_accel_prefix=None):
+    if ranges:
+        if not _range_accel_prefix:
+            raise errors.IndexerError("Internal Indexer Error ranges without _range_accel_prefix")
+        val = float(val)
+        _add_range_terms_for_value(doc, val, ranges, _range_accel_prefix)
+
+def _act_facet(fieldname, doc, value, context, type=None, ranges=None, _range_accel_prefix=None):
     """Perform the FACET action.
     
     """
     if type is None or type == 'string':
         value = value.lower()
+        # FIXME - why is the term lowercased here?  This generates different
+        # terms from INDEX_EXACT, which is probably a bug.  It needs to be
+        # lowercase to match the value stored in the value slot, though.
         doc.add_term(fieldname, value, 0)
         serialiser = log(xapian.StringListSerialiser,
                           doc.get_value(fieldname, 'facet'))
@@ -65,6 +85,8 @@ def _act_facet(fieldname, doc, value, context, type=None):
         marshaller = SortableMarshaller()
         fn = marshaller.get_marshall_function(fieldname, type)
         doc.add_value(fieldname, fn(fieldname, value), 'facet')
+        _range_accel_act(doc, value, ranges, _range_accel_prefix)
+
 
 def _act_weight(fieldname, doc, value, context, type=None):
     """Perform the WEIGHT action.
@@ -183,14 +205,15 @@ class SortableMarshaller(object):
                             (sorttype, fieldname))
 
 
-def _act_sort_and_collapse(fieldname, doc, value, context, type=None):
+def _act_sort_and_collapse(fieldname, doc, value, context, type=None, ranges=None, _range_accel_prefix=None):
     """Perform the SORTABLE action.
 
     """
     marshaller = SortableMarshaller()
     fn = marshaller.get_marshall_function(fieldname, type)
-    value = fn(fieldname, value)
-    doc.add_value(fieldname, value, 'collsort')
+    marshalled_value = fn(fieldname, value)
+    doc.add_value(fieldname, marshalled_value, 'collsort')
+    _range_accel_act(doc, value, ranges, _range_accel_prefix)
 
 class ActionContext(object):
     """The context in which an action is performed.
@@ -258,6 +281,9 @@ class FieldActions(object):
         - 'date' - sort in date order.  The values must be valid dates (either
           Python datetime.date objects, or ISO 8601 format (ie, YYYYMMDD or
           YYYY-MM-DD).
+
+      - 'ranges' is only valid if 'type' is 'float', in which case it
+        should be a list of float pairs.
 
     - `COLLAPSE`: index the content of the field such that it can be used to
       "collapse" result sets, such that only the highest result with each value
@@ -392,6 +418,20 @@ class FieldActions(object):
 
         if 'prefix' in info[3]:
             field_mappings.add_prefix(self._fieldname)
+
+        if (action in (FieldActions.SORTABLE, FieldActions.COLLAPSE, \
+                           FieldActions.SORT_AND_COLLAPSE, FieldActions.FACET)) and\
+                           kwargs.get('type') == 'float'\
+                           and 'ranges' in kwargs:
+
+            # We need something we can store, so make sure we have a
+            # list of float pairs. Errors escape back to the caller if
+            # kwargs['ranges'] isn't of an appropriate form.
+            kwargs['ranges'] = [(float(begin), float(end))
+                                for (begin, end) in kwargs['ranges']]
+            
+            kwargs['_range_accel_prefix'] = field_mappings._genPrefix()
+
         if 'slot' in info[3]:
             purposes = info[3]['slot']
             if isinstance(purposes, basestring):
@@ -435,10 +475,10 @@ class FieldActions(object):
         INDEX_EXACT: ('INDEX_EXACT', (), _act_index_exact, {'prefix': True}, ),
         INDEX_FREETEXT: ('INDEX_FREETEXT', ('weight', 'language', 'stop', 'spell', 'nopos', 'allow_field_specific', 'search_by_default', ), 
             _act_index_freetext, {'prefix': True, }, ),
-        SORTABLE: ('SORTABLE', ('type', ), None, {'slot': 'collsort',}, ),
+        SORTABLE: ('SORTABLE', ('type', 'ranges'), None, {'slot': 'collsort',}, ),
         COLLAPSE: ('COLLAPSE', (), None, {'slot': 'collsort',}, ),
         TAG: ('TAG', (), _act_tag, {'prefix': True,}, ),
-        FACET: ('FACET', ('type', ), _act_facet, {'prefix': True, 'slot': 'facet',}, ),
+        FACET: ('FACET', ('type', 'ranges'), _act_facet, {'prefix': True, 'slot': 'facet',}, ),
         WEIGHT: ('WEIGHT', (), _act_weight, {'slot': 'weight',}, ),
 
         SORT_AND_COLLAPSE: ('SORT_AND_COLLAPSE', ('type', ), _act_sort_and_collapse, {'slot': 'collsort',}, ),

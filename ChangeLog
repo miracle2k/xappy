@@ -1,3 +1,13 @@
+Sun Aug 03 11:57:37 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fieldactions.py,xappy/searchconnection.py,
+	  xappy/unittests/range_accel.py: Add "range acceleration" terms,
+	  to allow approximate ranges to be stored in documents.  This
+	  allows fast, but approximate, range searches to be performed, and
+	  also allows such a search to be combined with an exact range
+	  search to speed up the range search.
+	* docs/queries.rst: Document the approximate range queries.
+
 Sun Aug 03 11:26:32 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* test.py: Add some more useful facilities to the environment that
