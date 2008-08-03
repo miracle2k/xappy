@@ -77,6 +77,7 @@ The methods also have an `accelerate` parameter which defaults to True, and is
 used only if the `approx` parameter is False. If this tests true, then the
 range terms are used in combination with a normal range search to reduce the
 number of cases in which the (slow) full range check needs to be carried out.
+This allows an exact range search to be performed more quickly.
 
 Combining Query objects
 =======================

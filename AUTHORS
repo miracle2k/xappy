@@ -2,8 +2,8 @@ Authors
 =======
 
 The Xappy module and accompanying documentation and testsuite (excluding
-coverage.py) is Copyright (C) 2007 Lemur Consulting Ltd.  It is released under
-the GPL license; see the file COPYING_GPL in this directory for details.
+coverage.py) is Copyright (C) 2007-2008 Lemur Consulting Ltd.  It is released
+under the GPL license; see the file COPYING_GPL in this directory for details.
 
 Major code and design
 ---------------------
@@ -11,6 +11,7 @@ Major code and design
 Richard Boulton (lead developer)
 Tom Mortimer (highlighting and summarisation)
 Tom Winch (facet heirarchy)
+Paul Rudin (range acceleration terms)
 
 
 Thanks are due to MyDeco (http://mydeco.com/) who have supported much of the

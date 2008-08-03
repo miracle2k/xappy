@@ -1,3 +1,9 @@
+Sun Aug 03 12:10:42 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* AUTHORS: Update copyright date, and mention Paul Rudin.
+	* docs/queries.rst: Make clear that approximate range terms can be
+	  used to speed up exact range searches.
+
 Sun Aug 03 11:57:37 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/fieldactions.py,xappy/searchconnection.py,
