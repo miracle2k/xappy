@@ -1,3 +1,10 @@
+Sun Aug 03 20:39:26 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/range_speed.py: Add another test case - this
+	  checks that some searches which should return the same values do
+	  so.  More usefully, parts can be commented out to display the
+	  speed of the various kinds of range searches.
+
 Sun Aug 03 20:38:54 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/range_accel.py: Some formatting fixes.
