@@ -14,7 +14,7 @@ class RangeAccelIndexTest(TestCase):
         """Test that the ranges parameter is accepted for a SORTABLE field.
 
         """
-        self.iconn.add_field_action('foo', xappy.FieldActions.SORTABLE, type='float', ranges=[(0,1), (1,2)])
+        self.iconn.add_field_action('foo', xappy.FieldActions.SORTABLE, type='float', ranges=[(0, 1), (1, 2)])
 
     def test_add_ranges_for_facet(self):
         """Test that the ranges parameter is accepted for a FACET field.
@@ -65,9 +65,9 @@ class RangeAccelSearchTest(TestCase):
         self.dbpath = os.path.join(self.tempdir, 'db')
         self.iconn = xappy.IndexerConnection(self.dbpath)
         self.iconn.add_field_action('foo', xappy.FieldActions.SORTABLE, type='float',
-                                    ranges=[(x, x+1) for x in xrange(10)])
+                                    ranges=[(x, x + 1) for x in xrange(10)])
         self.iconn.add_field_action('bar', xappy.FieldActions.FACET, type='float',
-                                    ranges=[(x, x+1) for x in xrange(10)])
+                                    ranges=[(x, x + 1) for x in xrange(10)])
         for val in xrange(10):
             doc = xappy.UnprocessedDocument()
             sval = val + 0.5
