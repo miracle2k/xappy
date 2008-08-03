@@ -137,8 +137,17 @@ def get_example_search_connection():
     db_path = os.path.abspath('exampledb')
     iconn = xappy.IndexerConnection(db_path)
     iconn.add_field_action('text', xappy.FieldActions.INDEX_FREETEXT, spell=True, stop=("a be not or to"), weight=2, language="en")
+    iconn.flush()
 
     return xappy.SearchConnection(db_path)
+
+def get_example_indexer_connection():
+    import os, xappy
+    db_path = os.path.abspath('exampledb')
+    iconn = xappy.IndexerConnection(db_path)
+    iconn.add_field_action('text', xappy.FieldActions.INDEX_FREETEXT, spell=True, stop=("a be not or to"), weight=2, language="en")
+    return iconn
+
 
 _orig_vals = {}
 def setup_test(dtobj):
@@ -155,7 +164,9 @@ def setup_test(dtobj):
 
     import xappy
     dtobj.globs['get_example_search_connection'] = get_example_search_connection
+    dtobj.globs['get_example_indexer_connection'] = get_example_indexer_connection
     dtobj.globs['Query'] = xappy.Query
+    dtobj.globs['FieldActions'] = xappy.FieldActions
 
     testdir = dtobj.globs['__file__']
     sys.path.insert(0, testdir)
