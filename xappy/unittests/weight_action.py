@@ -66,7 +66,11 @@ class TestWeightAction(TestCase):
         self.assertEqual([int(i.id) for i in r], [4, 0, 3, 2, 1])
 
     def test_regression(self):
-        """This test is an attempt to reproduce a segfault.
+        """Check that weight queries keep a reference to the source postlist.
+
+        When weight queries were first introduced, the source postlist could
+        sometimes be dropped before it should have been, resulting in a
+        segfault.  This test checks that this doesn't happen.
 
         """
         adj = self.build_regression_query()
