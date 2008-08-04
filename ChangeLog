@@ -1,3 +1,8 @@
+Mon Aug 04 17:19:41 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/range_speed.py: Convert to use range search
+	  instead of facet ranges, to work with xapian SVN trunk.
+
 Mon Aug 04 07:29:01 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/doctests/searchconnection_doctest1.txt,

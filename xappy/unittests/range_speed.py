@@ -10,9 +10,9 @@ class RangeTest(TestCase):
     def pre_test(self, *args):
         self.dbpath = os.path.join(self.tempdir, 'db')
         iconn = xappy.IndexerConnection(self.dbpath)
-        iconn.add_field_action('price', xappy.FieldActions.FACET, type='float')
+        iconn.add_field_action('price', xappy.FieldActions.SORTABLE, type='float')
         iconn.add_field_action('price_text', xappy.FieldActions.INDEX_EXACT)
-        iconn.add_field_action('price_ranges', xappy.FieldActions.FACET, type='float',
+        iconn.add_field_action('price_ranges', xappy.FieldActions.SORTABLE, type='float',
                                ranges=[(x * 10, (x + 1) * 10) for x in xrange(10)])
 
         # Set the random seed, so that test runs are repeatable.
@@ -44,65 +44,67 @@ class RangeTest(TestCase):
 
         # These queries should both return all the documents with the target
         # price.
-        facet_q = self.sconn.query_facet('price',
-            (self.target_price - 0.5, self.target_price + 0.5))
+        range_q = self.sconn.query_range('price',
+            self.target_price - 0.5, self.target_price + 0.5)
         text_q = self.sconn.query_field('price_text', conv(self.target_price))
-        accel_facet_q = self.sconn.query_facet('price_ranges',
-            (self.target_price - 0.5, self.target_price + 0.5))
+        accel_range_q = self.sconn.query_range('price_ranges',
+            self.target_price - 0.5, self.target_price + 0.5)
 
-        facet_rangeq = self.sconn.query_facet('price',
-            (self.range_bottom, self.range_top))
+        range_rangeq = self.sconn.query_range('price',
+            self.range_bottom, self.range_top)
 
         text_rangeq = self.sconn.query_composite(self.sconn.OP_OR,
             (self.sconn.query_field('price_text', conv(x))
              for x in xrange(self.range_bottom, self.range_top + 1)))
 
-        accel_facet_rangeq = self.sconn.query_facet('price_ranges',
-            (self.range_bottom, self.range_top))
-        approx_facet_rangeq = self.sconn.query_facet('price_ranges',
-            (self.range_bottom, self.range_top), approx=True)
+        accel_range_rangeq = self.sconn.query_range('price_ranges',
+            self.range_bottom, self.range_top)
+        approx_range_rangeq = self.sconn.query_range('price_ranges',
+            self.range_bottom, self.range_top, approx=True)
 
-        t1, r1 = self.search_repeater(facet_q)
+        t1, r1 = self.search_repeater(range_q)
         t2, r2 = self.search_repeater(text_q)
-        t3, r3 = self.search_repeater(accel_facet_q)
-        self.check_equal_results(r1, r2)
-        self.check_equal_results(r1, r3)
+        t3, r3 = self.search_repeater(accel_range_q)
+        self.check_equal_results(r1, r2, "range_q", "text_q")
+        self.check_equal_results(r1, r3, "range_q", "accel_range_q")
 
-        t4, r4 = self.search_repeater(facet_rangeq)
+        t4, r4 = self.search_repeater(range_rangeq)
         t5, r5 = self.search_repeater(text_rangeq)
-        t6, r6 = self.search_repeater(accel_facet_rangeq)
-        t7, r7 = self.search_repeater(approx_facet_rangeq)
-        self.check_equal_results(r4, r5)
-        self.check_equal_results(r4, r6)
-        self.check_equal_results(r4, r7)
+        t6, r6 = self.search_repeater(accel_range_rangeq)
+        t7, r7 = self.search_repeater(approx_range_rangeq)
+        self.check_equal_results(r4, r5, "range_rangeq", "text_q")
+        self.check_equal_results(r4, r6, "range_rangeq", "accel_range_q")
+        self.check_equal_results(r4, r7, "range_rangeq", "approx_range_q")
 
         return
-        print "facet:", t1 #, facet_q
-        print "text:", t2 #, text_q
-        print "accel_facet:", t3 #, accel_facet_q
+        print "range:", t1, range_q
+        print "text:", t2, text_q
+        print "accel_range:", t3, accel_range_q
 
-        print "facet_range:", t4 #, facet_rangeq
-        print "text_range:", t5 #, text_rangeq
-        print "accel_facet_range:", t6 #, accel_facet_rangeq
-        print "approx_facet_range:", t7 #, approx_facet_rangeq
+        print "range_range:", t4, range_rangeq
+        print "text_range:", t5, text_rangeq
+        print "accel_range_range:", t6, accel_range_rangeq
+        print "approx_range_range:", t7, approx_range_rangeq
 
-    def check_equal_results(self, r1, r2):
+    def check_equal_results(self, r1, r2, name1, name2):
         r1_ids = set((x.id for x in r1))
         r2_ids = set((x.id for x in r2))
-        self.display_differences(r1_ids, r2_ids)
+        self.display_differences(r1_ids, r2_ids, name1, name2)
         self.assertEqual(r1_ids, r2_ids)
 
-    def display_differences(self, ids1, ids2):
+    def display_differences(self, ids1, ids2, name1, name2):
         ids1_unique = ids1 - ids2
-        if ids1_unique:
-            print "ids only in ids1: ", ids1_unique
         ids2_unique = ids2 - ids1
+        if ids1_unique or ids2_unique:
+            print "results for %s and %s differ" % (name1, name2)
+        if ids1_unique:
+            print "ids only in %s: " % name1, ids1_unique
         if ids2_unique:
-            print "ids only in ids2: ", ids2_unique
+            print "ids only in %s: " % name2, ids2_unique
 
         for i in ids1 ^ ids2:
             d = self.sconn.get_document(i)
-            print "value: ", xapian.sortable_unserialise(d.get_value('price', 'facet'))
+            print "value: ", xapian.sortable_unserialise(d.get_value('price', 'collsort'))
             print "termlist: ", map (lambda t: t.term, d._doc.termlist())
 
     def search_repeater(self, query):
