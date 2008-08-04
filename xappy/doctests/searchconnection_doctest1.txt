@@ -42,7 +42,7 @@ KeyError: "Unique ID '1000' not found"
 
 If we open a search connection for a database which doesn't exist, we get an
 exception:
->>> sconn = SearchConnection('notpresent')
+>>> sconn = SearchConnection('notpresent') #doctest: +IGNORE_EXCEPTION_DETAIL
 Traceback (most recent call last):
 ...
 DatabaseOpeningError: Couldn't detect type of database
