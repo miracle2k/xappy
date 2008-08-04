@@ -36,9 +36,9 @@
 #  $xappylibdir: a checkout of xappy/trunk.
 
 rev="1.0.7"
-matchspy_branchpoint="10811"
-opsynonym_branchpoint="10855"
-clustering_branchpoint="10811"
+matchspy_branchpoint="11056"
+opsynonym_branchpoint="11056"
+clustering_branchpoint="11056"
 basedir="$HOME/private/Working/xapian/pristine/"
 xappylibdir="$HOME/xappy/libs/"
 
@@ -130,10 +130,12 @@ diff -Nur --ignore-matching-lines='\$Author' \
   >$basedir/head_changes_since_clustering_branch.patch && true
 
 # Apply the patches to HEAD
-echo "Applying patches"
 cd $basedir/head/trunk_export
+echo "Applying patches from matchspy branch"
 patch -p2 < $basedir/matchspy_changes.patch
+echo "Applying patches from opsynonym branch"
 patch -p2 < $basedir/opsynonym_changes.patch
+echo "Applying patches from clustering branch"
 patch -p2 < $basedir/clustering_changes.patch
 
 # Make tarballs

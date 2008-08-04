@@ -1,3 +1,7 @@
+Mon Aug 04 06:34:56 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update with latest branchpoints.
+
 Sun Aug 03 20:39:26 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/range_speed.py: Add another test case - this
