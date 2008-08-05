@@ -19,11 +19,10 @@ class RangeTest(TestCase):
         random.seed(42)
 
         self.doccount = 100000
-        self.repeats = 100
-        self.results = 10000
-
-        self.doccount = 1000
+        self.results = 1000
         self.repeats = 10
+
+        self.doccount = 100
 
         # make documents with random price and add the price as text as well
         for _ in xrange(self.doccount):
@@ -50,8 +49,8 @@ class RangeTest(TestCase):
         accel_range_q = self.sconn.query_range('price_ranges',
             self.target_price - 0.5, self.target_price + 0.5)
 
-        range_rangeq = self.sconn.query_range('price',
-            self.range_bottom, self.range_top)
+        range_rangeq = self.sconn.query_range('price_ranges',
+            self.range_bottom, self.range_top, accelerate=False)
 
         text_rangeq = self.sconn.query_composite(self.sconn.OP_OR,
             (self.sconn.query_field('price_text', conv(x))
@@ -77,13 +76,13 @@ class RangeTest(TestCase):
         self.check_equal_results(r4, r7, "range_rangeq", "approx_range_q")
 
         return
-        print "range:", t1, range_q
-        print "text:", t2, text_q
-        print "accel_range:", t3, accel_range_q
+        print "range:             ", t1, range_q
+        print "text:              ", t2, text_q
+        print "accel_range:       ", t3, accel_range_q
 
-        print "range_range:", t4, range_rangeq
-        print "text_range:", t5, text_rangeq
-        print "accel_range_range:", t6, accel_range_rangeq
+        print "text_range:        ", t5, text_rangeq
+        print "range_range:       ", t4, range_rangeq
+        print "accel_range_range: ", t6, accel_range_rangeq
         print "approx_range_range:", t7, approx_range_rangeq
 
     def check_equal_results(self, r1, r2, name1, name2):
