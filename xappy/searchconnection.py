@@ -32,7 +32,8 @@ from fieldactions import ActionContext, FieldActions, \
 import fieldmappings as _fieldmappings
 import highlight as _highlight 
 import errors as _errors
-import indexerconnection as _indexerconnection
+from indexerconnection import IndexerConnection, PrefixedTermIter, \
+         SynonymIter, _allocate_id
 import re as _re
 from replaylog import log as _log
 from query import Query
@@ -639,7 +640,7 @@ class SearchResults(object):
             # Note, tuple[-2] is the value of 'field' in a scores tuple
             scores = [(tuple[-2] not in self._facethierarchy,) + tuple for tuple in scores]
         if self._facetassocs:
-            preferred = _indexerconnection.IndexerConnection.FacetQueryType_Preferred
+            preferred = IndexerConnection.FacetQueryType_Preferred
             scores = [(self._facetassocs.get(tuple[-2]) != preferred,) + tuple for tuple in scores]
         scores.sort()
         if self._facethierarchy:
@@ -1612,7 +1613,7 @@ class SearchConnection(object):
                 # document passed to us, then allocate an unused docid to go in
                 # the temporary database.
                 orig_docid = doc.id
-                doc.id = next_docid
+                doc.id, next_docid = _allocate_id(self._index, next_docid)
                 next_docid += 1
                 doc.prepare()
                 tempdb.add_document(doc)
@@ -1861,7 +1862,7 @@ class SearchConnection(object):
             return False
         if facet not in self._facet_query_table[query_type]:
             return False
-        return self._facet_query_table[query_type][facet] == _indexerconnection.IndexerConnection.FacetQueryType_Never
+        return self._facet_query_table[query_type][facet] == IndexerConnection.FacetQueryType_Never
 
     @staticmethod
     def __set_weight_params(enq, weight_params):
@@ -2181,7 +2182,7 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
-        return _indexerconnection.PrefixedTermIter('Q', self._index.allterms())
+        return PrefixedTermIter('Q', self._index.allterms())
 
     def get_document(self, id):
         """Get the document with the specified unique ID.
@@ -2230,7 +2231,7 @@ class SearchConnection(object):
         These return values are suitable for the dict() builtin, so you can
         write things like:
 
-         >>> conn = _indexerconnection.IndexerConnection('foo')
+         >>> conn = IndexerConnection('foo')
          >>> conn.add_synonym('foo', 'bar')
          >>> conn.add_synonym('foo bar', 'baz')
          >>> conn.add_synonym('foo bar', 'foo baz')
@@ -2242,7 +2243,7 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
-        return _indexerconnection.SynonymIter(self._index, self._field_mappings, prefix)
+        return SynonymIter(self._index, self._field_mappings, prefix)
 
     def get_metadata(self, key):
         """Get an item of metadata stored in the connection.

@@ -31,6 +31,22 @@ import fieldmappings
 import memutils
 from replaylog import log
 
+def _allocate_id(index, next_docid):
+    """Allocate a new ID.
+
+    `index` is the index to check for conflicts.
+    `next_docid` is the next docid to allocate, unless there's a conflict.
+
+    Returns a tuple of (idstring, new_value_for_next_docid).
+
+    """
+    while True:
+        idstr = "%x" % next_docid
+        next_docid += 1
+        if not index.term_exists('Q' + idstr):
+            break
+    return idstr, next_docid
+
 class IndexerConnection(object):
     """A connection to the search engine for indexing.
 
@@ -179,18 +195,6 @@ class IndexerConnection(object):
 
         self._config_modified = False
 
-    def _allocate_id(self):
-        """Allocate a new ID.
-
-        """
-        while True:
-            idstr = "%x" % self._next_docid
-            self._next_docid += 1
-            if not self._index.term_exists('Q' + idstr):
-                break
-        self._config_modified = True
-        return idstr
-
     def add_field_action(self, fieldname, fieldtype, **kwargs):
         """Add an action to be performed on a field.
 
@@ -305,7 +309,9 @@ class IndexerConnection(object):
         # Ensure that we have a id
         orig_id = document.id
         if orig_id is None:
-            id = self._allocate_id()
+            id, self._next_docid = _allocate_id(self._index,
+                                                self._next_docid)
+            self._config_modified = True
             document.id = id
         else:
             id = orig_id

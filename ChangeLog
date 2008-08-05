@@ -1,3 +1,10 @@
+Tue Aug 05 08:08:12 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py,xappy/searchconnection.py: Convert
+	  the IndexerConnection._allocate_id() method into a function, so
+	  that SearchConnection can use it too.  Use it in SearchConnection
+	  to allocate IDs in the temporary database correctly.
+
 Tue Aug 05 08:02:19 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/searchconn_process.py: Add comment explaining
