@@ -1109,6 +1109,12 @@ class SearchConnection(object):
         if approx:
             if ranges is None:
                 errors.SearchError("Cannot do approximate range search on fields with no ranges")
+
+            # Note:  The constituent terms of the _range_accel_query() result
+            # always have wdf equal to 0.  However, Xapian doesn't know this,
+            # so we multiply the result of this query by 0, to let Xapian know
+            # that it never returns a weight other than 0.  This allows Xapian
+            # to apply boolean-specific optimisations.
             return self._range_accel_query(field, begin, end,
                                            range_accel_prefix, ranges,
                                            conservative) * 0
@@ -1137,6 +1143,7 @@ class SearchConnection(object):
             result = Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end), _conn=self)
         if accel_query is not None:
             result = accel_query | result
+        # As before - multiply result weights by 0 to help Xapian optimise.
         return result * 0
 
     def query_facet(self, field, val, approx=False,

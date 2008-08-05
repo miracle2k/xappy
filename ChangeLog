@@ -1,3 +1,8 @@
+Tue Aug 05 14:21:03 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Explain why we multiply the range
+	  accel searches by 0.
+
 Tue Aug 05 11:11:39 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py,xappy/unittests/similar.py: Add test
