@@ -114,7 +114,7 @@ def _act_index_freetext(fieldname, doc, value, context, weight=1,
             stopper.add (term)
         termgen.set_stopper (stopper)
 
-    if spell:
+    if spell and not context.readonly:
         termgen.set_database(context.index)
         termgen.set_flags(termgen.FLAG_SPELLING)
     
@@ -221,11 +221,16 @@ class ActionContext(object):
     This is just used to pass term generators, word positions, and the like
     around.
 
+    `index` is the index which documents are being added to.
+    `readonly` is True if the index is read-only (used by the
+    SearchConnection.process() method).
+
     """
-    def __init__(self, index):
+    def __init__(self, index, readonly=False):
         self.current_language = None
         self.current_position = 0
         self.index = index
+        self.readonly = readonly
 
 class FieldActions(object):
     """An object describing the actions to be performed on a field.

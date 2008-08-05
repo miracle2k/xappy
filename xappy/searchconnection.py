@@ -27,7 +27,8 @@ import math
 
 import xapian as _xapian
 from datastructures import *
-from fieldactions import *
+from fieldactions import ActionContext, FieldActions, \
+         SortableMarshaller, convert_range_to_term
 import fieldmappings as _fieldmappings
 import highlight as _highlight 
 import errors as _errors
@@ -714,6 +715,23 @@ class SearchResults(object):
         results = [(field, newvalues) for (score, field, newvalues) in results]
         return results
 
+class ExternalWeightSource(object):
+    """A source of extra weight information for searches.
+
+    """
+    def get_maxweight(self):
+        """Get the maximum weight that the weight source can return.
+
+        """
+        return NotImplementedError("Subclasses should implement this method")
+
+    def get_weight(self, doc):
+        """Get the weight associated with a given document.
+
+        `doc` is a ProcessedDocument object.
+
+        """
+        return NotImplementedError("Subclasses should implement this method")
 
 class SearchConnection(object):
     """A connection to the search engine for searching.
@@ -867,6 +885,36 @@ class SearchConnection(object):
             except Exception, e:
                 import sys, traceback
                 print >>sys.stderr, "WARNING: unhandled exception in handler called by SearchConnection.close(): %s" % traceback.format_exception_only(type(e), e)
+
+    def process(self, document):
+        """Process an UnprocessedDocument with the settings in this database.
+
+        The resulting ProcessedDocument is returned.
+
+        Note that this processing will be automatically performed if an
+        UnprocessedDocument is supplied to the add() or replace() methods of
+        IndexerConnection.  This method is exposed to allow the processing to
+        be performed separately, which may be desirable if you wish to manually
+        modify the processed document before adding it to the database, or if
+        you want to split processing of documents from adding documents to the
+        database for performance reasons.
+
+        """
+        if self._index is None:
+            raise errors.SearchError("SearchConnection has been closed")
+        result = ProcessedDocument(self._field_mappings)
+        result.id = document.id
+        context = ActionContext(self._index, readonly=True)
+
+        for field in document.fields:
+            try:
+                actions = self._field_actions[field.name]
+            except KeyError:
+                # If no actions are defined, just ignore the field.
+                continue
+            actions.perform(result, field.value, context)
+
+        return result
 
     def get_doccount(self):
         """Count the number of documents in the database.
@@ -1597,6 +1645,66 @@ class SearchConnection(object):
         expanddecider = _log(self.ExpandDecider, prefixes)
         eset = enq.get_eset(simterms, rset, 0, 1.0, expanddecider)
         return [term.term for term in eset]
+
+    def query_external_weight(self, source):
+        """A query which uses an external source of weighting information.
+
+        The external source should be an instance of ExternalWeightSource.
+
+        Note that this type of query will be fairly slow - it involves a
+        callback to Python for every document considered, and also a lookup of
+        the document ID for each of these documents.  Usually, the weights
+        should simply be stored in the database, in a "weight" field.  However,
+        this method can be useful for small databases where the slowness
+        doesn't matter too much, or for experimenting with new weight schemes
+        offline before indexing them.
+
+        """
+        class ExternalWeightPostingSource(_xapian.PostingSource):
+            """A xapian posting source reading from an ExternalWeightSource.
+
+            """
+            def __init__(self, conn, wtsource):
+                xapian.PostingSource.__init__(self)
+                self.conn = conn
+                self.wtsource = wtsource
+
+            def reset(self):
+                self.alldocs = self.conn._index.postlist('')
+
+            def get_termfreq_min(self): return 0
+            def get_termfreq_est(self): return self.conn._index.get_doccount()
+            def get_termfreq_max(self): return self.conn._index.get_doccount()
+
+            def next(self, minweight):
+                try:
+                    self.current = self.alldocs.next()
+                except StopIteration:
+                    self.current = None
+
+            def skip_to(self, docid, minweight):
+                try:
+                    self.current = self.alldocs.skip_to(docid)
+                except StopIteration:
+                    self.current = None
+
+            def at_end(self):
+                return self.current is None
+
+            def get_docid(self):
+                return self.current.docid
+
+            def get_maxweight(self):
+                return self.wtsource.get_maxweight()
+
+            def get_weight(self):
+                xapdoc = self.conn._index.get_document(self.current.docid)
+                doc = ProcessedDocument(self.conn._field_mappings, xapdoc)
+                return self.wtsource.get_weight(doc)
+
+        postingsource = ExternalWeightPostingSource(self, source)
+        return Query(_log(_xapian.Query, postingsource),
+                     _refs=[postingsource], _conn=self)
 
     def query_all(self):
         """A query which matches all the documents in the database.
