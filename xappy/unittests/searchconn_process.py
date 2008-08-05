@@ -30,6 +30,9 @@ class TestSearchConnProcess(TestCase):
         self.sconn.close()
 
     def test_search_conn_process(self):
+        """Check that the SearchConnection.process() method works.
+
+        """
         doc = xappy.UnprocessedDocument()
         doc.fields.append(xappy.Field('name', 'bruno is a nice guy'))
         doc.fields.append(xappy.Field('weight', '17'))
