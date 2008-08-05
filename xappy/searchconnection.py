@@ -1609,16 +1609,19 @@ class SearchConnection(object):
             if isinstance(doc, ProcessedDocument):
                 if tempdb is None:
                     tempdb = xapian.inmemory_open()
-                # Store the docid, so that we don't alter the processed
-                # document passed to us, then allocate an unused docid to go in
+                # Store the docid (so that we don't alter the processed
+                # document passed to us) then allocate an unused docid to go in
                 # the temporary database.
                 orig_docid = doc.id
-                doc.id, next_docid = _allocate_id(self._index, next_docid)
-                next_docid += 1
+                temp_docid, next_docid = _allocate_id(self._index, next_docid)
+                doc.id = temp_docid
+
+                # Add the document to the temporary database, and then reset
+                # its docid.
                 doc.prepare()
-                tempdb.add_document(doc)
+                tempdb.add_document(doc._doc)
                 doc.id = orig_docid
-                newids.append(doc)
+                newids.append(temp_docid)
             else:
                 newids.append(doc)
         ids = newids
@@ -1678,7 +1681,13 @@ class SearchConnection(object):
                 pass
 
         expanddecider = _log(self.ExpandDecider, prefixes)
-        eset = enq.get_eset(simterms, rset, 0, 1.0, expanddecider)
+        # The USE_EXACT_TERMFREQ gets the term frequencies from the combined
+        # database, not from the database which the relevant document is found
+        # in.  This has a performance penalty, but this should be minimal in
+        # our case, where we only have at most two databases, one of which is
+        # an inmemory database.
+        eset = enq.get_eset(simterms, rset, xapian.Enquire.USE_EXACT_TERMFREQ,
+                            1.0, expanddecider)
         return [term.term for term in eset]
 
     def query_external_weight(self, source):
