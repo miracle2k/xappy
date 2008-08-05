@@ -1,3 +1,9 @@
+Tue Aug 05 07:37:49 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Support ProcessedDocument or
+	  UnprocessedDocument objects in the list of ids for
+	  query_similar().  As yet untested and undocumented.
+
 Tue Aug 05 06:22:51 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/__init__.py,xappy/fieldactions.py,xappy/searchconnection.py,

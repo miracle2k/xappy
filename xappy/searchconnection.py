@@ -1573,7 +1573,7 @@ class SearchConnection(object):
         if allow is not None and deny is not None:
             raise _errors.SearchError("Cannot specify both `allow` and `deny`")
 
-        if isinstance(ids, basestring):
+        if isinstance(ids, (basestring, ProcessedDocument, UnprocessedDocument)):
             ids = (ids, )
         if isinstance(allow, basestring):
             allow = (allow, )
@@ -1597,10 +1597,35 @@ class SearchConnection(object):
                 if action == FieldActions.INDEX_FREETEXT:
                     prefixes[self._field_mappings.get_prefix(field)] = field
 
+        # Handle any documents in the list of ids, by indexing them to a
+        # temporary inmemory database, and using the generated id instead.
+        tempdb = None
+        next_docid = self._next_docid
+        newids = []
+        for doc in ids:
+            if isinstance(doc, UnprocessedDocument):
+                doc = self.process(doc)
+            if isinstance(doc, ProcessedDocument):
+                if tempdb is None:
+                    tempdb = xapian.inmemory_open()
+                # Store the docid, so that we don't alter the processed
+                # document passed to us, then allocate an unused docid to go in
+                # the temporary database.
+                orig_docid = doc.id
+                doc.id = next_docid
+                next_docid += 1
+                doc.prepare()
+                tempdb.add_document(doc)
+                doc.id = orig_docid
+                newids.append(doc)
+            else:
+                newids.append(doc)
+        ids = newids
+
         # Repeat the expand until we don't get a DatabaseModifiedError
         while True:
             try:
-                eterms = self._perform_expand(ids, prefixes, simterms)
+                eterms = self._perform_expand(ids, prefixes, simterms, tempdb)
                 break;
             except _xapian.DatabaseModifiedError, e:
                 self.reopen()
@@ -1621,7 +1646,7 @@ class SearchConnection(object):
                 return True
             return False
 
-    def _perform_expand(self, ids, prefixes, simterms):
+    def _perform_expand(self, ids, prefixes, simterms, tempdb):
         """Perform an expand operation to get the terms for a similarity
         search, given a set of ids (and a set of prefixes to restrict the
         similarity operation to).
@@ -1631,11 +1656,20 @@ class SearchConnection(object):
         # "ids".
         idquery = _log(_xapian.Query, _xapian.Query.OP_OR, ['Q' + id for id in ids])
 
-        enq = _log(_xapian.Enquire, self._index)
+        if tempdb is not None:
+            combined_db = xapian.Database()
+            combined_db.add_database(self._index)
+            combined_db.add_database(tempdb)
+        else:
+            combined_db = self._index
+        enq = _log(_xapian.Enquire, combined_db)
         enq.set_query(idquery)
         rset = _log(_xapian.RSet)
         for id in ids:
-            pl = self._index.postlist('Q' + id)
+            # Note: might be more efficient to make a single postlist and
+            # use skip_to() on it.  Note that this will require "ids" to be in
+            # (binary, lexicographical) sorted order, though.
+            pl = combined_db.postlist('Q' + id)
             try:
                 xapid = pl.next()
                 rset.add_document(xapid.docid)
