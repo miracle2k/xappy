@@ -33,7 +33,7 @@ import fieldmappings as _fieldmappings
 import highlight as _highlight 
 import errors as _errors
 from indexerconnection import IndexerConnection, PrefixedTermIter, \
-         SynonymIter, _allocate_id
+         DocumentIter, SynonymIter, _allocate_id
 import re as _re
 from replaylog import log as _log
 from query import Query
@@ -2199,6 +2199,23 @@ class SearchConnection(object):
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
         return PrefixedTermIter('Q', self._index.allterms())
+
+    def iter_documents(self):
+        """Get an iterator which returns all the documents in the database.
+
+        The documents will often be returned in the order in which they were
+        added, but this should not be relied on.
+
+        Note that the iterator returned by this method may raise a
+        xapian.DatabaseModifiedError exception if modifications are committed
+        to the database while the iteration is in progress.  If this happens,
+        the search connection must be reopened (by calling reopen) and the
+        iteration restarted.
+
+        """
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
+        return DocumentIter(self, self._index.postlist(''))
 
     def get_document(self, id):
         """Get the document with the specified unique ID.

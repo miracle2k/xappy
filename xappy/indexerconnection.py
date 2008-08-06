@@ -796,6 +796,32 @@ class PrefixedTermIter(object):
             raise StopIteration
         return term[self._prefixlen:]
 
+class DocumentIter(object):
+    """Iterate through all the documents returned by a postlist.
+
+    """
+    def __init__(self, connection, postingiter):
+        """Initialise the prefixed term iterator.
+
+        - `connection` is the connection being iterated.
+        - `postingiter` is a xapian PostingIterator, which should be at its start.
+
+        """
+
+        self._connection = connection
+        self._postingiter = postingiter
+
+    def __iter__(self):
+        return self
+
+    def next(self):
+        """Get the next document.
+
+        """
+        posting = self._postingiter.next()
+        result = ProcessedDocument(self._connection._field_mappings)
+        result._doc = self._connection._index.get_document(posting.docid)
+        return result
 
 class SynonymIter(object):
     """Iterate through a list of synonyms.
