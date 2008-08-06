@@ -184,6 +184,11 @@ Adjusting the weight from one query with another query
 
 FIXME - describe Query.adjust()
 
+Adjusting the weight from one query with external information
+-------------------------------------------------------------
+
+FIXME - describe SearchConnection.query_external_weight()
+
 Combining Query objects using a SearchConnection
 ------------------------------------------------
 
