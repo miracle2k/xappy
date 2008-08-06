@@ -1,3 +1,8 @@
+Wed Aug 06 07:10:57 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/range_accel.py,xappy/unittests/range_speed.py:
+	  Add standard copyright headers.
+
 Wed Aug 06 07:09:09 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* docs/queries.rst: Add a placeholder for documenting
