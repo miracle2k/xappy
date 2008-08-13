@@ -2323,9 +2323,7 @@ class SearchConnection(object):
             pass
 
         return []
-            
-
 
 if __name__ == '__main__':
     import doctest, sys
-    doctest.testmod (sys.modules[__name__])
+    doctest.testmod(sys.modules[__name__])

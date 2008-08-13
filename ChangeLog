@@ -1,3 +1,8 @@
+Wed Aug 13 14:14:01 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py,xappy/unittests/get_terms_for_field.py:
+	  Whitespace tidyup.
+
 Wed Aug 13 12:36:58 GMT 2008  Tom Mortimer <tom@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Added get_terms_for_field().

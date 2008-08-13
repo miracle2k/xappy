@@ -23,20 +23,20 @@ class TestGetTermsForField(TestCase):
         iconn.add_field_action('b', xappy.FieldActions.INDEX_EXACT)
 
         doc = xappy.UnprocessedDocument()
-        doc.fields.append (xappy.Field('a', 'zebra'))
+        doc.fields.append(xappy.Field('a', 'zebra'))
         iconn.add(doc)
 
         doc = xappy.UnprocessedDocument()
-        doc.fields.append (xappy.Field('a', 'dog'))
-        doc.fields.append (xappy.Field('a', 'cat'))
+        doc.fields.append(xappy.Field('a', 'dog'))
+        doc.fields.append(xappy.Field('a', 'cat'))
         iconn.add(doc)
 
         doc = xappy.UnprocessedDocument()
-        doc.fields.append (xappy.Field('a', 'lemur'))
+        doc.fields.append(xappy.Field('a', 'lemur'))
         iconn.add(doc)
 
         doc = xappy.UnprocessedDocument()
-        doc.fields.append (xappy.Field('a', 'dog'))
+        doc.fields.append(xappy.Field('a', 'dog'))
         iconn.add(doc)
         
         iconn.flush()
