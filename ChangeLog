@@ -1,3 +1,9 @@
+Wed Aug 13 12:36:58 GMT 2008  Tom Mortimer <tom@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Added get_terms_for_field().
+	* xappy/unittests/get_terms_for_field.py: Test
+	  get_terms_for_field().
+
 Wed Aug 06 07:11:23 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py,xappy/searchconnection.py,
