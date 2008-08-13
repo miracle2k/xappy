@@ -21,9 +21,11 @@ class TestGetTermsForField(TestCase):
         iconn = xappy.IndexerConnection(self.indexpath)
         iconn.add_field_action('a', xappy.FieldActions.INDEX_FREETEXT)
         iconn.add_field_action('b', xappy.FieldActions.INDEX_EXACT)
+        iconn.add_field_action('c', xappy.FieldActions.INDEX_EXACT)
 
         doc = xappy.UnprocessedDocument()
-        doc.fields.append(xappy.Field('a', 'zebra'))
+        doc.fields.append(xappy.Field('a', 'Zebra Monkey'))
+        doc.fields.append(xappy.Field('b', 'Zebra Monkey'))
         iconn.add(doc)
 
         doc = xappy.UnprocessedDocument()
@@ -46,13 +48,27 @@ class TestGetTermsForField(TestCase):
     def post_test(self):
         self.sconn.close()
 
-    def test_get_terms_for_field1(self):
-        terms = self.sconn.get_terms_for_field('a')
-        self.assertEqual(terms, ['cat', 'dog', 'lemur', 'zebra'])
+    def test_iter_terms_for_field1(self):
+        """Test an iterator across a freetext field.
 
-    def test_get_terms_for_field2(self):
-        terms = self.sconn.get_terms_for_field('b')
-        self.assertEqual(terms, [])
+        """
+        terms = self.sconn.iter_terms_for_field('a')
+        self.assertEqual(list(terms), ['cat', 'dog', 'lemur', 'monkey', 'zebra'])
+
+    def test_iter_terms_for_field2(self):
+        """Test an iterator across an exact match field.
+
+        """
+        terms = self.sconn.iter_terms_for_field('b')
+        self.assertEqual(list(terms), ['Zebra Monkey'])
+
+    def test_iter_terms_for_field_empty(self):
+        """Test an iterator across a field with no terms.
+
+        """
+        terms = self.sconn.iter_terms_for_field('c')
+        self.assertEqual(list(terms), [])
+
 
 if __name__ == '__main__':
     main()

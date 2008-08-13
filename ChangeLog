@@ -1,3 +1,12 @@
+Wed Aug 13 16:20:35 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Change get_terms_for_field() to
+	  iter_terms_for_field() (and make it iterate the terms, rather
+	  than returning them in a list, too).
+	* xappy/unittests/get_terms_for_field.py,
+	  xappy/unittests/terms_for_field.py: Rename get_terms_for_field.py
+	  to terms_for_field.py and expand it a bit.
+
 Wed Aug 13 15:46:35 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py: Add support for prefixes longer than
