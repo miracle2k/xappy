@@ -765,16 +765,6 @@ class PrefixedTermIter(object):
         - `termiter` is a xapian TermIterator, which should be at its start.
 
         """
-
-        # The algorithm used in next() currently only works for single
-        # character prefixes, so assert that the prefix is single character.
-        # To deal with multicharacter prefixes, we need to check for terms
-        # which have a starting prefix equal to that given, but then have a
-        # following uppercase alphabetic character, indicating that the actual
-        # prefix is longer than the target prefix.  We then need to skip over
-        # these.  Not too hard to implement, but we don't need it yet.
-        assert(len(prefix) == 1)
-
         self._started = False
         self._prefix = prefix
         self._prefixlen = len(prefix)
@@ -792,8 +782,19 @@ class PrefixedTermIter(object):
             self._started = True
         else:
             term = self._termiter.next().term
+        if self._prefixlen > 1:
+            # For multiple character prefixes, have to check that the prefix is
+            # exact.
+            while term[:self._prefixlen] == self._prefix:
+                if len(term) <= self._prefixlen or not term[self._prefixlen].isupper():
+                    break
+                term = self._termiter.next().term
         if len(term) < self._prefixlen or term[:self._prefixlen] != self._prefix:
             raise StopIteration
+        if self._prefixlen > 1 and term[self._prefixlen] == ':':
+            # If the term starts with a colon, it's a prefix separator, so
+            # remove it.
+            return term[self._prefixlen + 1:]
         return term[self._prefixlen:]
 
 class DocumentIter(object):

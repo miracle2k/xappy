@@ -1,3 +1,8 @@
+Wed Aug 13 15:46:35 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py: Add support for prefixes longer than
+	  1 character to PrefixedTermIter.
+
 Wed Aug 13 14:14:01 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py,xappy/unittests/get_terms_for_field.py:
