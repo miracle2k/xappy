@@ -2293,6 +2293,39 @@ class SearchConnection(object):
             raise _errors.IndexerError("Version of xapian in use does not support metadata")
         return _log(self._index.get_metadata, key)
 
+
+    def get_terms_for_field(self, field):
+        """Return a list of terms that this field has in the index.
+        
+        Values are returned in the index's term list order, without prefixes.
+        
+        If no values are found, an empty list is returned.
+
+        """
+        prefix = self._field_mappings.get_prefix(field)
+        prefix_len = len(prefix)
+        
+        if self._index is None:
+            return []
+        
+        terms = self._index.allterms()
+        try:
+            t = terms.skip_to(prefix)
+            if t.term.startswith(prefix):
+                ret = [t.term[prefix_len:]]
+                for t in terms:
+                    if not t.term.startswith(prefix): break
+                    ret.append(t.term[prefix_len:])
+            
+                return ret
+
+        except StopIteration:
+            pass
+
+        return []
+            
+
+
 if __name__ == '__main__':
     import doctest, sys
     doctest.testmod (sys.modules[__name__])
