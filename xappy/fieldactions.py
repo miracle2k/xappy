@@ -11,7 +11,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -29,7 +29,7 @@ import parsedate
 
 def _act_store_content(fieldname, doc, value, context):
     """Perform the STORE_CONTENT action.
-    
+
     """
     try:
         fielddata = doc.data[fieldname]
@@ -40,13 +40,13 @@ def _act_store_content(fieldname, doc, value, context):
 
 def _act_index_exact(fieldname, doc, value, context):
     """Perform the INDEX_EXACT action.
-    
+
     """
     doc.add_term(fieldname, value, 0)
 
 def _act_tag(fieldname, doc, value, context):
     """Perform the TAG action.
-    
+
     """
     doc.add_term(fieldname, value.lower(), 0)
 
@@ -69,7 +69,7 @@ def _range_accel_act(doc, val, ranges=None, _range_accel_prefix=None):
 
 def _act_facet(fieldname, doc, value, context, type=None, ranges=None, _range_accel_prefix=None):
     """Perform the FACET action.
-    
+
     """
     if type is None or type == 'string':
         value = value.lower()
@@ -90,24 +90,24 @@ def _act_facet(fieldname, doc, value, context, type=None, ranges=None, _range_ac
 
 def _act_weight(fieldname, doc, value, context, type=None):
     """Perform the WEIGHT action.
-    
+
     """
     value = float(value)
     value = log(xapian.sortable_serialise, value)
     doc.add_value(fieldname, value, 'weight')
 
-def _act_index_freetext(fieldname, doc, value, context, weight=1, 
+def _act_index_freetext(fieldname, doc, value, context, weight=1,
                         language=None, stop=None, spell=False,
                         nopos=False,
                         allow_field_specific=True,
                         search_by_default=True):
     """Perform the INDEX_FREETEXT action.
-    
+
     """
     termgen = log(xapian.TermGenerator)
     if language is not None:
         termgen.set_stemmer(log(xapian.Stem, language))
-        
+
     if stop is not None:
         stopper = log(xapian.SimpleStopper)
         for term in stop:
@@ -117,7 +117,7 @@ def _act_index_freetext(fieldname, doc, value, context, weight=1,
     if spell and not context.readonly:
         termgen.set_database(context.index)
         termgen.set_flags(termgen.FLAG_SPELLING)
-    
+
     termgen.set_document(doc._doc)
 
     if search_by_default:
@@ -236,7 +236,7 @@ class FieldActions(object):
     """An object describing the actions to be performed on a field.
 
     The supported actions are:
-    
+
     - `STORE_CONTENT`: store the unprocessed content of the field in the search
       engine database.  All fields which need to be displayed or used when
       displaying the search results need to be given this action.
@@ -321,7 +321,7 @@ class FieldActions(object):
     STORE_CONTENT = 1
     INDEX_EXACT = 2
     INDEX_FREETEXT = 3
-    SORTABLE = 4 
+    SORTABLE = 4
     COLLAPSE = 5
     TAG = 6
     FACET = 7
@@ -434,7 +434,7 @@ class FieldActions(object):
             # kwargs['ranges'] isn't of an appropriate form.
             kwargs['ranges'] = [(float(begin), float(end))
                                 for (begin, end) in kwargs['ranges']]
-            
+
             kwargs['_range_accel_prefix'] = field_mappings._genPrefix()
 
         if 'slot' in info[3]:
@@ -471,14 +471,14 @@ class FieldActions(object):
 
         """
         for type, actionlist in self._actions.iteritems():
-            info = self._action_info[type]            
+            info = self._action_info[type]
             for kwargs in actionlist:
                 info[2](self._fieldname, doc, value, context, **kwargs)
 
     _action_info = {
         STORE_CONTENT: ('STORE_CONTENT', (), _act_store_content, {}, ),
         INDEX_EXACT: ('INDEX_EXACT', (), _act_index_exact, {'prefix': True}, ),
-        INDEX_FREETEXT: ('INDEX_FREETEXT', ('weight', 'language', 'stop', 'spell', 'nopos', 'allow_field_specific', 'search_by_default', ), 
+        INDEX_FREETEXT: ('INDEX_FREETEXT', ('weight', 'language', 'stop', 'spell', 'nopos', 'allow_field_specific', 'search_by_default', ),
             _act_index_freetext, {'prefix': True, }, ),
         SORTABLE: ('SORTABLE', ('type', 'ranges'), None, {'slot': 'collsort',}, ),
         COLLAPSE: ('COLLAPSE', (), None, {'slot': 'collsort',}, ),

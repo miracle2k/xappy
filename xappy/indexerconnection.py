@@ -11,7 +11,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -317,7 +317,7 @@ class IndexerConnection(object):
             id = orig_id
             if self._index.term_exists('Q' + id):
                 raise errors.IndexerError("Document ID of document supplied to add() is not unique.")
-            
+
         # Add the document.
         xapdoc = document.prepare()
         self._index.add_document(xapdoc)
@@ -439,7 +439,7 @@ class IndexerConnection(object):
 
     def add_subfacet(self, subfacet, facet):
         """Add a subfacet-facet relationship to the facet hierarchy.
-        
+
         Any existing relationship for that subfacet is replaced.
 
         Raises a KeyError if either facet or subfacet is not a field,
@@ -473,7 +473,7 @@ class IndexerConnection(object):
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
-        return [k for k, v in self._facet_hierarchy.iteritems() if facet in v] 
+        return [k for k, v in self._facet_hierarchy.iteritems() if facet in v]
 
     FacetQueryType_Preferred = 1;
     FacetQueryType_Never = 2;

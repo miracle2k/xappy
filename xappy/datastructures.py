@@ -11,7 +11,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -83,7 +83,7 @@ class ProcessedDocument(object):
 
         `fieldmappings` is the configuration from a database connection used lookup
         the configuration to use to store each field.
-    
+
         If supplied, `xapdoc` is a Xapian document to store in the processed
         document.  Otherwise, a new Xapian document is created.
 
@@ -157,7 +157,7 @@ class ProcessedDocument(object):
         for that.  The intention is that as little information as possible is
         stored in values, so that they can be accessed as quickly as possible
         during the search operation.
-        
+
         Unlike terms, each document may have at most one value in each field
         (whereas there may be an arbitrary number of terms in a given field).
         If an attempt to add multiple values to a single field is made, only

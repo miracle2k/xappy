@@ -11,7 +11,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -30,7 +30,7 @@ from datastructures import *
 from fieldactions import ActionContext, FieldActions, \
          SortableMarshaller, convert_range_to_term
 import fieldmappings as _fieldmappings
-import highlight as _highlight 
+import highlight as _highlight
 import errors as _errors
 from indexerconnection import IndexerConnection, PrefixedTermIter, \
          DocumentIter, SynonymIter, _allocate_id
@@ -101,7 +101,7 @@ class SearchResult(ProcessedDocument):
         The return value will be a string holding the summary, with
         highlighting applied.  If there are multiple instances of the field in
         the document, the instances will be joined with a newline character.
-        
+
         To turn off highlighting, set hl to None.  Each highlight will consist
         of the first entry in the `hl` list being placed before the word, and
         the second entry in the `hl` list being placed after the word.
@@ -844,7 +844,7 @@ class SearchConnection(object):
         self._index.reopen()
         # Re-read the actions.
         self._load_config()
-        
+
     def close(self):
         """Close the connection to the database.
 
@@ -971,13 +971,13 @@ class SearchConnection(object):
         they match the first query, but not the second query: the results of
         the first query are "filtered" to only include those which do not match
         the second query.
-        
+
         Documents will always be weighted according to only the first query.
 
         - `query`: The query to filter.
         - `filter`: The filter to apply to the query.
         - `exclude`: If True, the sense of the filter is reversed - only
-          documents which do not match the second query will be returned. 
+          documents which do not match the second query will be returned.
 
         """
         if self._index is None:
@@ -1007,7 +1007,7 @@ class SearchConnection(object):
     def _range_accel_query(self, field, begin, end, prefix, ranges,
                            conservative):
         """Construct a range acceleration query.
-        
+
         Returns a query consisting of all range terms that fall within 'begin'
         and 'end'.  If 'conservative', ranges must fall completely within
         'begin' and 'end', otherwise they may merely overlap.
@@ -1058,7 +1058,7 @@ class SearchConnection(object):
     def query_range(self, field, begin, end, approx=False,
                     conservative=True, accelerate=True):
         """Create a query for a range search.
-        
+
         This creates a query which matches only those documents which have a
         field value in the specified range.
 
@@ -1095,7 +1095,7 @@ class SearchConnection(object):
 
         ranges, range_accel_prefix = \
             self._get_approx_params(field, FieldActions.SORT_AND_COLLAPSE)
-             
+
         if begin is None and end is None:
             # Return a "match everything" query
             return Query(_log(_xapian.Query, ''), _conn=self)
@@ -1105,7 +1105,7 @@ class SearchConnection(object):
         except KeyError:
             # Return a "match nothing" query
             return Query(_log(_xapian.Query), _conn=self)
-        
+
         if approx:
             if ranges is None:
                 errors.SearchError("Cannot do approximate range search on fields with no ranges")
@@ -1149,7 +1149,7 @@ class SearchConnection(object):
     def query_facet(self, field, val, approx=False,
                     conservative=True, accelerate=True):
         """Create a query for a facet value.
-        
+
         This creates a query which matches only those documents which have a
         facet value in the specified range.
 
@@ -1216,7 +1216,7 @@ class SearchConnection(object):
                 return self._range_accel_query(field, val[0], val[1],
                                                range_accel_prefix, ranges,
                                                conservative) * 0
- 
+
             if accelerate and ranges is not None:
                 accel_query = self._range_accel_query(field, val[0], val[1],
                                                       range_accel_prefix,
@@ -1338,7 +1338,7 @@ class SearchConnection(object):
 
     def _query_parse_with_fallback(self, qp, string, prefix=None):
         """Parse a query with various flags.
-        
+
         If the initial boolean pass fails, fall back to not using boolean
         operators.
 
@@ -1847,13 +1847,13 @@ class SearchConnection(object):
         except KeyError:
             return False
         return True
-        
+
     def _get_prefix_from_term(self, term):
         """Get the prefix of a term.
-   
+
         Prefixes are any initial capital letters, with the exception that R always
         ends a prefix, even if followed by capital letters.
-        
+
         """
         for p in xrange(len(term)):
             if not term[p].isupper():
@@ -1903,7 +1903,7 @@ class SearchConnection(object):
         This looks only at the term statistics, and not at the lists of
         documents indexed by the terms, and returns a weight value.  As a
         result, it is usually very fast.
-        
+
         However, the returned value is an upper bound on the weight which could
         be attained by a document in the database.  It is very unusual for this
         weight to actually be attained (indeed, with most weighting schemes, it
@@ -2177,7 +2177,7 @@ class SearchConnection(object):
         facet_hierarchy = None
         if usesubfacets:
             facet_hierarchy = self._facet_hierarchy
-            
+
         return SearchResults(self, enq, query, mset, self._field_mappings,
                              tagspy, gettags, facetspy, facetfields,
                              facet_hierarchy,
@@ -2296,7 +2296,7 @@ class SearchConnection(object):
 
     def iter_terms_for_field(self, field):
         """Return an iterator over the terms that a field has in the index.
-        
+
         Values are returned in sorted order (sorted by lexicographical binary
         sort order of the UTF-8 encoded version of the term).
 

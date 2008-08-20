@@ -129,7 +129,7 @@ class Highlighter(object):
 
         words = self._split_text(text, True)
         terms = self._query_to_stemmed_words(query)
-        
+
         # build blocks delimited by puncuation, and count matching words in each block
         # blocks[n] is a block [firstword, endword, charcount, termcount, selected]
         blocks = []
@@ -212,13 +212,13 @@ class Highlighter(object):
 
     def _hl(self, words, terms, hl):
         """Add highlights to a list of words.
-        
+
         `words` is the list of words and non-words to be highlighted..
         `terms` is the list of stemmed words to look for.
 
         """
         for i, w in enumerate(words):
-            # HACK - more forgiving about stemmed terms 
+            # HACK - more forgiving about stemmed terms
             wl = w.lower()
             if wl in terms or self.stem (wl) in terms:
                 words[i] = ''.join((hl[0], w, hl[1]))

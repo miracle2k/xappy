@@ -89,7 +89,7 @@ Xappy is not yet stable - in particular, both the API and database format will
 change in future releases.   If you wish to use it, we recommend that you
 subscribe to the xappy-discuss mailing list (see
 http://groups.google.com/group/xappy-discuss) to keep up-to-date with changes
-to Xappy. 
+to Xappy.
 
 """
 
@@ -119,5 +119,5 @@ setup(name = "xappy",
 
       packages = ['xappy'],
       package_dir = {'xappy': 'xappy'},
-                              
+
       **extra_kwargs)
