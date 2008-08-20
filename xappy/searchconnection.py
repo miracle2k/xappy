@@ -813,6 +813,7 @@ class SearchConnection(object):
         if len(config_str) == 0:
             self._field_actions = {}
             self._field_mappings = _fieldmappings.FieldMappings()
+            self._next_docid = 0
             self._facet_hierarchy = {}
             self._facet_query_table = {}
             return
