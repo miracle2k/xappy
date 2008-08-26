@@ -26,7 +26,7 @@ import xapian
 
 from datastructures import *
 import errors
-from fieldactions import *
+from fieldactions import ActionContext, FieldActions
 import fieldmappings
 import memutils
 from replaylog import log
@@ -262,7 +262,7 @@ class IndexerConnection(object):
             except KeyError:
                 # If no actions are defined, just ignore the field.
                 continue
-            actions.perform(result, field.value, context)
+            actions.perform(result, field, context)
 
         return result
 

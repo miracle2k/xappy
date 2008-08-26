@@ -32,7 +32,7 @@ class Query(object):
     OP_AND = xapian.Query.OP_AND
     OP_OR = xapian.Query.OP_OR
 
-    def __init__(self, query=None, _refs=None, _conn=None):
+    def __init__(self, query=None, _refs=None, _conn=None, _ranges=None):
         """Create a new query.
 
         If `query` is a xappy.Query, or xapian.Query, object, the new query is
@@ -45,6 +45,11 @@ class Query(object):
         else:
             _refs = [ref for ref in _refs]
 
+        if _ranges is None:
+            _ranges = []
+        else:
+            _ranges = [tuple(range) for range in _ranges]
+
         if query is None:
             query = log(xapian.Query)
 
@@ -56,11 +61,13 @@ class Query(object):
             self.__query = query
             self.__refs = _refs
             self.__conn = _conn
+            self.__ranges = _ranges
         else:
             # Assume `query` is a xappy.Query() object.
             self.__query = query.__query
             self.__refs = _refs
             self.__conn = _conn
+            self.__ranges = _ranges
             self.__merge_params(query)
 
     def empty(self):
@@ -88,6 +95,11 @@ class Query(object):
 
         # Combine the refs
         self.__refs.extend(query.__refs)
+
+        # Combine the ranges
+        for range in query.__ranges:
+            if range not in self.__ranges:
+                self.__ranges.append(range)
 
     @staticmethod
     def compose(operator, queries):
@@ -292,6 +304,27 @@ class Query(object):
 
         """
         return self.__query
+
+    def _get_terms(self):
+        """Get a list of the terms in the query.
+
+        This is intended for internal use in xappy only.
+
+        """
+        qtermiter = xapian.TermIter(self.__query.get_terms_begin(),
+                                    self.__query.get_terms_end())
+        return [item.term for item in qtermiter]
+
+    def _get_ranges(self):
+        """Get a list of the ranges in the query.
+
+        This is intended for internal use in xappy only.
+
+        The return type is a tuple of items, where each item consists of
+        (fieldname, start, end)
+
+        """
+        return self.__ranges
 
     def __str__(self):
         return str(self.__query)

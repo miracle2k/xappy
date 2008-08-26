@@ -38,6 +38,12 @@ import re as _re
 from replaylog import log as _log
 from query import Query
 
+def append_to_dictitem_list(d, key, item):
+    try:
+        d[key].append(item)
+    except KeyError:
+        d[key] = [item]
+
 class SearchResult(ProcessedDocument):
     """A result from a search.
 
@@ -73,6 +79,14 @@ class SearchResult(ProcessedDocument):
         self.percent = msetitem.percent
         self._results = results
 
+        # termassocs is a map from a term to a list of pairs of (fieldname,
+        # offset) of relevant data.
+        self._termassocs = None
+
+        # valueassocs is a map from a value slot to a list of values with
+        # associated (fieldname, offset) data.
+        self._valueassocs = None
+
     def _get_language(self, field):
         """Get the language that should be used for a given field.
 
@@ -88,6 +102,142 @@ class SearchResult(ProcessedDocument):
                     except KeyError:
                         pass
         return 'none'
+
+    def _add_termvalue_assocs(self, assocs):
+        """Add the associations found in assocs to those in self.
+
+        """
+        for fieldname, tvoffsetlist in assocs.iteritems():
+            for tv, offset in tvoffsetlist:
+                if tv[0] == 'T':
+                    term = tv[1:]
+                    try:
+                        item = self._termassocs[term]
+                    except KeyError:
+                        item = []
+                        self._termassocs[term] = item
+                    item.append((fieldname, offset))
+                elif tv[0] == 'V':
+                    slot, value = tv[1:].split(':', 1)
+                    slot = int(slot)
+                    try:
+                        item = self._valueassocs[slot]
+                    except KeyError:
+                        item = []
+                        self._valueassocs[slot] = item
+                    item.append((value, (fieldname, offset)))
+                else:
+                    assert False
+
+
+    def _calc_termvalue_assocs(self):
+        """Calculate the term-value associations.
+
+        """
+        conn = self._results._conn
+        self._termassocs = {}
+        self._valueassocs = {}
+
+        # Iterate through the stored content, extracting the set of terms and
+        # values which are relevant to each piece.
+        for field, values in self.data.iteritems():
+            for value in values:
+                unpdoc = UnprocessedDocument()
+                unpdoc.fields.append(Field(field, value, value))
+                try:
+                    pdoc = conn.process(unpdoc)
+                except errors.IndexerError:
+                    # Ignore indexing errors - these can happen if the stored
+                    # data isn't the original data (due to a field
+                    # association), resulting in the wrong type of data being
+                    # supplied to the indexing action.
+                    continue
+                self._add_termvalue_assocs(pdoc._get_assocs())
+
+        # Merge in the terms and values from the stored field associations.
+        self._add_termvalue_assocs(self._get_assocs())
+
+    def relevant_data(self, allow=None, deny=None, query=None):
+        """Return field data which was relevant for this result.
+
+        This will return a tuple of fields which have data stored for them
+        which was relevant to the search, together with the data which was
+        relevant.  The returned tuple items will be tuples of (fieldname,
+        data), where data is a tuple of strings.
+        
+        In order to be returned the fields must have the STORE_CONTENT action,
+        but must also be included in the query (so must have other actions
+        specified too).  If there are multiple instances of a field, only those
+        which have some relevance will be returned.
+
+        If field associations were used when indexing the field (ie, the
+        "Field.assoc" member was set), the associated data will be returned,
+        but the original field data will be used to determine whether the
+        field should be returned or not.
+
+        By default, all fields will be considered by this function, but the
+        list of fields considered may be adjusted with the allow and deny
+        parameters.
+
+         - `allow`: A list of fields to consider for relevance.
+         - `deny`: A list of fields not to consider for relevance.
+
+        If `query` is supplied, it should contain a Query object, as returned
+        from SearchConnection.query_parse() or related methods, which will be
+        used as the basis of selecting relevant data rather than the query
+        which was used for the search.
+ 
+        """
+        if query is None:
+            query = self._results._query
+        conn = self._results._conn
+
+        if self._termassocs is None:
+            self._calc_termvalue_assocs()
+
+        fieldscores = {}
+        fieldassocs = {}
+        # Iterate through the components of the query, looking for those terms
+        # and values which match it.
+        for term in query._get_terms():
+            assocs = self._termassocs.get(term)
+            if assocs is None:
+                continue
+            for field, offset in assocs:
+                fieldscores[field] = fieldscores.get(field, 0) + 1
+                append_to_dictitem_list(fieldassocs, field, offset)
+
+        # Iterate through the ranges in the query, checking them.
+        for slot, begin, end in query._get_ranges():
+            assocs = self._valueassocs.get(slot)
+            if assocs is None:
+                continue
+            for value, (field, offset) in assocs:
+                if begin is None:
+                    if end is None:
+                        fieldscores[field] = fieldscores.get(field, 0) + 1
+                        append_to_dictitem_list(fieldassocs, field, offset)
+                    elif value <= end:
+                        fieldscores[field] = fieldscores.get(field, 0) + 1
+                        append_to_dictitem_list(fieldassocs, field, offset)
+                elif begin <= value:
+                    if end is None:
+                        fieldscores[field] = fieldscores.get(field, 0) + 1
+                        append_to_dictitem_list(fieldassocs, field, offset)
+                    elif value <= end:
+                        fieldscores[field] = fieldscores.get(field, 0) + 1
+                        append_to_dictitem_list(fieldassocs, field, offset)
+
+        # Convert the dict of fields and data offsets with scores to to a list
+        # of (field, data) item.
+        scoreditems = [(score, field)
+                       for field, score in fieldscores.iteritems()]
+        scoreditems.sort()
+        result = []
+        for score, field in scoreditems:
+            fielddata = [self.data[field][offset] for offset in fieldassocs[field]]
+            result.append((field, tuple(fielddata)))
+        return tuple(result)
 
     def summarise(self, field, maxlen=600, hl=('<b>', '</b>'), query=None):
         """Return a summarised version of the field specified.
@@ -801,6 +951,19 @@ class SearchConnection(object):
                 for kwargs in kwargslist:
                     return kwargs['type']
 
+    def _get_freetext_fields(self):
+        """Get the fields which are indexed as freetext.
+
+        Returns a sequence of 2-tuples, (fieldname, searchbydefault)
+
+        """
+        for field, actions in self._field_actions.iteritems():
+            for action, kwargslist in actions.iteritems():
+                if action == FieldActions.INDEX_FREETEXT:
+                    for kwargs in kwargslist:
+                        return kwargs['type']
+        
+
     def _load_config(self):
         """Load the configuration for the database.
 
@@ -914,7 +1077,7 @@ class SearchConnection(object):
             except KeyError:
                 # If no actions are defined, just ignore the field.
                 continue
-            actions.perform(result, field.value, context)
+            actions.perform(result, field, context)
 
         return result
 
@@ -1006,7 +1169,7 @@ class SearchConnection(object):
         return primary.adjust(secondary)
 
     def _range_accel_query(self, field, begin, end, prefix, ranges,
-                           conservative):
+                           conservative, query_ranges):
         """Construct a range acceleration query.
 
         Returns a query consisting of all range terms that fall within 'begin'
@@ -1042,8 +1205,9 @@ class SearchConnection(object):
         queries = []
         for r in valid_ranges:
             term = convert_range_to_term(prefix, r[0], r[1])
-            queries.append(Query(_xapian.Query(term), _conn=self))
-        return self.query_composite(_xapian.Query.OP_OR, queries)
+            queries.append(Query(_xapian.Query(term), _conn=self,
+                                 _ranges=query_ranges))
+        return Query.compose(_xapian.Query.OP_OR, queries)
 
     def _get_approx_params(self, field, action):
         action_params = self._field_actions[field]._actions[action][0]
@@ -1097,15 +1261,42 @@ class SearchConnection(object):
         ranges, range_accel_prefix = \
             self._get_approx_params(field, FieldActions.SORT_AND_COLLAPSE)
 
-        if begin is None and end is None:
-            # Return a "match everything" query
-            return Query(_log(_xapian.Query, ''), _conn=self)
-
         try:
             slot = self._field_mappings.get_slot(field, 'collsort')
         except KeyError:
             # Return a "match nothing" query
             return Query(_log(_xapian.Query), _conn=self)
+
+        if begin is None and end is None:
+            # Return a "match everything" query
+            # FIXME - this should actually be a "match everything with a
+            # non-empty value in the slot" query, I think.
+            return Query(_log(_xapian.Query, ''), _conn=self,
+                         _ranges=((slot, begin, end),))
+
+        sorttype = self._get_sort_type(field)
+        marshaller = SortableMarshaller(False)
+        fn = marshaller.get_marshall_function(field, sorttype)
+
+        if begin is not None:
+            marshalled_begin = fn(field, begin)
+        else:
+            marshalled_begin = None
+        if end is not None:
+            marshalled_end = fn(field, end)
+        else:
+            marshalled_end = None
+
+        # Parameter to supply to query constructor describing the ranges
+        # that this query is searching for.
+        query_ranges = ((slot, marshalled_begin, marshalled_end),)
+
+        if accelerate and ranges is not None:
+            accel_query = self._range_accel_query(field, begin, end,
+                                                  range_accel_prefix, ranges,
+                                                  True, query_ranges)
+        else:
+            accel_query = None
 
         if approx:
             if ranges is None:
@@ -1118,30 +1309,23 @@ class SearchConnection(object):
             # to apply boolean-specific optimisations.
             return self._range_accel_query(field, begin, end,
                                            range_accel_prefix, ranges,
-                                           conservative) * 0
+                                           conservative, query_ranges) * 0
 
-        sorttype = self._get_sort_type(field)
-        marshaller = SortableMarshaller(False)
-        fn = marshaller.get_marshall_function(field, sorttype)
-
-        if accelerate and ranges is not None:
-            accel_query = self._range_accel_query(field, begin, end,
-                                                  range_accel_prefix, ranges,
-                                                  True)
+        if marshalled_begin is None:
+            result = Query(_log(_xapian.Query,
+                                _xapian.Query.OP_VALUE_LE, slot,
+                                marshalled_end),
+                           _conn=self, _ranges=query_ranges)
+        elif marshalled_end is None:
+            result = Query(_log(_xapian.Query,
+                                _xapian.Query.OP_VALUE_GE, slot,
+                                marshalled_begin),
+                           _conn=self, _ranges=query_ranges)
         else:
-            accel_query = None
-
-        if begin is not None:
-            begin = fn(field, begin)
-        if end is not None:
-            end = fn(field, end)
-
-        if begin is None:
-            result = Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_LE, slot, end), _conn=self)
-        elif end is None:
-            result = Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_GE, slot, begin), _conn=self)
-        else:
-            result = Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end), _conn=self)
+            result = Query(_log(_xapian.Query,
+                                _xapian.Query.OP_VALUE_RANGE, slot,
+                                marshalled_begin, marshalled_end),
+                           _conn=self, _ranges=query_ranges)
         if accel_query is not None:
             result = accel_query | result
         # As before - multiply result weights by 0 to help Xapian optimise.
@@ -1207,8 +1391,15 @@ class SearchConnection(object):
                 slot = self._field_mappings.get_slot(field, 'facet')
             except KeyError:
                 return Query(_log(_xapian.Query), _conn=self)
+
             # FIXME - check that sorttype == self._get_sort_type(field)
             sorttype = 'float'
+            marshaller = SortableMarshaller(False)
+            fn = marshaller.get_marshall_function(field, sorttype)
+            marshalled_begin = fn(field, val[0])
+            marshalled_end = fn(field, val[1])
+
+            query_ranges = ((slot, marshalled_begin, marshalled_end),)
             ranges, range_accel_prefix = \
                 self._get_approx_params(field, FieldActions.FACET)
             if approx:
@@ -1216,21 +1407,20 @@ class SearchConnection(object):
                     errors.SearchError("Cannot do approximate range search on fields with no ranges")
                 return self._range_accel_query(field, val[0], val[1],
                                                range_accel_prefix, ranges,
-                                               conservative) * 0
+                                               conservative, query_ranges) * 0
 
             if accelerate and ranges is not None:
                 accel_query = self._range_accel_query(field, val[0], val[1],
                                                       range_accel_prefix,
-                                                      ranges, True)
+                                                      ranges, True,
+                                                      query_ranges)
             else:
                 accel_query = None
 
-
-            marshaller = SortableMarshaller(False)
-            fn = marshaller.get_marshall_function(field, sorttype)
-            begin = fn(field, val[0])
-            end = fn(field, val[1])
-            result = Query(_log(_xapian.Query, _xapian.Query.OP_VALUE_RANGE, slot, begin, end), _conn=self)
+            result = Query(_log(_xapian.Query,
+                                _xapian.Query.OP_VALUE_RANGE, slot,
+                                marshalled_begin, marshalled_end),
+                           _conn=self, _ranges=query_ranges)
 
             if accel_query is not None:
                 result = accel_query | result
@@ -1643,7 +1833,7 @@ class SearchConnection(object):
                 self.reopen()
         return eterms, prefixes
 
-    class ExpandDecider(_xapian.ExpandDecider):
+    class _ExpandDecider(_xapian.ExpandDecider):
         def __init__(self, prefixes):
             _xapian.ExpandDecider.__init__(self)
             self._prefixes = prefixes
@@ -1688,7 +1878,7 @@ class SearchConnection(object):
             except StopIteration:
                 pass
 
-        expanddecider = _log(self.ExpandDecider, prefixes)
+        expanddecider = _log(self._ExpandDecider, prefixes)
         # The USE_EXACT_TERMFREQ gets the term frequencies from the combined
         # database, not from the database which the relevant document is found
         # in.  This has a performance penalty, but this should be minimal in

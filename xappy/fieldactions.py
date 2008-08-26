@@ -27,7 +27,7 @@ from replaylog import log
 import xapian
 import parsedate
 
-def _act_store_content(fieldname, doc, value, context):
+def _act_store_content(fieldname, doc, field, context):
     """Perform the STORE_CONTENT action.
 
     """
@@ -36,19 +36,48 @@ def _act_store_content(fieldname, doc, value, context):
     except KeyError:
         fielddata = []
         doc.data[fieldname] = fielddata
-    fielddata.append(value)
+    if field.assoc is None:
+        context.currfield_assoc = None
+        fielddata.append(field.value)
+    else:
+        context.currfield_assoc = len(fielddata)
+        fielddata.append(field.assoc)
 
-def _act_index_exact(fieldname, doc, value, context):
+def add_field_assoc(doc, fieldname, offset, term=None, value=None):
+    """Add an association between a term or value and some associated data.
+
+    """
+    assocs = doc._get_assocs()
+    try:
+        fieldassocs = assocs[fieldname]
+    except KeyError:
+        fieldassocs = []
+        assocs[fieldname] = fieldassocs
+
+    if term is not None:
+        fieldassocs.append(('T'+term, offset))
+    if value is not None:
+        value, purpose = value
+        slotnum = doc._fieldmappings.get_slot(fieldname, purpose)
+        fieldassocs.append(('V%d:%s' % (slotnum, value), offset))
+
+def _act_index_exact(fieldname, doc, field, context):
     """Perform the INDEX_EXACT action.
 
     """
-    doc.add_term(fieldname, value, 0)
+    doc.add_term(fieldname, field.value, 0)
+    if context.currfield_assoc is not None:
+        add_field_assoc(doc, fieldname, context.currfield_assoc,
+                        term=field.value)
 
-def _act_tag(fieldname, doc, value, context):
+def _act_tag(fieldname, doc, field, context):
     """Perform the TAG action.
 
     """
-    doc.add_term(fieldname, value.lower(), 0)
+    doc.add_term(fieldname, field.value.lower(), 0)
+    if context.currfield_assoc is not None:
+        add_field_assoc(doc, fieldname, context.currfield_assoc,
+                        term=field.value.lower())
 
 def convert_range_to_term(prefix, begin, end):
     begin = log(xapian.sortable_serialise, begin)
@@ -62,21 +91,23 @@ def _add_range_terms_for_value(doc, value, ranges, prefix):
 
 def _range_accel_act(doc, val, ranges=None, _range_accel_prefix=None):
     if ranges:
-        if not _range_accel_prefix:
-            raise errors.IndexerError("Internal Indexer Error ranges without _range_accel_prefix")
+        assert _range_accel_prefix
         val = float(val)
         _add_range_terms_for_value(doc, val, ranges, _range_accel_prefix)
 
-def _act_facet(fieldname, doc, value, context, type=None, ranges=None, _range_accel_prefix=None):
+def _act_facet(fieldname, doc, field, context, type=None, ranges=None, _range_accel_prefix=None):
     """Perform the FACET action.
 
     """
     if type is None or type == 'string':
-        value = value.lower()
+        value = field.value.lower()
         # FIXME - why is the term lowercased here?  This generates different
         # terms from INDEX_EXACT, which is probably a bug.  It needs to be
         # lowercase to match the value stored in the value slot, though.
         doc.add_term(fieldname, value, 0)
+        if context.currfield_assoc is not None:
+            add_field_assoc(doc, fieldname, context.currfield_assoc,
+                            term=value)
         serialiser = log(xapian.StringListSerialiser,
                           doc.get_value(fieldname, 'facet'))
         serialiser.append(value)
@@ -84,19 +115,23 @@ def _act_facet(fieldname, doc, value, context, type=None, ranges=None, _range_ac
     else:
         marshaller = SortableMarshaller()
         fn = marshaller.get_marshall_function(fieldname, type)
-        doc.add_value(fieldname, fn(fieldname, value), 'facet')
-        _range_accel_act(doc, value, ranges, _range_accel_prefix)
+        marshalled_value = fn(fieldname, field.value)
+        if context.currfield_assoc is not None:
+            add_field_assoc(doc, fieldname, context.currfield_assoc,
+                            value=(marshalled_value, 'facet'))
+        doc.add_value(fieldname, marshalled_value, 'facet')
+        _range_accel_act(doc, field.value, ranges, _range_accel_prefix)
 
 
-def _act_weight(fieldname, doc, value, context, type=None):
+def _act_weight(fieldname, doc, field, context, type=None):
     """Perform the WEIGHT action.
 
     """
-    value = float(value)
+    value = float(field.value)
     value = log(xapian.sortable_serialise, value)
     doc.add_value(fieldname, value, 'weight')
 
-def _act_index_freetext(fieldname, doc, value, context, weight=1,
+def _act_index_freetext(fieldname, doc, field, context, weight=1,
                         language=None, stop=None, spell=False,
                         nopos=False,
                         allow_field_specific=True,
@@ -118,27 +153,47 @@ def _act_index_freetext(fieldname, doc, value, context, weight=1,
         termgen.set_database(context.index)
         termgen.set_flags(termgen.FLAG_SPELLING)
 
-    termgen.set_document(doc._doc)
+    if context.currfield_assoc is not None:
+        # We'll populate a document with the terms generated, so we can then
+        # store them as assocations.
+        tmpdoc = xapian.Document()
+    else:
+        tmpdoc = None
 
     if search_by_default:
+        termgen.set_document(doc._doc)
         termgen.set_termpos(context.current_position)
         # Store a copy of the field without a prefix, for non-field-specific
         # searches.
         if nopos:
-            termgen.index_text_without_positions(value, weight, '')
+            termgen.index_text_without_positions(field.value, weight, '')
         else:
-            termgen.index_text(value, weight, '')
+            termgen.index_text(field.value, weight, '')
+
+        if tmpdoc is not None:
+            termgen.set_document(tmpdoc)
+            termgen.index_text_without_positions(field.value, weight, '')
 
     if allow_field_specific:
         # Store a second copy of the term with a prefix, for field-specific
         # searches.
         prefix = doc._fieldmappings.get_prefix(fieldname)
         if len(prefix) != 0:
+            termgen.set_document(doc._doc)
             termgen.set_termpos(context.current_position)
             if nopos:
-                termgen.index_text_without_positions(value, weight, prefix)
+                termgen.index_text_without_positions(field.value, weight, prefix)
             else:
-                termgen.index_text(value, weight, prefix)
+                termgen.index_text(field.value, weight, prefix)
+
+            if tmpdoc is not None:
+                termgen.set_document(tmpdoc)
+                termgen.index_text_without_positions(field.value, weight, prefix)
+
+    if context.currfield_assoc is not None:
+        for item in tmpdoc.termlist():
+            add_field_assoc(doc, fieldname, context.currfield_assoc,
+                            term=item.term)
 
     # Add a gap between each field instance, so that phrase searches don't
     # match across instances.
@@ -205,15 +260,18 @@ class SortableMarshaller(object):
                             (sorttype, fieldname))
 
 
-def _act_sort_and_collapse(fieldname, doc, value, context, type=None, ranges=None, _range_accel_prefix=None):
+def _act_sort_and_collapse(fieldname, doc, field, context, type=None, ranges=None, _range_accel_prefix=None):
     """Perform the SORTABLE action.
 
     """
     marshaller = SortableMarshaller()
     fn = marshaller.get_marshall_function(fieldname, type)
-    marshalled_value = fn(fieldname, value)
+    marshalled_value = fn(fieldname, field.value)
+    if context.currfield_assoc is not None:
+        add_field_assoc(doc, fieldname, context.currfield_assoc,
+                        value=(marshalled_value, 'collsort'))
     doc.add_value(fieldname, marshalled_value, 'collsort')
-    _range_accel_act(doc, value, ranges, _range_accel_prefix)
+    _range_accel_act(doc, field.value, ranges, _range_accel_prefix)
 
 class ActionContext(object):
     """The context in which an action is performed.
@@ -227,10 +285,11 @@ class ActionContext(object):
 
     """
     def __init__(self, index, readonly=False):
-        self.current_language = None
-        self.current_position = 0
         self.index = index
         self.readonly = readonly
+        self.current_language = None
+        self.current_position = 0
+        self.currfield_assoc = None
 
 class FieldActions(object):
     """An object describing the actions to be performed on a field.
@@ -462,18 +521,31 @@ class FieldActions(object):
         # Append the action to the list of actions
         self._actions[action].append(kwargs)
 
-    def perform(self, doc, value, context):
+    def perform(self, doc, field, context):
         """Perform the actions on the field.
 
         - `doc` is a ProcessedDocument to store the result of the actions in.
-        - `value` is a string holding the value of the field.
+        - `field` is the field object to read the data for the actions from.
         - `context` is an ActionContext object used to keep state in.
 
         """
-        for type, actionlist in self._actions.iteritems():
-            info = self._action_info[type]
+        context.currfield_assoc = None
+        # First, store the content, if we're going to, so it can be referred to
+        # in the "associations" table.
+        for actiontype, actionlist in self._actions.iteritems():
+            if actiontype != FieldActions.STORE_CONTENT:
+                continue
+            info = self._action_info[actiontype]
             for kwargs in actionlist:
-                info[2](self._fieldname, doc, value, context, **kwargs)
+                info[2](self._fieldname, doc, field, context, **kwargs)
+
+        # Then do all the other actions.
+        for actiontype, actionlist in self._actions.iteritems():
+            if actiontype == FieldActions.STORE_CONTENT:
+                continue
+            info = self._action_info[actiontype]
+            for kwargs in actionlist:
+                info[2](self._fieldname, doc, field, context, **kwargs)
 
     _action_info = {
         STORE_CONTENT: ('STORE_CONTENT', (), _act_store_content, {}, ),

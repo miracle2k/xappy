@@ -28,14 +28,17 @@ import cPickle
 class Field(object):
     # Use __slots__ because we're going to have very many Field objects in
     # typical usage.
-    __slots__ = 'name', 'value'
+    __slots__ = 'name', 'value', 'assoc',
 
-    def __init__(self, name, value):
+    def __init__(self, name, value, assoc=None):
         self.name = name
         self.value = value
+        self.assoc = assoc
 
     def __repr__(self):
-        return 'Field(%r, %r)' % (self.name, self.value)
+        if self.assoc is None:
+            return 'Field(%r, %r)' % (self.name, self.value)
+        return 'Field(%r, %r, %r)' % (self.name, self.value, self.assoc)
 
 class UnprocessedDocument(object):
     """A unprocessed document to be passed to the indexer.
@@ -77,7 +80,7 @@ class ProcessedDocument(object):
 
     """
 
-    __slots__ = '_doc', '_fieldmappings', '_data',
+    __slots__ = '_doc', '_fieldmappings', '_data', '_assocs',
     def __init__(self, fieldmappings, xapdoc=None):
         """Create a ProcessedDocument.
 
@@ -94,6 +97,7 @@ class ProcessedDocument(object):
             self._doc = xapdoc
         self._fieldmappings = fieldmappings
         self._data = None
+        self._assocs = None
 
     def add_term(self, field, term, wdfinc=1, positions=None):
         """Add a term to the document.
@@ -181,18 +185,36 @@ class ProcessedDocument(object):
         been made, and then returns it.
 
         """
-        if self._data is not None:
-            self._doc.set_data(cPickle.dumps(self._data, 2))
+        if self._data is not None or self._assocs is not None:
+            if self._data is None:
+                data_and_assocs = self._unpack_data()[0], self._assocs
+            elif self._assocs is None:
+                data_and_assocs = self._data, self._unpack_data()[1]
+            else:
+                data_and_assocs = self._data, self._assocs
+            self._doc.set_data(cPickle.dumps(data_and_assocs, 2))
             self._data = None
+            self._assocs = None
         return self._doc
+
+    def _unpack_data(self):
+        rawdata = self._doc.get_data()
+        if rawdata == '':
+            return ({}, {})
+        data_and_assocs = cPickle.loads(rawdata)
+        if False and isinstance(data_and_assocs, dict):
+            # Backwards compatibility
+            return data_and_assocs, {}
+        else:
+            assert len(data_and_assocs) == 2
+            return data_and_assocs
 
     def _get_data(self):
         if self._data is None:
-            rawdata = self._doc.get_data()
-            if rawdata == '':
-                self._data = {}
+            if self._assocs is None:
+                self._data, self._assocs = self._unpack_data()
             else:
-                self._data = cPickle.loads(rawdata)
+                self._data, discard = self._unpack_data()
         return self._data
     def _set_data(self, data):
         if not isinstance(data, dict):
@@ -205,6 +227,34 @@ class ProcessedDocument(object):
     value is a list of strings.
 
     """)
+
+    def _get_assocs(self):
+        """Get the field associations for this document.
+        
+        This is intended for internal xappy use.
+
+        """
+        if self._assocs is None:
+            if self._data is None:
+                self._data, self._assocs = self._unpack_data()
+            else:
+                discard, self._assocs = self._unpack_data()
+        return self._assocs
+
+#    def _set_assocs(self, assocs):
+#        if not isinstance(assocs, dict):
+#            raise TypeError("Cannot set assocs to any type other than a dict")
+#        self._assocs = assocs
+#    _assocs = property(_get_assocs, _set_assocs, doc=
+#    """The field associations stored in this processed document.
+#
+#    This is intended for internal xappy use.
+#
+#    This is a dictionary of entries, where the key is a fieldname, and the
+#    value is a list of 2-tuples of strings, holding the field data, and the
+#    association to store with that data.
+#
+#    """)
 
     def _get_id(self):
         tl = self._doc.termlist()

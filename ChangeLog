@@ -1,3 +1,18 @@
+Tue Aug 26 08:35:07 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/datastructures.py,
+	  xappy/doctests/indexerconnection_doctest1.txt,
+	  xappy/doctests/indexerconnection_doctest2.txt,
+	  xappy/doctests/indexerconnection_doctest3.txt,xappy/,
+	  xappy/unittests/field_associations.py: Extend Field data
+	  structure with a new member (and optional constructor parameter)
+	  to store "associated" data.  This data will be returned in the
+	  document data field instead of the original data, and is intended
+	  to allow particular return data to be associated with a piece of
+	  input data.  Documentation and examples still needed.  Also, add
+	  new method to SearchResult to return a list of relevant fields,
+	  and the corresponding piece of data for them.
+
 Wed Aug 20 16:14:06 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Ensure that _next_docid is initialised
