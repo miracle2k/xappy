@@ -202,7 +202,7 @@ class ProcessedDocument(object):
         if rawdata == '':
             return ({}, {})
         data_and_assocs = cPickle.loads(rawdata)
-        if False and isinstance(data_and_assocs, dict):
+        if isinstance(data_and_assocs, dict):
             # Backwards compatibility
             return data_and_assocs, {}
         else:
