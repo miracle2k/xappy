@@ -38,11 +38,11 @@ import re as _re
 from replaylog import log as _log
 from query import Query
 
-def append_to_dictitem_list(d, key, item):
+def add_to_dictitem_set(d, key, item):
     try:
-        d[key].append(item)
+        d[key].add(item)
     except KeyError:
-        d[key] = [item]
+        d[key] = set((item,))
 
 class SearchResult(ProcessedDocument):
     """A result from a search.
@@ -141,18 +141,18 @@ class SearchResult(ProcessedDocument):
         # Iterate through the stored content, extracting the set of terms and
         # values which are relevant to each piece.
         for field, values in self.data.iteritems():
+            unpdoc = UnprocessedDocument()
             for value in values:
-                unpdoc = UnprocessedDocument()
                 unpdoc.fields.append(Field(field, value, value))
-                try:
-                    pdoc = conn.process(unpdoc)
-                except errors.IndexerError:
-                    # Ignore indexing errors - these can happen if the stored
-                    # data isn't the original data (due to a field
-                    # association), resulting in the wrong type of data being
-                    # supplied to the indexing action.
-                    continue
-                self._add_termvalue_assocs(pdoc._get_assocs())
+            try:
+                pdoc = conn.process(unpdoc)
+            except errors.IndexerError:
+                # Ignore indexing errors - these can happen if the stored
+                # data isn't the original data (due to a field
+                # association), resulting in the wrong type of data being
+                # supplied to the indexing action.
+                continue
+            self._add_termvalue_assocs(pdoc._get_assocs())
 
         # Merge in the terms and values from the stored field associations.
         self._add_termvalue_assocs(self._get_assocs())
@@ -205,7 +205,7 @@ class SearchResult(ProcessedDocument):
                 continue
             for field, offset in assocs:
                 fieldscores[field] = fieldscores.get(field, 0) + 1
-                append_to_dictitem_list(fieldassocs, field, offset)
+                add_to_dictitem_set(fieldassocs, field, offset)
 
         # Iterate through the ranges in the query, checking them.
         for slot, begin, end in query._get_ranges():
@@ -216,17 +216,17 @@ class SearchResult(ProcessedDocument):
                 if begin is None:
                     if end is None:
                         fieldscores[field] = fieldscores.get(field, 0) + 1
-                        append_to_dictitem_list(fieldassocs, field, offset)
+                        add_to_dictitem_set(fieldassocs, field, offset)
                     elif value <= end:
                         fieldscores[field] = fieldscores.get(field, 0) + 1
-                        append_to_dictitem_list(fieldassocs, field, offset)
+                        add_to_dictitem_set(fieldassocs, field, offset)
                 elif begin <= value:
                     if end is None:
                         fieldscores[field] = fieldscores.get(field, 0) + 1
-                        append_to_dictitem_list(fieldassocs, field, offset)
+                        add_to_dictitem_set(fieldassocs, field, offset)
                     elif value <= end:
                         fieldscores[field] = fieldscores.get(field, 0) + 1
-                        append_to_dictitem_list(fieldassocs, field, offset)
+                        add_to_dictitem_set(fieldassocs, field, offset)
 
         # Convert the dict of fields and data offsets with scores to to a list
         # of (field, data) item.

@@ -43,7 +43,7 @@ def _act_store_content(fieldname, doc, field, context):
         context.currfield_assoc = len(fielddata)
         fielddata.append(field.assoc)
 
-def add_field_assoc(doc, fieldname, offset, term=None, value=None):
+def add_field_assoc(doc, fieldname, offset, term=None, rawterm=None, value=None):
     """Add an association between a term or value and some associated data.
 
     """
@@ -55,7 +55,17 @@ def add_field_assoc(doc, fieldname, offset, term=None, value=None):
         assocs[fieldname] = fieldassocs
 
     if term is not None:
-        fieldassocs.append(('T'+term, offset))
+        prefix = doc._fieldmappings.get_prefix(fieldname)
+        if len(term) > 0:
+            # We use the following check, rather than "isupper()" to ensure
+            # that we match the check performed by the queryparser, regardless
+            # of our locale.
+            if ord(term[0]) >= ord('A') and ord(term[0]) <= ord('Z'):
+                prefix = prefix + ':'
+        rawterm = prefix + term
+    if rawterm is not None:
+        prefix = doc._fieldmappings.get_prefix(fieldname)
+        fieldassocs.append(('T'+rawterm, offset))
     if value is not None:
         value, purpose = value
         slotnum = doc._fieldmappings.get_slot(fieldname, purpose)
@@ -116,10 +126,10 @@ def _act_facet(fieldname, doc, field, context, type=None, ranges=None, _range_ac
         marshaller = SortableMarshaller()
         fn = marshaller.get_marshall_function(fieldname, type)
         marshalled_value = fn(fieldname, field.value)
+        doc.add_value(fieldname, marshalled_value, 'facet')
         if context.currfield_assoc is not None:
             add_field_assoc(doc, fieldname, context.currfield_assoc,
                             value=(marshalled_value, 'facet'))
-        doc.add_value(fieldname, marshalled_value, 'facet')
         _range_accel_act(doc, field.value, ranges, _range_accel_prefix)
 
 
@@ -193,7 +203,7 @@ def _act_index_freetext(fieldname, doc, field, context, weight=1,
     if context.currfield_assoc is not None:
         for item in tmpdoc.termlist():
             add_field_assoc(doc, fieldname, context.currfield_assoc,
-                            term=item.term)
+                            rawterm=item.term)
 
     # Add a gap between each field instance, so that phrase searches don't
     # match across instances.
