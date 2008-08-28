@@ -1763,11 +1763,22 @@ class SearchConnection(object):
 
         """
         eterms, prefixes = self._get_eterms(ids, allow, deny, simterms)
-        serialised = self._make_parent_func_repr("query_similar")
+        return self._query_elite_set_from_raw_terms(eterms, simterms)
+
+    def _query_elite_set_from_raw_terms(self, xapterms, numterms=10):
+        """Build a query from an operator and a list of Xapian term strings.
+
+        This interface exposes raw xapian terms, which are affected by the
+        method by which prefixes are mapped to fields, which in turn is likely
+        to change in future, so shouldn't be used by external code unless such
+        code is willing to be broken by future releases of Xappy.
+
+        """
+        serialised = self._make_parent_func_repr("_query_elite_set_from_raw_terms")
 
         # Use the "elite set" operator, which chooses the terms with the
         # highest query weight to use.
-        q = _log(_xapian.Query, _xapian.Query.OP_ELITE_SET, eterms, simterms)
+        q = _log(_xapian.Query, _xapian.Query.OP_ELITE_SET, xapterms, numterms)
         return Query(q, _conn=self, _serialised=serialised)
 
     def significant_terms(self, ids, maxterms=10, allow=None, deny=None):
@@ -1815,7 +1826,7 @@ class SearchConnection(object):
         return terms
 
     def _get_eterms(self, ids, allow, deny, simterms):
-        """Get a set of terms for an expand
+        """Get a set of terms for an expand.
 
         """
         if self._index is None:
