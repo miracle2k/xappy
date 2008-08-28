@@ -1,3 +1,10 @@
+Thu Aug 28 13:49:57 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/query.py,xappy/searchconnection.py: Add methods to allow a
+	  query to be serialised and unserialised.
+	* xappy/unittests/query_serialise.py: Test the new query
+	  serialisation stuff.
+
 Tue Aug 26 16:59:54 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/fieldactions.py: Fix generation of field associations for

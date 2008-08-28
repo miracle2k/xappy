@@ -32,7 +32,8 @@ class Query(object):
     OP_AND = xapian.Query.OP_AND
     OP_OR = xapian.Query.OP_OR
 
-    def __init__(self, query=None, _refs=None, _conn=None, _ranges=None):
+    def __init__(self, query=None, _refs=None, _conn=None, _ranges=None,
+                 _serialised=None):
         """Create a new query.
 
         If `query` is a xappy.Query, or xapian.Query, object, the new query is
@@ -62,12 +63,14 @@ class Query(object):
             self.__refs = _refs
             self.__conn = _conn
             self.__ranges = _ranges
+            self.__serialised = _serialised
         else:
             # Assume `query` is a xappy.Query() object.
             self.__query = query.__query
             self.__refs = _refs
             self.__conn = _conn
             self.__ranges = _ranges
+            self.__serialised = _serialised
             self.__merge_params(query)
 
     def empty(self):
@@ -114,15 +117,30 @@ class Query(object):
         """
         result = Query()
         xapqs = []
+        serialisedqs = []
         for q in queries:
             if isinstance(q, xapian.Query):
                 xapqs.append(q)
+                serialisedqs = None
             elif isinstance(q, Query):
                 xapqs.append(q.__query)
+                if serialisedqs is not None:
+                    serialisedq = q.__serialised
+                    if serialisedq is None:
+                        serialisedqs = None
+                    else:
+                        serialisedqs.append(serialisedq)
                 result.__merge_params(q)
             else:
                 raise TypeError("queries must contain a list of xapian.Query or xappy.Query objects")
         result.__query = log(xapian.Query, operator, xapqs)
+        if serialisedqs is not None:
+            serialisedqs = ', '.join(serialisedqs)
+            if serialisedqs != '':
+                serialisedqs = '(' + serialisedqs + ',)'
+            else:
+                serialisedqs = '()'
+            result.__serialised = "xappy.Query.compose(%d, %s)" % (operator, serialisedqs)
         return result
 
     def __mul__(self, multiplier):
@@ -131,7 +149,8 @@ class Query(object):
         """
         result = Query()
         result.__merge_params(self)
-
+        if self.__serialised is not None:
+            result.__serialised = "%s * %f" % (self.__serialised, multiplier)
         try:
             result.__query = log(xapian.Query,
                                  xapian.Query.OP_SCALE_WEIGHT,
@@ -193,12 +212,23 @@ class Query(object):
 
         """
         result = Query(self)
-
         if isinstance(other, xapian.Query):
             oquery = other
         elif isinstance(other, Query):
             oquery = other.__query
             result.__merge_params(other)
+            if self.__serialised is not None and other.__serialised is not None:
+                funcname = {
+                    Query.OP_AND: " & ",
+                    Query.OP_OR: " | ",
+                    xapian.Query.OP_XOR: " ^ ",
+                    xapian.Query.OP_AND_NOT: ".and_not",
+                    xapian.Query.OP_FILTER: ".filter",
+                    xapian.Query.OP_AND_MAYBE: ".adjust",
+                }[operator]
+                result.__serialised = ''.join(('(', self.__serialised, ')',
+                                               funcname, '(',
+                                               other.__serialised, ')'))
         else:
             raise TypeError("other must be a xapian.Query or xappy.Query object")
 
@@ -325,6 +355,30 @@ class Query(object):
 
         """
         return self.__ranges
+
+    def evalable_repr(self):
+        """Return a serialised form of this query, suitable for eval.
+
+        This form can be passed to eval to get back the unserialised query,
+        though this must be done in a context in which "conn" is a symbol
+        defined to be the search connection which the query is associated with,
+        and in which "xapian" is the appropriate module.  A convenient method
+        to do this is the SearchConnection.query_from_evalable() method.
+
+        If the query was originally created by passing a raw xapian query to
+        the query constructor, the serialised form cannot be computed, and this
+        method will return None.
+
+        """
+        return self.__serialised
+
+    def _set_serialised(self, serialised):
+        """Set the serialised form of this query.
+
+        This is intended for internal use in xappy only.
+
+        """
+        self.__serialised = serialised
 
     def __str__(self):
         return str(self.__query)

@@ -24,6 +24,7 @@ import _checkxapian
 import os as _os
 import cPickle as _cPickle
 import math
+import inspect
 
 import xapian as _xapian
 from datastructures import *
@@ -1220,6 +1221,31 @@ class SearchConnection(object):
             raise errors.SearchError("Internal xappy error, no _range_accel prefix for field: " + field)
         return ranges, range_accel_prefix
 
+    def _make_parent_func_repr(self, funcname):
+        """Make a python string representing the call to the parent function.
+
+        """
+        funcobj = getattr(SearchConnection, funcname)
+        frame = inspect.currentframe().f_back
+        try:
+            argnames, varargsname, varkwname, defaultargs = inspect.getargspec(funcobj)
+            values = frame.f_locals
+            assert varargsname is None # Don't support *args parameter
+            assert varkwname is None # Don't support **kwargs parameter
+            if defaultargs is None:
+                defaultargs = ()
+            args = []
+            for argname in argnames[1:-len(defaultargs)]:
+                args.append(repr(values[argname]))
+            if len(defaultargs) > 0:
+                for i, argname in enumerate(argnames[-len(defaultargs):]):
+                    val = values[argname]
+                    if val != defaultargs[i]:
+                        args.append("%s=%r" % (argname, val))
+            return "conn.%s(%s)" % (funcname, ', '.join(args))
+        finally:
+            del frame
+
     def query_range(self, field, begin, end, approx=False,
                     conservative=True, accelerate=True):
         """Create a query for a range search.
@@ -1261,18 +1287,21 @@ class SearchConnection(object):
         ranges, range_accel_prefix = \
             self._get_approx_params(field, FieldActions.SORT_AND_COLLAPSE)
 
+        serialised = self._make_parent_func_repr("query_range")
         try:
             slot = self._field_mappings.get_slot(field, 'collsort')
         except KeyError:
             # Return a "match nothing" query
-            return Query(_log(_xapian.Query), _conn=self)
+            return Query(_log(_xapian.Query), _conn=self,
+                         _serialised=serialised)
 
         if begin is None and end is None:
             # Return a "match everything" query
             # FIXME - this should actually be a "match everything with a
             # non-empty value in the slot" query, I think.
             return Query(_log(_xapian.Query, ''), _conn=self,
-                         _ranges=((slot, begin, end),))
+                         _ranges=((slot, begin, end),),
+                         _serialised=serialised)
 
         sorttype = self._get_sort_type(field)
         marshaller = SortableMarshaller(False)
@@ -1307,9 +1336,11 @@ class SearchConnection(object):
             # so we multiply the result of this query by 0, to let Xapian know
             # that it never returns a weight other than 0.  This allows Xapian
             # to apply boolean-specific optimisations.
-            return self._range_accel_query(field, begin, end,
-                                           range_accel_prefix, ranges,
-                                           conservative, query_ranges) * 0
+            result = self._range_accel_query(field, begin, end,
+                                             range_accel_prefix, ranges,
+                                             conservative, query_ranges) * 0
+            result._set_serialised(serialised)
+            return result
 
         if marshalled_begin is None:
             result = Query(_log(_xapian.Query,
@@ -1328,8 +1359,10 @@ class SearchConnection(object):
                            _conn=self, _ranges=query_ranges)
         if accel_query is not None:
             result = accel_query | result
+        result = result * 0
         # As before - multiply result weights by 0 to help Xapian optimise.
-        return result * 0
+        result._set_serialised(serialised)
+        return result
 
     def query_facet(self, field, val, approx=False,
                     conservative=True, accelerate=True):
@@ -1369,6 +1402,7 @@ class SearchConnection(object):
         if 'facets' in _checkxapian.missing_features:
             raise errors.SearchError("Facets unsupported with this release of xapian")
 
+        serialised = self._make_parent_func_repr("query_facet")
         try:
             actions = self._field_actions[field]._actions
         except KeyError:
@@ -1390,7 +1424,8 @@ class SearchConnection(object):
             try:
                 slot = self._field_mappings.get_slot(field, 'facet')
             except KeyError:
-                return Query(_log(_xapian.Query), _conn=self)
+                return Query(_log(_xapian.Query), _conn=self,
+                             _serialised=serialised)
 
             # FIXME - check that sorttype == self._get_sort_type(field)
             sorttype = 'float'
@@ -1405,9 +1440,11 @@ class SearchConnection(object):
             if approx:
                 if ranges is None:
                     errors.SearchError("Cannot do approximate range search on fields with no ranges")
-                return self._range_accel_query(field, val[0], val[1],
-                                               range_accel_prefix, ranges,
-                                               conservative, query_ranges) * 0
+                result = self._range_accel_query(field, val[0], val[1],
+                                                 range_accel_prefix, ranges,
+                                                 conservative, query_ranges) * 0
+                result._set_serialised(serialised)
+                return result
 
             if accelerate and ranges is not None:
                 accel_query = self._range_accel_query(field, val[0], val[1],
@@ -1425,12 +1462,15 @@ class SearchConnection(object):
             if accel_query is not None:
                 result = accel_query | result
 
-            return result * 0
+            result = result * 0
+            result._set_serialised(serialised)
+            return result
         else:
             assert(facettype == 'string' or facettype is None)
             prefix = self._field_mappings.get_prefix(field)
-            return Query(_log(_xapian.Query, prefix + val.lower()), _conn=self) * 0
-
+            result = Query(_log(_xapian.Query, prefix + val.lower()), _conn=self) * 0
+            result._set_serialised(serialised)
+            return result
 
     def _prepare_queryparser(self, allow, deny, default_op, default_allow,
                              default_deny):
@@ -1619,7 +1659,10 @@ class SearchConnection(object):
         """
         qp = self._prepare_queryparser(allow, deny, default_op, default_allow,
                                        default_deny)
-        return self._query_parse_with_fallback(qp, string)
+        result = self._query_parse_with_fallback(qp, string)
+        serialised = self._make_parent_func_repr("query_parse")
+        result._set_serialised(serialised)
+        return result
 
     def query_field(self, field, value=None, default_op=OP_AND):
         """A query for a single field.
@@ -1641,6 +1684,7 @@ class SearchConnection(object):
             actions = self._field_actions[field]._actions
         except KeyError:
             actions = {}
+        serialised = self._make_parent_func_repr("query_field")
 
         # need to check on field type, and stem / split as appropriate
         for action, kwargslist in actions.iteritems():
@@ -1661,7 +1705,9 @@ class SearchConnection(object):
                 # make Xapian know that the weight is always zero.  This means
                 # that Xapian won't bother to ask the query for weights, and
                 # can optimise in various ways.
-                return Query(_log(_xapian.Query, prefix + value), _conn=self) * 0
+                result = Query(_log(_xapian.Query, prefix + value), _conn=self) * 0
+                result._set_serialised(serialised)
+                return result
             if action == FieldActions.INDEX_FREETEXT:
                 if value is None:
                     raise _errors.SearchError("Supplied value must not be None")
@@ -1675,16 +1721,20 @@ class SearchConnection(object):
                         qp.set_stemming_strategy(qp.STEM_SOME)
                     except KeyError:
                         pass
-                return self._query_parse_with_fallback(qp, value, prefix)
+                result = self._query_parse_with_fallback(qp, value, prefix)
+                result._set_serialised(serialised)
+                return result
             if action == FieldActions.WEIGHT:
                 if value is not None:
                     raise _errors.SearchError("Value supplied for a WEIGHT field must be None")
                 slot = self._field_mappings.get_slot(field, 'weight')
                 postingsource = _xapian.ValueWeightPostingSource(self._index, slot)
-                return Query(_log(_xapian.Query, postingsource),
-                             _refs=[postingsource], _conn=self)
+                result = Query(_log(_xapian.Query, postingsource),
+                               _refs=[postingsource], _conn=self)
+                result._set_serialised(serialised)
+                return result
 
-        return Query(_conn=self)
+        return Query(_conn=self, _serialised=serialised)
 
     def query_similar(self, ids, allow=None, deny=None, simterms=10):
         """Get a query which returns documents which are similar to others.
@@ -1713,11 +1763,12 @@ class SearchConnection(object):
 
         """
         eterms, prefixes = self._get_eterms(ids, allow, deny, simterms)
+        serialised = self._make_parent_func_repr("query_similar")
 
         # Use the "elite set" operator, which chooses the terms with the
         # highest query weight to use.
         q = _log(_xapian.Query, _xapian.Query.OP_ELITE_SET, eterms, simterms)
-        return Query(q, _conn=self)
+        return Query(q, _conn=self, _serialised=serialised)
 
     def significant_terms(self, ids, maxterms=10, allow=None, deny=None):
         """Get a set of "significant" terms for a document, or documents.
@@ -1902,6 +1953,7 @@ class SearchConnection(object):
         offline before indexing them.
 
         """
+        serialised = self._make_parent_func_repr("query_external_weight")
         class ExternalWeightPostingSource(_xapian.PostingSource):
             """A xapian posting source reading from an ExternalWeightSource.
 
@@ -1946,13 +1998,14 @@ class SearchConnection(object):
 
         postingsource = ExternalWeightPostingSource(self, source)
         return Query(_log(_xapian.Query, postingsource),
-                     _refs=[postingsource], _conn=self)
+                     _refs=[postingsource], _conn=self, _serialised=serialised)
 
     def query_all(self):
         """A query which matches all the documents in the database.
 
         """
-        return Query(_log(_xapian.Query, ''), _conn=self)
+        return Query(_log(_xapian.Query, ''), _conn=self,
+                     _serialised = self._make_parent_func_repr("query_all"))
 
     def query_none(self):
         """A query which matches no documents in the database.
@@ -1960,7 +2013,23 @@ class SearchConnection(object):
         This may be useful as a placeholder in various situations.
 
         """
-        return Query(_conn=self)
+        return Query(_conn=self,
+                     _serialised = self._make_parent_func_repr("query_none"))
+
+    def query_from_evalable(self, serialised):
+        """Create a query from an serialised evalable repr string.
+
+        Note that this works by calling eval on the string, so should only be
+        used if the string is from a trusted source.  If an attacker could set
+        the string, he could execute arbitrary code.
+
+        Queries can be serialised into a form suitable to be passed to this
+        method using the xappy.Query.evalable_repr() method.
+
+        """
+        import xappy
+        vars = {'conn': self, 'xappy': xappy, 'xapian': xapian}
+        return eval(serialised, vars)
 
     def spell_correct(self, querystr, allow=None, deny=None, default_op=OP_AND,
                       default_allow=None, default_deny=None):
