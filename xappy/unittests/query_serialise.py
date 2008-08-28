@@ -60,8 +60,9 @@ class TestQuerySerialise(TestCase):
         q10 = self.sconn.query_field('g')
         q11 = self.sconn.query_none()
         q12 = self.sconn.query_all()
+        q13 = xappy.Query()
 
-        queries = (q1, q2, q3, q4, q5, q6, q7, q8, q9,
+        queries = (q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13,
                    q1 | q2,
                    q1 & q2,
                    q1 ^ q2,

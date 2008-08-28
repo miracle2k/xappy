@@ -53,6 +53,8 @@ class Query(object):
 
         if query is None:
             query = log(xapian.Query)
+            if _serialised is None:
+                _serialised = 'xappy.Query()'
 
         # Set the default query parameters.
         self.__checkatleast = 0
@@ -150,7 +152,7 @@ class Query(object):
         result = Query()
         result.__merge_params(self)
         if self.__serialised is not None:
-            result.__serialised = "%s * %f" % (self.__serialised, multiplier)
+            result.__serialised = "%s * %.65g" % (self.__serialised, multiplier)
         try:
             result.__query = log(xapian.Query,
                                  xapian.Query.OP_SCALE_WEIGHT,
