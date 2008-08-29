@@ -53,6 +53,11 @@ class RangeAccelIndexTest(TestCase):
         doc = xappy.UnprocessedDocument()
         doc.fields.append(xappy.Field('foo', 1.5))
         docid = self.iconn.add(doc)
+
+        # Add the action again to check that the prefix doesn't change.
+        self.iconn.add_field_action('foo', add_action, type='float',
+                                    ranges=[(0, 1), (1, 2), (2, 3)])
+
         xdoc = self.iconn.get_document(docid)
         #the document should have at a term with the correct prefix
         prefix = self.iconn._field_actions['foo']._actions[action][0]['_range_accel_prefix']
@@ -67,6 +72,7 @@ class RangeAccelIndexTest(TestCase):
         """Test adding some data to a SORTABLE field.
 
         """
+        self.iconn.add_field_action('foo', xappy.FieldActions.COLLAPSE)
         self._add_data_to_range_field(xappy.FieldActions.SORTABLE, xappy.FieldActions.SORT_AND_COLLAPSE)
 
     def test_add_data_to_range_field_facet(self):

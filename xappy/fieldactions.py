@@ -454,6 +454,26 @@ class FieldActions(object):
                                    "as exact text: cannot mark for indexing "
                                    "as free text as well" % self._fieldname)
 
+        if (action in (FieldActions.SORTABLE,
+                       FieldActions.COLLAPSE,
+                       FieldActions.FACET) and
+            kwargs.get('type') == 'float' and 'ranges' in kwargs):
+
+            kwargs['ranges'] = [(float(begin), float(end))
+                                for (begin, end) in kwargs['ranges']]
+
+            if action == FieldActions.FACET:
+                oldactions = self._actions.get(action)
+            else:
+                oldactions = self._actions.get(FieldActions.SORT_AND_COLLAPSE)
+
+            if oldactions is not None:
+                for oldaction in oldactions:
+                    old_accel_prefix = oldaction.get('_range_accel_prefix')
+                    if old_accel_prefix is not None:
+                        if oldaction.get('ranges') == kwargs['ranges']:
+                            kwargs['_range_accel_prefix'] = old_accel_prefix
+
         # Fields cannot be indexed as more than one type for "SORTABLE": to
         # implement this, we'd need to use a different prefix for each sortable
         # type, but even then the search end wouldn't know what to sort on when
@@ -476,8 +496,7 @@ class FieldActions(object):
                 oldsortactions = ()
 
             if len(oldsortactions) > 0:
-                for oldsortaction in oldsortactions:
-                    oldsorttype = oldsortaction['type']
+                oldsorttype = oldsortactions[0]['type']
 
                 if sorttype == oldsorttype or oldsorttype is None:
                     # Use new type
@@ -493,18 +512,17 @@ class FieldActions(object):
         if 'prefix' in info[3]:
             field_mappings.add_prefix(self._fieldname)
 
-        if (action in (FieldActions.SORTABLE, FieldActions.COLLAPSE, \
-                           FieldActions.SORT_AND_COLLAPSE, FieldActions.FACET)) and\
-                           kwargs.get('type') == 'float'\
-                           and 'ranges' in kwargs:
+        if (action in (FieldActions.SORT_AND_COLLAPSE,
+                       FieldActions.FACET) and
+            kwargs.get('type') == 'float' and 'ranges' in kwargs):
+
+            oldactions = self._actions.get(action)
 
             # We need something we can store, so make sure we have a
             # list of float pairs. Errors escape back to the caller if
             # kwargs['ranges'] isn't of an appropriate form.
-            kwargs['ranges'] = [(float(begin), float(end))
-                                for (begin, end) in kwargs['ranges']]
-
-            kwargs['_range_accel_prefix'] = field_mappings._genPrefix()
+            if '_range_accel_prefix' not in kwargs:
+                kwargs['_range_accel_prefix'] = field_mappings._genPrefix()
 
         if 'slot' in info[3]:
             purposes = info[3]['slot']
