@@ -40,9 +40,9 @@ import urllib2
 #  - SHA1 sum of package
 archives = (
     ('Xapian core',
-     'http://xappy.googlecode.com/files/xapian-core-11060.tgz',
+     'http://xappy.googlecode.com/files/xapian-core-11060-1.tgz',
      'xapian-core.tgz',
-     '1a075969e49d9f3a484711f7a5ff632095cc169c',
+     'af48cd125b8004e4bed544be2f00abd6161ded6b',
      '',
     ),
     ('Xapian bindings',
