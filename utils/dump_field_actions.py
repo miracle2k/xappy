@@ -29,11 +29,24 @@ actionnames = {
     xappy.FieldActions.SORT_AND_COLLAPSE: "SORT_AND_COLLAPSE",
 }
 
-def dump_field_actions(fieldname, actions):
+def dump_field_actions(fieldname, actions, fieldmappings):
     for actiontype, kwargslist in actions._actions.iteritems():
+        info = xappy.FieldActions._action_info[actiontype]
+        prefix = None
+        slot = None
+        if 'prefix' in info[3]:
+            prefix = fieldmappings._prefixes.get(fieldname)
+        if 'slot' in info[3]:
+            slot = fieldmappings._slots.get((fieldname, info[3]['slot']))
         actionname = actionnames.get(actiontype)
         for kwargs in kwargslist:
-            print "(%r, %s, %s)" % (fieldname, actionname, repr(kwargs))
+            extra = []
+            if prefix is not None:
+                extra.append("prefix=%r" % prefix)
+            if slot is not None:
+                extra.append("slot=%s" % slot)
+            extra = ', '.join(extra)
+            print "(%r, %s, %s) %s" % (fieldname, actionname, repr(kwargs), extra)
 
 def dump_actions(conn, fieldname):
     if fieldname is None:
@@ -43,7 +56,7 @@ def dump_actions(conn, fieldname):
         fields = (fieldname, )
     for field in fields:
         actions = conn._field_actions[field]
-        dump_field_actions(field, actions)
+        dump_field_actions(field, actions, conn._field_mappings)
 
 usage = """
 dump_field_actions.py <dbpath> [fieldname]
