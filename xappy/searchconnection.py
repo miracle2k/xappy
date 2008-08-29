@@ -1604,7 +1604,7 @@ class SearchConnection(object):
                                                prefix)
 
         return Query(_log(_xapian.Query, _xapian.Query.OP_AND_MAYBE, q1, q2),
-        _conn=self)
+                     _conn=self)
 
     def query_parse(self, string, allow=None, deny=None, default_op=OP_AND,
                     default_allow=None, default_deny=None):
