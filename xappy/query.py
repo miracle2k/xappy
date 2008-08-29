@@ -72,7 +72,10 @@ class Query(object):
             self.__refs = _refs
             self.__conn = _conn
             self.__ranges = _ranges
-            self.__serialised = _serialised
+            if _serialised is None:
+                self.__serialised = query.__serialised
+            else:
+                self.__serialised = _serialised
             self.__merge_params(query)
 
     def empty(self):
