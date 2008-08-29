@@ -715,7 +715,16 @@ class SearchResults(object):
         if self._tagspy is None or field not in self._tagfields:
             raise _errors.SearchError("Field %r was not specified for getting tags" % field)
         prefix = self._conn._field_mappings.get_prefix(field)
-        return self._tagspy.get_top_terms(prefix, maxtags)
+        items = self._tagspy.get_top_terms(prefix, maxtags)
+        # Workaround an old bug in tagspy: used to accept terms from different
+        # prefixes, if the start of the prefix was right.
+        okitems = []
+        for item in items:
+            firstchar = item[0]
+            if firstchar >= 'A' and firstchar <= 'Z':
+                continue
+            okitems.append(item)
+        return okitems
 
     def get_suggested_facets(self, maxfacets=5, desired_num_of_categories=7,
                              required_facets=None):
