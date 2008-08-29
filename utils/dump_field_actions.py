@@ -17,38 +17,52 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 import xappy
 
-def dump_actions(conn):
-    actionnames = {
-        xappy.FieldActions.STORE_CONTENT: "STORE_CONTENT",
-        xappy.FieldActions.INDEX_EXACT: "INDEX_EXACT",
-        xappy.FieldActions.INDEX_FREETEXT: "INDEX_FREETEXT",
-        xappy.FieldActions.SORTABLE: "SORTABLE",
-        xappy.FieldActions.COLLAPSE: "COLLAPSE",
-        xappy.FieldActions.TAG: "TAG",
-        xappy.FieldActions.FACET: "FACET",
-        xappy.FieldActions.WEIGHT: "WEIGHT",
-        xappy.FieldActions.SORT_AND_COLLAPSE: "SORT_AND_COLLAPSE",
-    }
-    for field, actions in conn._field_actions.iteritems():
-        for actiontype, kwargslist in actions._actions.iteritems():
-            actionname = actionnames.get(actiontype)
-            for kwargs in kwargslist:
-                print "(%r, %s, %s)" % (field, actionname, repr(kwargs))
+actionnames = {
+    xappy.FieldActions.STORE_CONTENT: "STORE_CONTENT",
+    xappy.FieldActions.INDEX_EXACT: "INDEX_EXACT",
+    xappy.FieldActions.INDEX_FREETEXT: "INDEX_FREETEXT",
+    xappy.FieldActions.SORTABLE: "SORTABLE",
+    xappy.FieldActions.COLLAPSE: "COLLAPSE",
+    xappy.FieldActions.TAG: "TAG",
+    xappy.FieldActions.FACET: "FACET",
+    xappy.FieldActions.WEIGHT: "WEIGHT",
+    xappy.FieldActions.SORT_AND_COLLAPSE: "SORT_AND_COLLAPSE",
+}
+
+def dump_field_actions(fieldname, actions):
+    for actiontype, kwargslist in actions._actions.iteritems():
+        actionname = actionnames.get(actiontype)
+        for kwargs in kwargslist:
+            print "(%r, %s, %s)" % (fieldname, actionname, repr(kwargs))
+
+def dump_actions(conn, fieldname):
+    if fieldname is None:
+        fields = conn._field_actions.keys()
+        fields.sort()
+    else:
+        fields = (fieldname, )
+    for field in fields:
+        actions = conn._field_actions[field]
+        dump_field_actions(field, actions)
 
 usage = """
-dump_field_actions.py <dbpath>
+dump_field_actions.py <dbpath> [fieldname]
 """
 
 def run_from_commandline():
     import sys
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2 or len(sys.argv) > 3:
         print usage.strip()
         sys.exit(1)
 
     dbpath = sys.argv[1]
+    if len(sys.argv) == 3:
+        fieldname = sys.argv[2]
+    else:
+        fieldname = None
 
     conn = xappy.SearchConnection(dbpath)
-    dump_actions(conn)
+    dump_actions(conn, fieldname)
 
 if __name__ == "__main__":
     run_from_commandline()
