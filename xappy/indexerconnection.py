@@ -791,7 +791,9 @@ class PrefixedTermIter(object):
                 term = self._termiter.next().term
         if len(term) < self._prefixlen or term[:self._prefixlen] != self._prefix:
             raise StopIteration
-        if self._prefixlen > 1 and term[self._prefixlen] == ':':
+        if self._prefixlen > 1 and \
+           len(term) > self._prefixlen and \
+           term[self._prefixlen] == ':':
             # If the term starts with a colon, it's a prefix separator, so
             # remove it.
             return term[self._prefixlen + 1:]

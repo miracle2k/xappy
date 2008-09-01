@@ -40,6 +40,14 @@ class TestGetTermsForField(TestCase):
         doc = xappy.UnprocessedDocument()
         doc.fields.append(xappy.Field('a', 'dog'))
         iconn.add(doc)
+
+        # Add some empty field values.  For indexing as freetext, this should
+        # have no effect.  For INDEX_EXACT, the empty value should be stored as
+        # a term.
+        doc = xappy.UnprocessedDocument()
+        doc.fields.append(xappy.Field('a', ''))
+        doc.fields.append(xappy.Field('b', ''))
+        iconn.add(doc)
         
         iconn.flush()
         iconn.close()
@@ -60,7 +68,7 @@ class TestGetTermsForField(TestCase):
 
         """
         terms = self.sconn.iter_terms_for_field('b')
-        self.assertEqual(list(terms), ['Zebra Monkey'])
+        self.assertEqual(list(terms), ['', 'Zebra Monkey'])
 
     def test_iter_terms_for_field_empty(self):
         """Test an iterator across a field with no terms.

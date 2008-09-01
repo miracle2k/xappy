@@ -1,3 +1,10 @@
+Mon Sep 01 12:03:59 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py: Fix iteration of terms in fields for
+	  which there is an empty term.
+	* xappy/unittests/terms_for_field.py: Add regression test for empty
+	  field behaviour.
+
 Fri Aug 29 17:08:49 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/get_xapian.py: Updated tarball (fixes a the bug with tags
