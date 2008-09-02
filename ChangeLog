@@ -1,3 +1,9 @@
+Tue Sep 02 15:51:57 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/range_accel.py: Add some further tests of the
+	  range acceleration prefix handling.  Also, tidy up some
+	  whitespace issues.
+
 Mon Sep 01 12:03:59 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py: Fix iteration of terms in fields for

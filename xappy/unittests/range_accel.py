@@ -9,7 +9,7 @@
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
@@ -17,7 +17,9 @@ from xappytest import *
 import xapian
 
 class RangeAccelIndexTest(TestCase):
-    """ Tests for the range acceleration implementation. """
+    """Tests for the range acceleration implementation.
+    
+    """
 
     def pre_test(self):
         self.dbpath = os.path.join(self.tempdir, 'db')
@@ -30,37 +32,50 @@ class RangeAccelIndexTest(TestCase):
         """Test that the ranges parameter is accepted for a SORTABLE field.
 
         """
-        self.iconn.add_field_action('foo', xappy.FieldActions.SORTABLE, type='float', ranges=[(0, 1), (1, 2)])
+        self.iconn.add_field_action('foo', xappy.FieldActions.SORTABLE,
+                                    type='float', ranges=[(0, 1), (1, 2)])
 
     def test_add_ranges_for_facet(self):
         """Test that the ranges parameter is accepted for a FACET field.
 
         """
-        self.iconn.add_field_action('foo', xappy.FieldActions.FACET, type='float', ranges=[(-1, 1), (10, 20)])
+        self.iconn.add_field_action('foo', xappy.FieldActions.FACET,
+                                    type='float', ranges=[(-1, 1), (10, 20)])
 
     def test_add_invalid_ranges(self):
         """Test that the ranges parameter raises an error if it's invalid.
 
         """
-        self.assertRaises(ValueError, self.iconn.add_field_action, 'foo', xappy.FieldActions.SORTABLE, type='float', ranges='rhubarb')
+        self.assertRaises(ValueError, self.iconn.add_field_action, 'foo',
+                          xappy.FieldActions.SORTABLE, type='float',
+                          ranges='rhubarb')
+
+    def _add_range_action(self, add_action):
+        """Add a field action with a 'ranges' parameter.
+        
+        The action is always added to the "foo" field, and the type is
+        specified by 'add_action'.
+
+        """
+        self.iconn.add_field_action('foo', add_action, type='float',
+                                    ranges=[(0, 1), (1, 2), (2, 3)])
 
     def _add_data_to_range_field(self, add_action, action):
         """Add some data to a range field, and check the terms generated.
 
         """
-        self.iconn.add_field_action('foo', add_action, type='float',
-                                    ranges=[(0, 1), (1, 2), (2, 3)])
+        self._add_range_action(add_action)
         doc = xappy.UnprocessedDocument()
         doc.fields.append(xappy.Field('foo', 1.5))
         docid = self.iconn.add(doc)
 
         # Add the action again to check that the prefix doesn't change.
-        self.iconn.add_field_action('foo', add_action, type='float',
-                                    ranges=[(0, 1), (1, 2), (2, 3)])
+        self._add_range_action(add_action)
 
         xdoc = self.iconn.get_document(docid)
         #the document should have at a term with the correct prefix
-        prefix = self.iconn._field_actions['foo']._actions[action][0]['_range_accel_prefix']
+        prefix = self.iconn._field_actions['foo'].\
+                 _actions[action][0]['_range_accel_prefix']
         found = False
         for t in xdoc._doc.termlist():
             if t.term.startswith(prefix):
@@ -68,28 +83,60 @@ class RangeAccelIndexTest(TestCase):
                 break
         self.assertTrue(found, "No term with the range_accel_prefix found")
 
+    def _unique_range_accel_prefix(self, add_action, action):
+        """Test that the range acceleration prefix for a field does not change.
+
+        The prefix used to change (due to a bug) when the field action was
+        repeatedly added.
+
+        """
+        self._add_range_action(add_action)
+        prefix = self.iconn._field_actions['foo'].\
+                 _actions[action][0]['_range_accel_prefix']
+        self._add_range_action(add_action)
+        new_prefix = self.iconn._field_actions['foo'].\
+                     _actions[action][0]['_range_accel_prefix']
+        self.assertEqual(new_prefix, prefix)
+
+    def test_unique_range_accel_prefix_sortable(self):
+        """Test stability of the range acceleration prefix for sortable fields.
+
+        """
+        self._unique_range_accel_prefix(xappy.FieldActions.SORTABLE,
+                                        xappy.FieldActions.SORT_AND_COLLAPSE)
+
+    def test_unique_range_accel_prefix_facet(self):
+        """Test stability of the range acceleration prefix for facet fields.
+
+        """
+        self._unique_range_accel_prefix(xappy.FieldActions.FACET,
+                                        xappy.FieldActions.FACET)
+
     def test_add_data_to_range_field_sortable(self):
         """Test adding some data to a SORTABLE field.
 
         """
         self.iconn.add_field_action('foo', xappy.FieldActions.COLLAPSE)
-        self._add_data_to_range_field(xappy.FieldActions.SORTABLE, xappy.FieldActions.SORT_AND_COLLAPSE)
+        self._add_data_to_range_field(xappy.FieldActions.SORTABLE,
+                                      xappy.FieldActions.SORT_AND_COLLAPSE)
 
     def test_add_data_to_range_field_facet(self):
         """Test adding some data to a FACET field.
 
         """
-        self._add_data_to_range_field(xappy.FieldActions.FACET, xappy.FieldActions.FACET)
+        self._add_data_to_range_field(xappy.FieldActions.FACET,
+                                      xappy.FieldActions.FACET)
 
 
 class RangeAccelSearchTest(TestCase):
     def pre_test(self):
         self.dbpath = os.path.join(self.tempdir, 'db')
         self.iconn = xappy.IndexerConnection(self.dbpath)
-        self.iconn.add_field_action('foo', xappy.FieldActions.SORTABLE, type='float',
-                                    ranges=[(x, x + 1) for x in xrange(10)])
-        self.iconn.add_field_action('bar', xappy.FieldActions.FACET, type='float',
-                                    ranges=[(x, x + 1) for x in xrange(10)])
+        ranges = [(x, x + 1) for x in xrange(10)]
+        self.iconn.add_field_action('foo', xappy.FieldActions.SORTABLE,
+                                    type='float', ranges=ranges)
+        self.iconn.add_field_action('bar', xappy.FieldActions.FACET,
+                                    type='float', ranges=ranges)
         for val in xrange(10):
             doc = xappy.UnprocessedDocument()
             sval = val + 0.5
@@ -235,8 +282,6 @@ class RangeAccelSearchTest(TestCase):
         self.assertEqual(str(q), "Xapian::Query(VALUE_RANGE 1 " +
                          "\xa6\x05\x1e\xb8Q\xeb\x85 \xa7\xfa\xe1G\xae\x14{)")
         self.single_range('bar', 'facet', q)
-
- 
 
 if __name__ == '__main__':
     main()
