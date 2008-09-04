@@ -307,6 +307,28 @@ can be made.::
 
   >>> conn.close()
 
+Associated field values
+-----------------------
+
+Sometimes, it is desirable to search for a particular value, but display an
+associated value in.  For example, a document might have multiple associated
+pieces of material, which you wish to search by colour, but you wish to display
+the name of the material (or perhaps an image of it) which matches a colour in
+the search.
+
+To support this, the Field object supports an additional, optional, value:
+`assoc`.  This is not used during the search, but will be returned as the data
+associated with the field in the search results.  So, for example, you might
+have:
+
+  >>> doc = xappy.UnprocessedDocument()
+  >>> doc.fields.append(xappy.Field("materialcolour", "ff0000", "Bright red"))
+
+A search for the value "ff0000" in the "materialcolour" field would then return
+this document, but when the data for the document was examined the "Bright red"
+value would be found.  Also, see the `SearchResults.relevant_data()` method,
+which is particularly useful in combination with such field associations.
+
 Searching
 =========
 

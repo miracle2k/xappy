@@ -1,3 +1,7 @@
+Thu Sep 04 14:11:41 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/introduction.rst: Basic documentation on field associations.
+
 Thu Sep 04 13:53:18 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/testdata/chert_db/iamchert: Update test data for
