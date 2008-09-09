@@ -39,11 +39,14 @@ import re as _re
 from replaylog import log as _log
 from query import Query
 
-def add_to_dictitem_set(d, key, item):
+def add_to_dict_of_dicts(d, key, item, value):
+    """Add to an an entry to a dict of dicts.
+
+    """
     try:
-        d[key].add(item)
+        d[key][item] = d[key].get(item, 0) + value
     except KeyError:
-        d[key] = set((item,))
+        d[key] = {item: value}
 
 class SearchResult(ProcessedDocument):
     """A result from a search.
@@ -80,8 +83,8 @@ class SearchResult(ProcessedDocument):
         self.percent = msetitem.percent
         self._results = results
 
-        # termassocs is a map from a term to a list of pairs of (fieldname,
-        # offset) of relevant data.
+        # termassocs is a map from a term to a list of tuples of (fieldname,
+        # offset, weight) of relevant data.
         self._termassocs = None
 
         # valueassocs is a map from a value slot to a list of values with
@@ -109,7 +112,7 @@ class SearchResult(ProcessedDocument):
 
         """
         for fieldname, tvoffsetlist in assocs.iteritems():
-            for tv, offset in tvoffsetlist:
+            for (tv, offset), weight in tvoffsetlist.iteritems():
                 if tv[0] == 'T':
                     term = tv[1:]
                     try:
@@ -117,7 +120,7 @@ class SearchResult(ProcessedDocument):
                     except KeyError:
                         item = []
                         self._termassocs[term] = item
-                    item.append((fieldname, offset))
+                    item.append((fieldname, offset, weight))
                 elif tv[0] == 'V':
                     slot, value = tv[1:].split(':', 1)
                     slot = int(slot)
@@ -126,7 +129,7 @@ class SearchResult(ProcessedDocument):
                     except KeyError:
                         item = []
                         self._valueassocs[slot] = item
-                    item.append((value, (fieldname, offset)))
+                    item.append((value, (fieldname, offset, weight)))
                 else:
                     assert False
 
@@ -204,40 +207,42 @@ class SearchResult(ProcessedDocument):
             assocs = self._termassocs.get(term)
             if assocs is None:
                 continue
-            for field, offset in assocs:
+            for field, offset, weight in assocs:
                 fieldscores[field] = fieldscores.get(field, 0) + 1
-                add_to_dictitem_set(fieldassocs, field, offset)
+                add_to_dict_of_dicts(fieldassocs, field, offset, weight)
 
         # Iterate through the ranges in the query, checking them.
         for slot, begin, end in query._get_ranges():
             assocs = self._valueassocs.get(slot)
             if assocs is None:
                 continue
-            for value, (field, offset) in assocs:
+            for value, (field, offset, weight) in assocs:
                 if begin is None:
                     if end is None:
                         fieldscores[field] = fieldscores.get(field, 0) + 1
-                        add_to_dictitem_set(fieldassocs, field, offset)
+                        add_to_dict_of_dicts(fieldassocs, field, offset, weight)
                     elif value <= end:
                         fieldscores[field] = fieldscores.get(field, 0) + 1
-                        add_to_dictitem_set(fieldassocs, field, offset)
+                        add_to_dict_of_dicts(fieldassocs, field, offset, weight)
                 elif begin <= value:
                     if end is None:
                         fieldscores[field] = fieldscores.get(field, 0) + 1
-                        add_to_dictitem_set(fieldassocs, field, offset)
+                        add_to_dict_of_dicts(fieldassocs, field, offset, weight)
                     elif value <= end:
                         fieldscores[field] = fieldscores.get(field, 0) + 1
-                        add_to_dictitem_set(fieldassocs, field, offset)
+                        add_to_dict_of_dicts(fieldassocs, field, offset, weight)
 
         # Convert the dict of fields and data offsets with scores to to a list
-        # of (field, data) item.
-        scoreditems = [(score, field)
+        # of (field, data) item.  Sort in decreasing order of score, and
+        # increasing alphabetical order if the score is the same.
+        scoreditems = [(-score, field)
                        for field, score in fieldscores.iteritems()]
         scoreditems.sort()
         result = []
         for score, field in scoreditems:
-            fielddata = [self.data[field][offset] for offset in fieldassocs[field]]
-            result.append((field, tuple(fielddata)))
+            fielddata = [(-weight, self.data[field][offset]) for offset, weight in fieldassocs[field].iteritems()]
+            fielddata.sort()
+            result.append((field, tuple(data for weight, data in fielddata)))
         return tuple(result)
 
     def summarise(self, field, maxlen=600, hl=('<b>', '</b>'), query=None):
@@ -1305,12 +1310,17 @@ class SearchConnection(object):
                          _serialised=serialised)
 
         if begin is None and end is None:
-            # Return a "match everything" query
-            # FIXME - this should actually be a "match everything with a
-            # non-empty value in the slot" query, I think.
-            return Query(_log(_xapian.Query, ''), _conn=self,
-                         _ranges=((slot, begin, end),),
-                         _serialised=serialised)
+            # Return a query which matches everything with a non-empty value in
+            # the slot.
+
+            # FIXME - this can probably be done more efficiently when streamed
+            # values are stored in the database, but I don't think Xapian
+            # exposes a useful interface for this currently.
+            return Query(_log(_xapian.Query,
+                              _xapian.Query.OP_VALUE_GE, slot,
+                              '\x00'),
+                         _conn=self, _serialised=serialised,
+                         _ranges=((slot, None, None),))
 
         sorttype = self._get_sort_type(field)
         marshaller = SortableMarshaller(False)

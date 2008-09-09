@@ -51,12 +51,23 @@ class TestFieldAssociations(TestCase):
         doc = xappy.UnprocessedDocument()
         doc.fields.append(xappy.Field('a', 'Africa America', 'Brown Bible'))
         doc.fields.append(xappy.Field('b', 'Andes America', 'Bath Bible'))
-        doc.fields.append(xappy.Field('c', 'Arctic America', 'Baptist Bible'))
+        doc.fields.append(xappy.Field('c', 'Arctic America', 'Lesser Baptist'))
+        doc.fields.append(xappy.Field('c', 'Arctic America', 'Baptist Bible',
+                                      weight=2.0))
+        doc.fields.append(xappy.Field('c', 'Arctic America'))
         doc.fields.append(xappy.Field('d', 'Australia', 'Braille'))
         doc.fields.append(xappy.Field('e', '1.0', 'Sortable one'))
         doc.fields.append(xappy.Field('f', 'Ave', 'Blvd'))
         doc.fields.append(xappy.Field('g', 'Atlantic', 'British'))
         doc.fields.append(xappy.Field('h', '1.0', 'Facet one'))
+        iconn.add(doc)
+
+        doc = xappy.UnprocessedDocument()
+        doc.fields.append(xappy.Field('c', 'Arctic America', 'Lesser Baptist'))
+        doc.fields.append(xappy.Field('c', 'Arctic America', 'Lesser Baptist'))
+        doc.fields.append(xappy.Field('c', 'Arctic America', 'Baptist Bible',
+                                      weight=1.5))
+        doc.fields.append(xappy.Field('c', 'Arctic America'))
         iconn.add(doc)
 
         iconn.flush()
@@ -77,6 +88,7 @@ class TestFieldAssociations(TestCase):
         q5 = self.sconn.query_range('e', None, 2.0)
         q6 = self.sconn.query_range('e', None, None)
         q7 = self.sconn.query_facet('h', (0.0, 2.0))
+        q8 = self.sconn.query_field('c', 'Arctic America')
 
         # Check an internal detail
         results = q1.search(0, 10)
@@ -131,7 +143,13 @@ class TestFieldAssociations(TestCase):
         self.assertEqual(results[1].relevant_data(),
                          (('h', ('Facet one',)),))
 
-
+        results = q8.search(0, 10)
+        self.assertEqual(results[0].relevant_data(),
+                         (('c', ('Arctic America',)),))
+        self.assertEqual(results[1].relevant_data(),
+                         (('c', ('Baptist Bible', 'Arctic America', 'Lesser Baptist',)),))
+        self.assertEqual(results[2].relevant_data(),
+                         (('c', ('Lesser Baptist', 'Baptist Bible', 'Arctic America',)),))
 
 if __name__ == '__main__':
     main()

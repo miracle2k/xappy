@@ -37,13 +37,24 @@ def _act_store_content(fieldname, doc, field, context):
         fielddata = []
         doc.data[fieldname] = fielddata
     if field.assoc is None:
-        context.currfield_assoc = None
-        fielddata.append(field.value)
+        toappend = field.value
     else:
-        context.currfield_assoc = len(fielddata)
-        fielddata.append(field.assoc)
+        toappend = field.assoc
 
-def add_field_assoc(doc, fieldname, offset, term=None, rawterm=None, value=None):
+    # Search the field to check if the data is already there.
+    try:
+        idx = fielddata.index(toappend)
+    except ValueError:
+        idx = len(fielddata)
+        fielddata.append(toappend)
+
+    # Store the index of the data.
+    if field.assoc is None:
+        context.currfield_assoc = None
+    else:
+        context.currfield_assoc = idx
+
+def add_field_assoc(doc, fieldname, offset, term=None, rawterm=None, value=None, weight=None):
     """Add an association between a term or value and some associated data.
 
     """
@@ -51,7 +62,7 @@ def add_field_assoc(doc, fieldname, offset, term=None, rawterm=None, value=None)
     try:
         fieldassocs = assocs[fieldname]
     except KeyError:
-        fieldassocs = []
+        fieldassocs = {}
         assocs[fieldname] = fieldassocs
 
     if term is not None:
@@ -65,11 +76,13 @@ def add_field_assoc(doc, fieldname, offset, term=None, rawterm=None, value=None)
         rawterm = prefix + term
     if rawterm is not None:
         prefix = doc._fieldmappings.get_prefix(fieldname)
-        fieldassocs.append(('T'+rawterm, offset))
+        key = 'T' + rawterm
     if value is not None:
         value, purpose = value
         slotnum = doc._fieldmappings.get_slot(fieldname, purpose)
-        fieldassocs.append(('V%d:%s' % (slotnum, value), offset))
+        key = 'V%d:%s' % (slotnum, value)
+    key = (key, offset)
+    fieldassocs[key] = fieldassocs.get(key, 0) + weight
 
 def _act_index_exact(fieldname, doc, field, context):
     """Perform the INDEX_EXACT action.
@@ -78,7 +91,7 @@ def _act_index_exact(fieldname, doc, field, context):
     doc.add_term(fieldname, field.value, 0)
     if context.currfield_assoc is not None:
         add_field_assoc(doc, fieldname, context.currfield_assoc,
-                        term=field.value)
+                        term=field.value, weight=field.weight)
 
 def _act_tag(fieldname, doc, field, context):
     """Perform the TAG action.
@@ -87,7 +100,7 @@ def _act_tag(fieldname, doc, field, context):
     doc.add_term(fieldname, field.value.lower(), 0)
     if context.currfield_assoc is not None:
         add_field_assoc(doc, fieldname, context.currfield_assoc,
-                        term=field.value.lower())
+                        term=field.value.lower(), weight=field.weight)
 
 def convert_range_to_term(prefix, begin, end):
     begin = log(xapian.sortable_serialise, begin)
@@ -117,7 +130,7 @@ def _act_facet(fieldname, doc, field, context, type=None, ranges=None, _range_ac
         doc.add_term(fieldname, value, 0)
         if context.currfield_assoc is not None:
             add_field_assoc(doc, fieldname, context.currfield_assoc,
-                            term=value)
+                            term=value, weight=field.weight)
         serialiser = log(xapian.StringListSerialiser,
                           doc.get_value(fieldname, 'facet'))
         serialiser.append(value)
@@ -129,7 +142,8 @@ def _act_facet(fieldname, doc, field, context, type=None, ranges=None, _range_ac
         doc.add_value(fieldname, marshalled_value, 'facet')
         if context.currfield_assoc is not None:
             add_field_assoc(doc, fieldname, context.currfield_assoc,
-                            value=(marshalled_value, 'facet'))
+                            value=(marshalled_value, 'facet'),
+                            weight=field.weight)
         _range_accel_act(doc, field.value, ranges, _range_accel_prefix)
 
 
@@ -203,7 +217,7 @@ def _act_index_freetext(fieldname, doc, field, context, weight=1,
     if context.currfield_assoc is not None:
         for item in tmpdoc.termlist():
             add_field_assoc(doc, fieldname, context.currfield_assoc,
-                            rawterm=item.term)
+                            rawterm=item.term, weight=field.weight)
 
     # Add a gap between each field instance, so that phrase searches don't
     # match across instances.
@@ -279,7 +293,8 @@ def _act_sort_and_collapse(fieldname, doc, field, context, type=None, ranges=Non
     marshalled_value = fn(fieldname, field.value)
     if context.currfield_assoc is not None:
         add_field_assoc(doc, fieldname, context.currfield_assoc,
-                        value=(marshalled_value, 'collsort'))
+                        value=(marshalled_value, 'collsort'),
+                        weight=field.weight)
     doc.add_value(fieldname, marshalled_value, 'collsort')
     _range_accel_act(doc, field.value, ranges, _range_accel_prefix)
 

@@ -1,3 +1,25 @@
+Tue Sep 09 17:01:19 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/datastructures.py: Add optional "weight" member to Field:
+	  defaults to 1.0, not currently used anywhere other than in the
+	  relevant_data() calculation for associated fields.
+	* xappy/fieldactions.py: Store the weight values specified.  Also,
+	  modify STORE_CONTENT to simply increase the stored weight if a
+	  field is repeated multiple times, rather than storing it multiple
+	  times.  Change in database format for existing databases which
+	  use field assocs (but this feature hasn't been in a release yet,
+	  anyway).
+	* xappy/searchconnection.py: Use weights stored in field actions
+	  to make relevant_data() return fields in a sorted (descending)
+	  order of relevance, and to return the data within each field in
+	  descending order of weight.  Also, fix a bug with query_range()
+	  when both endpoints were None - previously, this returned an
+	  "all documents" query - now it returns an "all documents which
+	  have an entry in the slot" query, which is more logically
+	  consistent.
+	* xappy/unittests/field_associations.py: Test repeated, and
+	  weighted, field associations.
+
 Thu Sep 04 14:11:41 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* docs/introduction.rst: Basic documentation on field associations.

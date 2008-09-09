@@ -28,17 +28,21 @@ import cPickle
 class Field(object):
     # Use __slots__ because we're going to have very many Field objects in
     # typical usage.
-    __slots__ = 'name', 'value', 'assoc',
+    __slots__ = 'name', 'value', 'assoc', 'weight'
 
-    def __init__(self, name, value, assoc=None):
+    def __init__(self, name, value, assoc=None, weight=1.0):
         self.name = name
         self.value = value
         self.assoc = assoc
+        self.weight = float(weight)
 
     def __repr__(self):
-        if self.assoc is None:
-            return 'Field(%r, %r)' % (self.name, self.value)
-        return 'Field(%r, %r, %r)' % (self.name, self.value, self.assoc)
+        extra = ''
+        if self.assoc is not None:
+            extra += ', %r' % self.assoc
+        if self.weight != 1.0:
+            extra += ', weight=%r' % self.weight
+        return 'Field(%r, %r%s)' % (self.name, self.value, extra)
 
 class UnprocessedDocument(object):
     """A unprocessed document to be passed to the indexer.
