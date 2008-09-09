@@ -68,6 +68,7 @@ class TestFieldAssociations(TestCase):
         doc.fields.append(xappy.Field('c', 'Arctic America', 'Baptist Bible',
                                       weight=1.5))
         doc.fields.append(xappy.Field('c', 'Arctic America'))
+        doc.fields.append(xappy.Field('c', 'Baptist Bible'))
         iconn.add(doc)
 
         iconn.flush()
@@ -89,6 +90,7 @@ class TestFieldAssociations(TestCase):
         q6 = self.sconn.query_range('e', None, None)
         q7 = self.sconn.query_facet('h', (0.0, 2.0))
         q8 = self.sconn.query_field('c', 'Arctic America')
+        q9 = self.sconn.query_field('c', 'Baptist Bible')
 
         # Check an internal detail
         results = q1.search(0, 10)
@@ -144,12 +146,29 @@ class TestFieldAssociations(TestCase):
                          (('h', ('Facet one',)),))
 
         results = q8.search(0, 10)
+        self.assertEqual(len(results), 3)
         self.assertEqual(results[0].relevant_data(),
                          (('c', ('Arctic America',)),))
         self.assertEqual(results[1].relevant_data(),
                          (('c', ('Baptist Bible', 'Arctic America', 'Lesser Baptist',)),))
         self.assertEqual(results[2].relevant_data(),
                          (('c', ('Lesser Baptist', 'Baptist Bible', 'Arctic America',)),))
+
+        results = q9.search(0, 10)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].relevant_data(),
+                         (('c', ('Baptist Bible',)),))
+
+        results = (q8 | q9).search(0, 10)
+        self.assertEqual(len(results), 3)
+        self.assertEqual(results[0].relevant_data(),
+                         (('c', ('Arctic America',)),))
+        self.assertEqual(results[1].relevant_data(),
+                         (('c', ('Baptist Bible', 'Arctic America', 'Lesser Baptist',)),))
+        self.assertEqual(results[2].relevant_data(),
+                         (('c', ('Baptist Bible', 'Lesser Baptist', 'Arctic America',)),))
+
+
 
 if __name__ == '__main__':
     main()
