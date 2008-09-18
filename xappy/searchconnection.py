@@ -2507,8 +2507,18 @@ class SearchConnection(object):
             raise _errors.SearchError("SearchConnection has been closed")
         return DocumentIter(self, self._index.postlist(''))
 
-    def get_document(self, id):
+    def get_document(self, docid=None, xapid=None):
         """Get the document with the specified unique ID.
+
+        This should usually be called with the `docid` parameter set to the
+        document ID of the document (which is an arbitrary string value).
+
+        However, if you happen to know the xapian document ID, you can pass it
+        in instead, by using the `xapid` parameter.  Note that xapian document
+        IDs are liable to change between revisions of the database, thoguh.
+
+        Exactly one of the `docid` and `xapid` parameters should be set to
+        non-None.
 
         Raises a KeyError if there is no such document.  Otherwise, it returns
         a ProcessedDocument.
@@ -2518,23 +2528,31 @@ class SearchConnection(object):
             raise _errors.SearchError("SearchConnection has been closed")
         while True:
             try:
-                postlist = self._index.postlist('Q' + id)
-                try:
-                    plitem = postlist.next()
-                except StopIteration:
-                    # Unique ID not found
-                    raise KeyError('Unique ID %r not found' % id)
-                try:
-                    postlist.next()
-                    raise _errors.IndexerError("Multiple documents " #pragma: no cover
-                                               "found with same unique ID")
-                except StopIteration:
-                    # Only one instance of the unique ID found, as it should be.
-                    pass
+                if docid is not None:
+                    if xapid is not None:
+                        raise _errors.SearchError("Only one of docid and xapid"
+                                                  " should be set")
+                    postlist = self._index.postlist('Q' + docid)
+                    try:
+                        plitem = postlist.next()
+                    except StopIteration:
+                        # Unique ID not found
+                        raise KeyError('Unique ID %r not found' % docid)
+                    try:
+                        postlist.next()
+                        raise _errors.IndexerError("Multiple documents "
+                                                   "found with same unique ID")
+                    except StopIteration:
+                        # Only one instance of the unique ID found, as it
+                        # should be.
+                        pass
+                    xapid = plitem.docid
+                if xapid is None:
+                    raise _errors.SearchError("Either docid or xapid must be "
+                                              "set")
 
                 result = ProcessedDocument(self._field_mappings)
-                result.id = id
-                result._doc = self._index.get_document(plitem.docid)
+                result._doc = self._index.get_document(xapid)
                 return result
             except _xapian.DatabaseModifiedError, e:
                 self.reopen()
