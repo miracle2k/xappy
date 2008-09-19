@@ -2179,10 +2179,22 @@ class SearchConnection(object):
         """
         if weight_params is not None:
             k1 = weight_params.get('k1', 1)
+            if k1 < 0:
+                raise ValueError("k1 must be >= 0")
             k2 = weight_params.get('k2', 0)
+            if k2 < 0:
+                raise ValueError("k2 must be >= 0")
             k3 = weight_params.get('k3', 1)
+            if k3 < 0:
+                raise ValueError("k3 must be >= 0")
             b = weight_params.get('b', 0.5)
+            if b < 0:
+                raise ValueError("b must be >= 0")
+            if b > 1:
+                raise ValueError("b must be <= 1")
             min_normlen = weight_params.get('min_normlen', 0.5)
+            if min_normlen < 0:
+                raise ValueError("min_normlen must be >= 0")
             wt = xapian.BM25Weight(k1, k2, k3, b, min_normlen)
             enq.set_weighting_scheme(wt)
             enq._wt = wt # Ensure that wt isn't dereferenced too soon.
