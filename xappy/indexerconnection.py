@@ -393,8 +393,11 @@ class IndexerConnection(object):
         if synonym_field is None:
             synonym_field = field
         key = self._make_synonym_key(original, original_field)
-        # FIXME - this only works for exact fields which have no upper case
-        # characters, or single words
+
+        # FIXME - if the field is indexed with INDEX_EXACT, this will only work
+        # with values which have no upper case characters, and are single
+        # words.  We should probably check the field action, and make different
+        # synonyms for this case.
         value = self._make_synonym_key(synonym, synonym_field)
         self._index.add_synonym(key, value)
 

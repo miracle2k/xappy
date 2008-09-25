@@ -1,3 +1,7 @@
+Thu Sep 25 18:04:15 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py: Expand a FIXME.
+
 Thu Sep 25 09:07:08 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py: Fix add_subfacet() to not repeatedly
