@@ -451,11 +451,13 @@ class IndexerConnection(object):
         self._assert_facet(subfacet)
         if subfacet in self._facet_hierarchy:
             parents = self._facet_hierarchy[subfacet]
-            parents.append(facet)
+            if facet not in parents:
+                parents.append(facet)
+                self._config_modified = True
         else:
             parents = [facet]
             self._facet_hierarchy[subfacet] = parents
-        self._config_modified = True
+            self._config_modified = True
 
     def remove_subfacet(self, subfacet):
         """Remove any existing facet hierarchy relationship for a subfacet.
