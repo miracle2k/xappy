@@ -26,6 +26,7 @@ Query() object:
  - `query_similar()`
  - `query_all()`
  - `query_none()`
+ - `query_difference()`
 
 *FIXME* - document further here.  For now, see the introductory
 document for examples of using these, and the doccomments for detailed
@@ -78,6 +79,14 @@ used only if the `approx` parameter is False. If this tests true, then the
 range terms are used in combination with a normal range search to reduce the
 number of cases in which the (slow) full range check needs to be carried out.
 This allows an exact range search to be performed more quickly.
+
+Querying by difference
+======================
+
+The ranges used for range query acceleration (see above), can also be
+used to generate queries based on the difference from a specified
+value using the 'query_difference()' method.
+
 
 Combining Query objects
 =======================

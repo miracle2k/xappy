@@ -1,3 +1,12 @@
+Mon Oct 06 12:27:29 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/queries.rst,xappy/searchconnection.py: Add
+	  query_difference() to product a query which ranks documents
+	  according to how close to a particular value one of the fields
+	  is.
+	* xappy/unittests/distance.py: Add tests for query_difference.
+	* AUTHORS: Mention that Paul did this.
+
 Sun Sep 28 15:52:10 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/get_xapian.py: Update to use new packages.

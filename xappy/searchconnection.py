@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 #
 # Copyright (C) 2007,2008 Lemur Consulting Ltd
@@ -25,6 +26,7 @@ import os as _os
 import cPickle as _cPickle
 import math
 import inspect
+import itertools
 
 import xapian as _xapian
 from datastructures import *
@@ -1382,6 +1384,113 @@ class SearchConnection(object):
         # As before - multiply result weights by 0 to help Xapian optimise.
         result._set_serialised(serialised)
         return result
+
+    def _difference_accel_query(self, ranges, prefix, val, difference_func, num):
+        """ Create a query for differences using range acceleration terms.
+
+        """
+        scales_and_ranges = []
+        inf = float('inf')
+
+        for (low_val, hi_val) in ranges:
+            mid = (low_val + hi_val) / 2
+            difference = difference_func(val, mid)
+            if difference >= 0 and abs(difference) != inf:
+                scale = 1.0 / (difference + 1.0)
+                scales_and_ranges.append((scale, low_val, hi_val))
+
+        if num is not None:
+            ordered = sorted(scales_and_ranges,
+                             key=lambda x:x[0],
+                             reverse=True)
+            scales_and_ranges = itertools.islice(ordered, 0, num)
+
+            scales_and_ranges = list(scales_and_ranges)
+
+        def make_query(scale, low_val, hi_val):
+            term = convert_range_to_term(prefix, low_val, hi_val)
+            return scale * (self.query_all() &
+                            (Query(_xapian.Query(term), _conn = self) * 0))
+
+
+        queries = [make_query(scale, low_val, hi_val) for
+                   scale, low_val, hi_val in scales_and_ranges]
+
+        return Query.compose(_xapian.Query.OP_OR, queries)
+
+    def query_difference(self, field, val, purpose, approx=False, num=None,
+                         difference_func="abs(x - y)"):
+        """Create a query for a difference search.
+
+        This creates a query that ranks documents according to the
+        difference of values in fields from 'val'.
+
+        'purpose' should be one of 'collsort' or 'facet'
+
+        The 'difference_func' parameter is a string, holding a formula to use
+        to compute the difference of the field's value from the 'val'
+        parameter.  This formula should assume that the two values are passed
+        to it as "x" and "y".  Negative differences are not differentiated
+        amongst and signify that documents should not be included in the
+        results. For approximate queries this might result in significant
+        performance improvements (provided a number of ranges are excluded),
+        whereas for exact searches it is still necessary to test each document.
+
+        If the 'approx' parameter tests true, then the ranges for the
+        field are used to approximate differences. This is less accurate
+        but likely to be much faster. It is necessary that 'ranges'
+        was specified for the field at indexing time. (This is
+        therefore only available for float fields.) The documents are
+        ranked according to the difference of 'val' from the midpoint of
+        each range.
+
+        The precision will depend on the granularity of the ranges -
+        using 'approx' means that values within a given range are not
+        differentiated. Smaller ranges will give higher precision, but
+        slower queries. Note that using a 'difference_func' that cuts
+        off far values by returning a negative number is likely to
+        improve performance significantly when 'approx' is specified.
+
+        The 'num' parameter limits the number of range specific
+        subqueries to the value supplied. The first 'num' subqueries
+        in order of importance are used. Small values of 'num' mean
+        that values further from the 'val' will be effectively
+        ignored.
+
+        """
+
+        actions_map = {'collsort': FieldActions.SORT_AND_COLLAPSE,
+                       'facet': FieldActions.FACET}
+
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
+
+        if approx:
+            #accelerate with ranges.
+            ranges, range_accel_prefix = \
+                    self._get_approx_params(field, actions_map[purpose])
+            if not ranges:
+                errors.SearchError("Cannot do approximate difference search "
+                                   "on fields with no ranges")
+            difference_func = eval('lambda x, y: ' + difference_func)
+            return self._difference_accel_query(ranges, range_accel_prefix,
+                                                val, difference_func, num)
+        else:
+            # not approx
+            # NOTE - very slow: needs to be implemented in C++.
+            difference_func = eval('lambda x, y: ' + difference_func)
+            class DifferenceWeight(ExternalWeightSource):
+                " An exteral weighting source for differences"
+                def get_maxweight(self):
+                    return 1.0
+
+                def get_weight(self, doc):
+                    doc_val = _xapian.sortable_unserialise(
+                            doc.get_value(field, purpose))
+                    difference = difference_func(val, doc_val)
+                    return 1.0 / (abs(difference) + 1.0)
+
+            return self.query_external_weight(DifferenceWeight())
 
     def query_facet(self, field, val, approx=False,
                     conservative=True, accelerate=True):
