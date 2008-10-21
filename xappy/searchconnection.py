@@ -2380,10 +2380,14 @@ class SearchConnection(object):
           can be specified for the checkatleast parameter - this has the
           special meaning of "check all matches", and is equivalent to passing
           the result of get_doccount().
-        - `sortby` is the name of a field to sort by.  It may be preceded by a
+        - `sortby` is the name of a field to sort by. It may be preceded by a
           '+' or a '-' to indicate ascending or descending order
           (respectively).  If the first character is neither '+' or '-', the
           sort will be in ascending order.
+          The value may also be a tuple of fields to sort by. Order can not
+          be specified on a per-field basis. Instead, the tuple's first
+          element can either be '-' or '+' for ascending or descending order,
+          respectively.
         - `collapse` is the name of a field to collapse the result documents
           on.  If this is specified, there will be at most one result in the
           result set for each value of the field.
