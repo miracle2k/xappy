@@ -170,7 +170,7 @@ class SearchResult(ProcessedDocument):
         which was relevant to the search, together with the data which was
         relevant.  The returned tuple items will be tuples of (fieldname,
         data), where data is a tuple of strings.
-        
+
         In order to be returned the fields must have the STORE_CONTENT action,
         but must also be included in the query (so must have other actions
         specified too).  If there are multiple instances of a field, only those
@@ -192,7 +192,7 @@ class SearchResult(ProcessedDocument):
         from SearchConnection.query_parse() or related methods, which will be
         used as the basis of selecting relevant data rather than the query
         which was used for the search.
- 
+
         """
         if query is None:
             query = self._results._query
@@ -979,7 +979,7 @@ class SearchConnection(object):
                 if action == FieldActions.INDEX_FREETEXT:
                     for kwargs in kwargslist:
                         return kwargs['type']
-        
+
 
     def _load_config(self):
         """Load the configuration for the database.
@@ -2437,6 +2437,14 @@ class SearchConnection(object):
             enq.set_query(query._get_xapian_query())
 
         if sortby is not None:
+            def _get_slot(field):
+                try:
+                    return self._field_mappings.get_slot(field, 'collsort')
+                except KeyError:
+                    raise _errors.SearchError("Field %r was not indexed for sorting" % field)
+
+            # Determine sort order; Note that ``sortby`` may be either
+            # a string or a tuple at this point.
             asc = True
             if sortby[0] == '-':
                 asc = False
@@ -2444,16 +2452,21 @@ class SearchConnection(object):
             elif sortby[0] == '+':
                 sortby = sortby[1:]
 
-            try:
-                slotnum = self._field_mappings.get_slot(sortby, 'collsort')
-            except KeyError:
-                raise _errors.SearchError("Field %r was not indexed for sorting" % sortby)
+            if not isinstance(sortby, (tuple, list)):
+                # Note: we invert the "asc" parameter, because xapian treats
+                # "ascending" as meaning "higher values are better"; in other
+                # words, it considers "ascending" to mean return results in
+                # descending order.
+                enq.set_sort_by_value_then_relevance(_get_slot(sortby), not asc)
+            else:
+                slots = []
+                for field in sortby:
+                    slots.append(_get_slot(field))
 
-            # Note: we invert the "asc" parameter, because xapian treats
-            # "ascending" as meaning "higher values are better"; in other
-            # words, it considers "ascending" to mean return results in
-            # descending order.
-            enq.set_sort_by_value_then_relevance(slotnum, not asc)
+                sorter = xapian.MultiValueSorter()
+                for num in slots:
+                    sorter.add(num)
+                enq.set_sort_by_key_then_relevance(sorter, not asc)
 
         if collapse is not None:
             try:
