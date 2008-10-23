@@ -2383,11 +2383,8 @@ class SearchConnection(object):
         - `sortby` is the name of a field to sort by. It may be preceded by a
           '+' or a '-' to indicate ascending or descending order
           (respectively).  If the first character is neither '+' or '-', the
-          sort will be in ascending order.
-          The value may also be a tuple of fields to sort by. Order can not
-          be specified on a per-field basis. Instead, the tuple's first
-          element can either be '-' or '+' for ascending or descending order,
-          respectively.
+          sort will be in ascending order. To sort by multiple fields, you may
+          also pass a tuple of names in this form.
         - `collapse` is the name of a field to collapse the result documents
           on.  If this is specified, there will be at most one result in the
           result set for each value of the field.
@@ -2442,35 +2439,29 @@ class SearchConnection(object):
 
         if sortby is not None:
             def _get_slot(field):
+                asc = True
+                if field[0] == '-':
+                    asc = False
+                    field = field[1:]
+                elif field[0] == '+':
+                    field = field[1:]
                 try:
-                    return self._field_mappings.get_slot(field, 'collsort')
+                    # Note: we invert the "asc" parameter, because xapian
+                    # treats "ascending" as meaning "higher values are better";
+                    # in other words, it considers "ascending" to mean return
+                    # results in descending order.
+                    return self._field_mappings.get_slot(field, 'collsort'),\
+                           not asc
                 except KeyError:
                     raise _errors.SearchError("Field %r was not indexed for sorting" % field)
 
-            # Determine sort order; Note that ``sortby`` may be either
-            # a string or a tuple at this point.
-            asc = True
-            if sortby[0] == '-':
-                asc = False
-                sortby = sortby[1:]
-            elif sortby[0] == '+':
-                sortby = sortby[1:]
-
             if not isinstance(sortby, (tuple, list)):
-                # Note: we invert the "asc" parameter, because xapian treats
-                # "ascending" as meaning "higher values are better"; in other
-                # words, it considers "ascending" to mean return results in
-                # descending order.
-                enq.set_sort_by_value_then_relevance(_get_slot(sortby), not asc)
+                enq.set_sort_by_value_then_relevance(*_get_slot(sortby))
             else:
-                slots = []
-                for field in sortby:
-                    slots.append(_get_slot(field))
-
                 sorter = xapian.MultiValueSorter()
-                for num in slots:
-                    sorter.add(num)
-                enq.set_sort_by_key_then_relevance(sorter, not asc)
+                for field in sortby:
+                    sorter.add(*_get_slot(field))
+                enq.set_sort_by_key_then_relevance(sorter)
 
         if collapse is not None:
             try:
