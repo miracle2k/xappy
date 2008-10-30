@@ -1,3 +1,8 @@
+Thu Oct 30 21:20:30 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Update xapian
+	  tarballs with changes in xapian trunk to revision 11580.
+
 Mon Oct 06 12:27:29 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* docs/queries.rst,xappy/searchconnection.py: Add

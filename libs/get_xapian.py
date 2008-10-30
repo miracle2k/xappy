@@ -23,7 +23,6 @@ __docformat__ = "restructuredtext en"
 import copy
 import glob
 import os
-import sha
 import shutil
 import subprocess
 import sys
@@ -31,6 +30,12 @@ import tarfile
 import tempfile
 import urllib2
 
+try:
+    import hashlib
+    make_sha1_hasher = hashlib.sha1
+except ImportError:
+    import sha
+    make_sha1_hasher = sha.new
 # List of the archives.
 #
 # The values are, in order:
@@ -40,21 +45,21 @@ import urllib2
 #  - SHA1 sum of package
 archives = (
     ('Xapian core',
-     'http://xappy.googlecode.com/files/xapian-core-11454.tgz',
+     'http://xappy.googlecode.com/files/xapian-core-11581.tgz',
      'xapian-core.tgz',
-     'e5ec0470cc68fd9409a379d63c63872096cab17c',
+     'a14920877ad21513f0ac611f2e368d9fa067179c',
      '',
     ),
     ('Xapian bindings',
-     'http://xappy.googlecode.com/files/xapian-bindings-11454.tgz',
+     'http://xappy.googlecode.com/files/xapian-bindings-11581.tgz',
      'xapian-bindings.tgz',
-     'a0a5d0848156ef3948f09aae9d84ef87b1e1c29a',
+     '55ae5ed50f406ef593c1701477f90bfcbd274ec6',
      '',
     ),
     ('Xapian win32 build system',
-     'http://xappy.googlecode.com/files/win32msvc-11454.tgz',
+     'http://xappy.googlecode.com/files/win32msvc-11581.tgz',
      'win32msvc.tgz',
-     'c7ce370464c416f28efb238eda5b45c7d82b9dc0',
+     '0e6798cbcc885277790895af401eddd0c9e6dd4a',
      'xapian-core/win32',
     ),
 )
@@ -80,7 +85,7 @@ def calc_sha_hash(filepath):
     """Calculate the SHA1 hash of the file at the given path.
 
     """
-    hasher = sha.new()
+    hasher = make_sha1_hasher()
     fd = open(filepath, 'rb', 0)
     try:
         while True:
