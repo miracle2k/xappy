@@ -1409,8 +1409,10 @@ class SearchConnection(object):
 
         def make_query(scale, low_val, hi_val):
             term = convert_range_to_term(prefix, low_val, hi_val)
-            return scale * (self.query_all() &
-                            (Query(_xapian.Query(term), _conn = self) * 0))
+            postingsource = _xapian.FixedWeightPostingSource(self._index, scale)
+            fixedwt_query = Query(_log(_xapian.Query, postingsource),
+                           _refs=[postingsource], _conn=self)
+            return fixedwt_query.filter(Query(_xapian.Query(term), _conn = self))
 
 
         queries = [make_query(scale, low_val, hi_val) for
