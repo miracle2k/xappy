@@ -76,7 +76,7 @@ Compiling is fairly straightforward - use xapian-config to get the appropriate
 options to pass to the compiler, and use libtool to match the compilation of
 all the other files::
 
-    libtool --mode=compile g++ `../libs/install/bin/xapian-config --cxxflags` -I/usr/include/python2.5 mypostingsource.h -o mypostingsource.lo
+    libtool --mode=compile g++ `../libs/install/bin/xapian-config --cxxflags` -shared -I/usr/include/python2.5 mypostingsource.h -o mypostingsource.lo
 
 Linking your posting source
 ---------------------------
@@ -86,4 +86,10 @@ here is that you need to link with both the xapian library (for which you can
 get the options from xapian-config), and the generated _xapian python module::
 
     libtool --mode=link g++ -shared -fno-strict-aliasing -Wall -Wno-unused -Wno-uninitialized -fvisibility=hidden -g -O2 -avoid-version -module -shrext ".so" -o _mypostingsource.la mypostingsource.lo
+
+This will leave the generated file in the .libs subdirectory.
+
+Alternatively, you might want to skip use of libtool and do the compile and link in one command:
+
+    g++ `../libs/install/bin/xapian-config --cxxflags --libs` -I/usr/include/python2.5 -shared -o _mypostingsource.so mypostingsource.h mypostingsource_wrap.cxx ../libs/build/xapian-bindings/python/.libs/_xapian.so
 
