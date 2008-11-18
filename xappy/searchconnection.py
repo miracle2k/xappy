@@ -2361,6 +2361,31 @@ class SearchConnection(object):
                 self.reopen()
         return mset.get_max_possible()
 
+    def _get_sort_slot_and_dir(self, slotspec):
+        """Get the value slot number and direction from a sortby parameter.
+
+        Returns a tuple of (slot number, ascending).
+
+        """
+        asc = True
+        if slotspec[0] == '-':
+            asc = False
+            slotspec = slotspec[1:]
+        elif slotspec[0] == '+':
+            slotspec = slotspec[1:]
+
+        try:
+            slotnum = self._field_mappings.get_slot(slotspec, 'collsort')
+        except KeyError:
+            raise _errors.SearchError("Field %r was not indexed for sorting" % slotspec)
+
+        # Note: we invert the "asc" parameter, because xapian treats
+        # "ascending" as meaning "higher values are better"; in other
+        # words, it considers "ascending" to mean return results in
+        # descending order.  See xapian bug #311
+        # (http://trac.xapian.org/ticket/311)
+        return slotnum, not asc
+
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
                gettags=None,
@@ -2385,7 +2410,12 @@ class SearchConnection(object):
         - `sortby` is the name of a field to sort by.  It may be preceded by a
           '+' or a '-' to indicate ascending or descending order
           (respectively).  If the first character is neither '+' or '-', the
-          sort will be in ascending order.
+          sort will be in ascending order.  Alternatively, a sequence holding
+          field names (each optionally prefixed by '+' or '-') may be supplied
+          in this parameter, to sort by multiple fields.  In this case, the
+          sort will use the first field named in this list as the primary sort
+          key, and use subsequent fields only when all the earlier fields have
+          the same value in each document.
         - `collapse` is the name of a field to collapse the result documents
           on.  If this is specified, there will be at most one result in the
           result set for each value of the field.
@@ -2439,23 +2469,14 @@ class SearchConnection(object):
             enq.set_query(query._get_xapian_query())
 
         if sortby is not None:
-            asc = True
-            if sortby[0] == '-':
-                asc = False
-                sortby = sortby[1:]
-            elif sortby[0] == '+':
-                sortby = sortby[1:]
-
-            try:
-                slotnum = self._field_mappings.get_slot(sortby, 'collsort')
-            except KeyError:
-                raise _errors.SearchError("Field %r was not indexed for sorting" % sortby)
-
-            # Note: we invert the "asc" parameter, because xapian treats
-            # "ascending" as meaning "higher values are better"; in other
-            # words, it considers "ascending" to mean return results in
-            # descending order.
-            enq.set_sort_by_value_then_relevance(slotnum, not asc)
+            if isinstance(sortby, basestring):
+                enq.set_sort_by_value_then_relevance(
+                    *self._get_sort_slot_and_dir(sortby))
+            else:
+                sorter = xapian.MultiValueSorter()
+                for field in sortby:
+                    sorter.add(*self._get_sort_slot_and_dir(field))
+                enq.set_sort_by_key_then_relevance(sorter)
 
         if collapse is not None:
             try:

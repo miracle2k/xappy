@@ -1,3 +1,12 @@
+Tue Nov 18 21:51:35 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* AUTHORS: Credit Michael Elsdörfer.
+	* xappy/searchconnection.py: Add support for sorting by multiple
+	  keys (inspired by the implementation supplied by Michael in issue
+	  #24).
+	* xappy/unittests/sort.py: Add Michael's test of sort by multiple
+	  (and single) keys.
+
 Tue Nov 18 21:45:07 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/distance.py: Add copyright header, and remove
