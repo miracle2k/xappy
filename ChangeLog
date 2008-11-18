@@ -1,3 +1,10 @@
+Tue Nov 18 22:40:31 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add support for slicing the
+	  SearchResults object, as suggested in issue #25 by user "kapilt".
+	* xappy/unittests/searchresults_slice.py: Add test for slicing the
+	  SearchResults object.
+
 Tue Nov 18 21:51:35 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* AUTHORS: Credit Michael Elsdörfer.

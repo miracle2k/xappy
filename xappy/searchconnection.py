@@ -681,7 +681,16 @@ class SearchResults(object):
         else:
             msetitem = self._mset.get_hit(self._mset_order[index])
         return SearchResult(msetitem, self)
-    __getitem__ = get_hit
+
+    def __getitem__(self, index_or_slice):
+        """Get an item, or slice of items.
+
+        """
+        if isinstance(index_or_slice, slice):
+            start, stop, step = index_or_slice.indices(len(self._mset))
+            return map(self.get_hit, xrange(start, stop, step))
+        else:
+            return self.get_hit(index_or_slice)
 
     def __iter__(self):
         """Get an iterator over the hits in the search result.
