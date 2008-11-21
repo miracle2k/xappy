@@ -22,6 +22,7 @@ __docformat__ = "restructuredtext en"
 
 import _checkxapian
 import errors
+import fields
 import marshall
 from replaylog import log
 import xapian
@@ -53,6 +54,11 @@ def _act_store_content(fieldname, doc, field, context):
         context.currfield_assoc = None
     else:
         context.currfield_assoc = idx
+
+    # Add the index of the data to the field group.
+    if context.currfield_group is not None:
+        context.currfield_group.append((fieldname, idx))
+        
 
 def add_field_assoc(doc, fieldname, offset, term=None, rawterm=None, value=None, weight=None):
     """Add an association between a term or value and some associated data.
@@ -315,6 +321,7 @@ class ActionContext(object):
         self.current_language = None
         self.current_position = 0
         self.currfield_assoc = None
+        self.currfield_group = None
 
 class FieldActions(object):
     """An object describing the actions to be performed on a field.
@@ -603,6 +610,57 @@ class FieldActions(object):
 
         SORT_AND_COLLAPSE: ('SORT_AND_COLLAPSE', ('type', ), _act_sort_and_collapse, {'slot': 'collsort',}, ),
     }
+
+class ActionSet(object):
+    """A set of actions, to be performed on various fields.
+
+    This is basically a dictionary of field names, each of which is associated
+    with a FieldActions object.
+
+    """
+    def __init__(self):
+        self.actions = {}
+
+    def __getitem__(self, key):
+        return self.actions[key]
+
+    def __setitem__(self, key, value):
+        self.actions[key] = value
+
+    def __delitem__(self, key):
+        del self.actions[key]
+
+    def __contains__(self, key):
+        return key in self.actions
+
+    def __iter__(self):
+        return iter(self.actions)
+
+    def perform(self, result, document, context):
+        for field_or_group in document.fields:
+            if isinstance(field_or_group, fields.FieldGroup):
+                context.currfield_group = []
+                for field in field_or_group.fields:
+                    try:
+                        actions = self.actions[field.name]
+                    except KeyError:
+                        # If no actions are defined, just ignore the field.
+                        continue
+                    actions.perform(result, field, context)
+                if len(context.currfield_group) > 1:
+                    # Have had more than one field for which data has been
+                    # stored.
+                    result._get_groups().append(tuple(context.currfield_group))
+                context.currfield_group = None
+                continue
+
+            try:
+                actions = self.actions[field_or_group.name]
+            except KeyError:
+                # If no actions are defined, just ignore the field.
+                continue
+            actions.perform(result, field_or_group, context)
+
 
 if __name__ == '__main__':
     import doctest, sys

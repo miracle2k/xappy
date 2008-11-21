@@ -27,9 +27,10 @@ __docformat__ = "restructuredtext en"
 __version__ = '0.5'
 
 import _checkxapian
-from datastructures import Field, UnprocessedDocument, ProcessedDocument
+from datastructures import UnprocessedDocument, ProcessedDocument
 from errors import *
 from fieldactions import FieldActions
+from fields import Field, FieldGroup
 from indexerconnection import IndexerConnection
 from query import Query
 from searchconnection import SearchConnection, ExternalWeightSource

@@ -59,7 +59,7 @@ We can access the Xapian document representation of the processed document to
 double check that this document has been indexed as we wanted:
 >>> xdoc = pdoc.prepare()
 >>> import cPickle
->>> cPickle.loads(xdoc.get_data()) == (pdoc.data, {})
+>>> cPickle.loads(xdoc.get_data()) == (pdoc.data, {}, [])
 True
 >>> [(term.term, term.wdf, [pos for pos in term.positer]) for term in xdoc.termlist()]
 [('1', 5, []), ('XA1', 5, []), ('XAdocument', 5, []), ('XAtest', 5, []), ('XB:Test document', 0, []), ('XCa', 1, [14]), ('XCbasic', 1, [15]), ('XCdocument', 2, [12, 17]), ('XCis', 1, [13]), ('XCtest', 1, [16]), ('XCthis', 1, [11]), ('ZXAdocument', 5, []), ('ZXAtest', 5, []), ('ZXCa', 1, []), ('ZXCbasic', 1, []), ('ZXCdocument', 2, []), ('ZXCis', 1, []), ('ZXCtest', 1, []), ('ZXCthis', 1, []), ('Za', 1, []), ('Zbasic', 1, []), ('Zdocument', 7, []), ('Zis', 1, []), ('Ztest', 6, []), ('Zthis', 1, []), ('a', 1, [14]), ('basic', 1, [15]), ('document', 7, [12, 17]), ('is', 1, [13]), ('test', 6, [16]), ('this', 1, [11])]

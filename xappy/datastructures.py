@@ -22,27 +22,9 @@ __docformat__ = "restructuredtext en"
 
 import errors
 from replaylog import log
+from fields import Field, FieldGroup
 import xapian
 import cPickle
-
-class Field(object):
-    # Use __slots__ because we're going to have very many Field objects in
-    # typical usage.
-    __slots__ = 'name', 'value', 'assoc', 'weight'
-
-    def __init__(self, name, value, assoc=None, weight=1.0):
-        self.name = name
-        self.value = value
-        self.assoc = assoc
-        self.weight = float(weight)
-
-    def __repr__(self):
-        extra = ''
-        if self.assoc is not None:
-            extra += ', %r' % self.assoc
-        if self.weight != 1.0:
-            extra += ', weight=%r' % self.weight
-        return 'Field(%r, %r%s)' % (self.name, self.value, extra)
 
 class UnprocessedDocument(object):
     """A unprocessed document to be passed to the indexer.
@@ -76,6 +58,59 @@ class UnprocessedDocument(object):
     def __repr__(self):
         return 'UnprocessedDocument(%r, %r)' % (self.id, self.fields)
 
+    def append(self, *args, **kwargs):
+        """Append a field or group to the document.
+
+        This may be called with a Field or a FieldGroup object, in which case
+        it is the same as calling append on the "fields" member of the
+        UnprocessedDocument.
+        
+        Alternatively. it may be called with a set of parameters for creating a
+        Field object, in which case such a Field object is created (using the
+        supplied parameters), and appended to the list of fields.
+
+        Finally, it may be called with a sequence or iterable of Fields or sets
+        of parameters for creating a Field object, in which case a FieldGroup
+        is created, filled with the corresponding Field objects (which are
+        newly created if parameters were suppled rather than ready-made Field
+        objects), and added to the document.
+
+        """
+        if len(args) == 1 and len(kwargs) == 0:
+            if isinstance(args[0], (Field, FieldGroup)):
+                self.fields.append(args[0])
+                return
+            if not isinstance(args[0], basestring):
+                # We assume we have a sequence of parameters for creating
+                # Fields, to go in a FieldGroup
+                fields = []
+                for field in args[0]:
+                    if not isinstance(field, Field):
+                        field = Field(*field)
+                    fields.append(field)
+                self.fields.append(FieldGroup(fields))
+                return
+        # We assume we just had some arguments for appending a Field.
+        self.fields.append(Field(*args, **kwargs))
+
+    def extend(self, fields):
+        """Append a sequence or iterable of fields or grous to the document.
+
+        This is simply a shortcut for adding several Field objects to the
+        document, by calling `append` with each item in the list of fields
+        supplied.
+
+        `fields` should be a sequence containing items which are either Field
+        objects, or sequences of parameters for creating Field objects, or
+        FieldGroups.
+
+        """
+        for field in fields:
+            if isinstance(field, Field):
+                self.fields.append(field)
+            else:
+                self.fields.append(Field(*field))
+
 class ProcessedDocument(object):
     """A processed document, as stored in the index.
 
@@ -84,7 +119,7 @@ class ProcessedDocument(object):
 
     """
 
-    __slots__ = '_doc', '_fieldmappings', '_data', '_assocs',
+    __slots__ = '_doc', '_fieldmappings', '_data', '_assocs', '_groups'
     def __init__(self, fieldmappings, xapdoc=None):
         """Create a ProcessedDocument.
 
@@ -100,8 +135,12 @@ class ProcessedDocument(object):
         else:
             self._doc = xapdoc
         self._fieldmappings = fieldmappings
+        # Dictionary, keyed by fieldname, of lists of data strings.
         self._data = None
+        # Dictionary, keyed by fieldname, of lists of field associations.
         self._assocs = None
+        # List of lists of (fieldname, offset) position.
+        self._groups = None
 
     def add_term(self, field, term, wdfinc=1, positions=None):
         """Add a term to the document.
@@ -189,36 +228,53 @@ class ProcessedDocument(object):
         been made, and then returns it.
 
         """
-        if self._data is not None or self._assocs is not None:
-            if self._data is None:
-                data_and_assocs = self._unpack_data()[0], self._assocs
-            elif self._assocs is None:
-                data_and_assocs = self._data, self._unpack_data()[1]
-            else:
-                data_and_assocs = self._data, self._assocs
-            self._doc.set_data(cPickle.dumps(data_and_assocs, 2))
+        if self._data is not None or \
+           self._assocs is not None or \
+           self._groups is not None:
+            unpacked = list(self._unpack_data())
+            if self._data is not None:
+                unpacked[0] = self._data
+            if self._assocs is not None:
+                unpacked[1] = self._assocs
+            if self._groups is not None:
+                unpacked[2] = self._groups
+            self._doc.set_data(cPickle.dumps(tuple(unpacked), 2))
             self._data = None
             self._assocs = None
+            self._groups = None
         return self._doc
 
     def _unpack_data(self):
         rawdata = self._doc.get_data()
         if rawdata == '':
-            return ({}, {})
-        data_and_assocs = cPickle.loads(rawdata)
-        if isinstance(data_and_assocs, dict):
+            return ({}, {}, [])
+        unpacked = cPickle.loads(rawdata)
+        if isinstance(unpacked, dict):
             # Backwards compatibility
-            return data_and_assocs, {}
+            return unpacked, {}, []
         else:
-            assert len(data_and_assocs) == 2
-            return data_and_assocs
+            # Backwards compatibility
+            if len(unpacked) == 2:
+                return unpacked[0], unpacked[1], []
+            assert len(unpacked) == 3
+            return unpacked
+
+    def _set_from_unpacked_data(self):
+        if self._data is not None and \
+           self._assocs is not None and \
+           self._groups is not None:
+            return
+
+        data, assocs, groups = self._unpack_data()
+        if self._data is None:
+            self._data = data
+        if self._assocs is None:
+            self._assocs = assocs
+        if self._groups is None:
+            self._groups = groups
 
     def _get_data(self):
-        if self._data is None:
-            if self._assocs is None:
-                self._data, self._assocs = self._unpack_data()
-            else:
-                self._data, discard = self._unpack_data()
+        self._set_from_unpacked_data()
         return self._data
     def _set_data(self, data):
         if not isinstance(data, dict):
@@ -238,11 +294,7 @@ class ProcessedDocument(object):
         This is intended for internal xappy use.
 
         """
-        if self._assocs is None:
-            if self._data is None:
-                self._data, self._assocs = self._unpack_data()
-            else:
-                discard, self._assocs = self._unpack_data()
+        self._set_from_unpacked_data()
         return self._assocs
 
 #    def _set_assocs(self, assocs):
@@ -260,6 +312,15 @@ class ProcessedDocument(object):
 #
 #    """)
 
+    def _get_groups(self):
+        """Get the field groupings for this document.
+        
+        This is intended for internal xappy use.
+
+        """
+        self._set_from_unpacked_data()
+        return self._groups
+#
     def _get_id(self):
         tl = self._doc.termlist()
         try:

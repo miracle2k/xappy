@@ -1,3 +1,22 @@
+Fri Nov 21 10:03:26 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/__init__.py,xappy/datastructures.py,
+	  xappy/doctests/indexerconnection_doctest1.txt,
+	  xappy/doctests/indexerconnection_doctest2.txt,
+	  xappy/doctests/indexerconnection_doctest3.txt,xappy/,
+	  xappy/unittests/docbuild.py: Add shortcut interface for adding
+	  fields to document (new UnprocessedDocument.append() and extend()
+	  methods).  Add support for FieldGroups, used to group field data
+	  instances together, to allow the summarisation code to return
+	  fields associated to that which are relevant to the search (in
+	  relevant_data()).
+
+	  Changes datastructures on disk - stored documents now have an
+	  extra key.  Should be backwards compatible (and this is tested) -
+	  ie, new versions of xappy should be able to read old databases.
+	  However, old versions of xappy won't be able to read databases
+	  created by this version.
+
 Tue Nov 18 22:40:31 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Add support for slicing the

@@ -31,8 +31,9 @@ import itertools
 import xapian as _xapian
 from datastructures import *
 from fieldactions import ActionContext, FieldActions, \
-         SortableMarshaller, convert_range_to_term
+         ActionSet, SortableMarshaller, convert_range_to_term
 import fieldmappings as _fieldmappings
+from fields import Field, FieldGroup
 import highlight as _highlight
 import errors as _errors
 from indexerconnection import IndexerConnection, PrefixedTermIter, \
@@ -1000,7 +1001,7 @@ class SearchConnection(object):
 
         config_str = _log(self._index.get_metadata, '_xappy_config')
         if len(config_str) == 0:
-            self._field_actions = {}
+            self._field_actions = ActionSet()
             self._field_mappings = _fieldmappings.FieldMappings()
             self._next_docid = 0
             self._facet_hierarchy = {}
@@ -1008,7 +1009,13 @@ class SearchConnection(object):
             return
 
         try:
-            (self._field_actions, mappings, self._facet_hierarchy, self._facet_query_table, self._next_docid) = _cPickle.loads(config_str)
+            (actions,
+             mappings,
+             self._facet_hierarchy,
+             self._facet_query_table,
+             self._next_docid) = _cPickle.loads(config_str)
+            self._field_actions = ActionSet()
+            self._field_actions.actions = actions
             # Backwards compatibility; there used to only be one parent.
             for key in self._facet_hierarchy:
                 parents = self._facet_hierarchy[key]
@@ -1017,7 +1024,11 @@ class SearchConnection(object):
                     self._facet_hierarchy[key] = parents
         except ValueError:
             # Backwards compatibility - configuration used to lack _facet_hierarchy and _facet_query_table
-            (self._field_actions, mappings, self._next_docid) = _cPickle.loads(config_str)
+            (actions,
+             mappings,
+             self._next_docid) = _cPickle.loads(config_str)
+            self._field_actions = ActionSet()
+            self._field_actions.actions = actions
             self._facet_hierarchy = {}
             self._facet_query_table = {}
         self._field_mappings = _fieldmappings.FieldMappings(mappings)
@@ -1097,13 +1108,7 @@ class SearchConnection(object):
         result.id = document.id
         context = ActionContext(self._index, readonly=True)
 
-        for field in document.fields:
-            try:
-                actions = self._field_actions[field.name]
-            except KeyError:
-                # If no actions are defined, just ignore the field.
-                continue
-            actions.perform(result, field, context)
+        self._field_actions.perform(result, document, context)
 
         return result
 

@@ -26,7 +26,7 @@ import xapian
 
 from datastructures import *
 import errors
-from fieldactions import ActionContext, FieldActions
+from fieldactions import ActionContext, FieldActions, ActionSet
 import fieldmappings
 import memutils
 from replaylog import log
@@ -84,7 +84,7 @@ class IndexerConnection(object):
         self._indexpath = indexpath
 
         # Read existing actions.
-        self._field_actions = {}
+        self._field_actions = ActionSet()
         self._field_mappings = fieldmappings.FieldMappings()
         self._facet_hierarchy = {}
         self._facet_query_table = {}
@@ -158,7 +158,7 @@ class IndexerConnection(object):
         assert self._index is not None
 
         config_str = cPickle.dumps((
-                                     self._field_actions,
+                                     self._field_actions.actions,
                                      self._field_mappings.serialise(),
                                      self._facet_hierarchy,
                                      self._facet_query_table,
@@ -179,7 +179,13 @@ class IndexerConnection(object):
             return
 
         try:
-            (self._field_actions, mappings, self._facet_hierarchy, self._facet_query_table, self._next_docid) = cPickle.loads(config_str)
+            (actions,
+             mappings,
+             self._facet_hierarchy,
+             self._facet_query_table,
+             self._next_docid) = cPickle.loads(config_str)
+            self._field_actions = ActionSet()
+            self._field_actions.actions = actions
             # Backwards compatibility; there used to only be one parent.
             for key in self._facet_hierarchy:
                 parents = self._facet_hierarchy[key]
@@ -188,7 +194,11 @@ class IndexerConnection(object):
                     self._facet_hierarchy[key] = parents
         except ValueError:
             # Backwards compatibility - configuration used to lack _facet_hierarchy and _facet_query_table
-            (self._field_actions, mappings, self._next_docid) = cPickle.loads(config_str)
+            (actions,
+             mappings,
+             self._next_docid) = cPickle.loads(config_str)
+            self._field_actions = ActionSet()
+            self._field_actions.actions = actions
             self._facet_hierarchy = {}
             self._facet_query_table = {}
         self._field_mappings = fieldmappings.FieldMappings(mappings)
@@ -256,13 +266,7 @@ class IndexerConnection(object):
         result.id = document.id
         context = ActionContext(self._index)
 
-        for field in document.fields:
-            try:
-                actions = self._field_actions[field.name]
-            except KeyError:
-                # If no actions are defined, just ignore the field.
-                continue
-            actions.perform(result, field, context)
+        self._field_actions.perform(result, document, context)
 
         return result
 

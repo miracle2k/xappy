@@ -1,6 +1,7 @@
 
 >>> from datastructures import *
 >>> from fieldactions import *
+>>> from fields import Field
 
 
 
@@ -105,7 +106,7 @@ We can access the xapian document representation of the processed document:
 >>> xdoc = pdoc.prepare()
 >>> import cPickle
 >>> cPickle.loads(xdoc.get_data())
-({'author': ['Richard Boulton', 'Charlie Hull']}, {})
+({'author': ['Richard Boulton', 'Charlie Hull']}, {}, [])
 
 >>> [(term.term, term.wdf, [pos for pos in term.positer]) for term in xdoc.termlist()]
 [('XAboulton', 5, [2]), ('XAcharlie', 5, [13]), ('XAhull', 5, [14]), ('XArichard', 5, [1]), ('XB:Test document', 0, []), ('ZXAboulton', 5, []), ('ZXAcharli', 5, []), ('ZXAhull', 5, []), ('ZXArichard', 5, []), ('Zboulton', 5, []), ('Zcharli', 5, []), ('Zhull', 5, []), ('Zrichard', 5, []), ('boulton', 5, [2]), ('charlie', 5, [13]), ('hull', 5, [14]), ('richard', 5, [1])]
