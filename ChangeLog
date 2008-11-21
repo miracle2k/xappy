@@ -1,3 +1,8 @@
+Fri Nov 21 10:09:32 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/field_groups.py: Missed this file from previous
+	  commit.
+
 Fri Nov 21 10:03:26 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/__init__.py,xappy/datastructures.py,
