@@ -1474,12 +1474,11 @@ class SearchConnection(object):
         ignored.
 
         """
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
 
         actions_map = {'collsort': FieldActions.SORT_AND_COLLAPSE,
                        'facet': FieldActions.FACET}
-
-        if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
 
         if approx:
             #accelerate with ranges.
@@ -1488,13 +1487,15 @@ class SearchConnection(object):
             if not ranges:
                 errors.SearchError("Cannot do approximate difference search "
                                    "on fields with no ranges")
-            difference_func = eval('lambda x, y: ' + difference_func)
+            if isinstance(difference_func, basestring):
+                difference_func = eval('lambda x, y: ' + difference_func)
             return self._difference_accel_query(ranges, range_accel_prefix,
                                                 val, difference_func, num)
         else:
             # not approx
             # NOTE - very slow: needs to be implemented in C++.
-            difference_func = eval('lambda x, y: ' + difference_func)
+            if isinstance(difference_func, basestring):
+                difference_func = eval('lambda x, y: ' + difference_func)
             class DifferenceWeight(ExternalWeightSource):
                 " An exteral weighting source for differences"
                 def get_maxweight(self):
@@ -1507,6 +1508,42 @@ class SearchConnection(object):
                     return 1.0 / (abs(difference) + 1.0)
 
             return self.query_external_weight(DifferenceWeight())
+
+    def query_distance(self, field, centre, max_range=0.0, k1=1.0, k2=1.0):
+        """Create a query which returns documents in order of distance.
+
+        """
+        if self._index is None:
+            raise _errors.SearchError("SearchConnection has been closed")
+
+        serialised = self._make_parent_func_repr("query_distance")
+
+        metric = _xapian.GreatCircleMetric()
+
+        # Build the list of coordinates
+        coords = _xapian.LatLongCoords()
+        if isinstance(centre, basestring):
+            coords.insert(_xapian.LatLongCoord.parse_latlong(centre))
+        else:
+            for coord in centre:
+                coords.insert(_xapian.LatLongCoord.parse_latlong(coord))
+
+        # Get the slot
+        try:
+            slot = self._field_mappings.get_slot(field, 'loc')
+        except KeyError:
+            # Return a "match nothing" query
+            return Query(_log(_xapian.Query), _conn=self,
+                         _serialised=serialised)
+
+        # Make the posting source
+        postingsource = _xapian.LatLongDistancePostingSource(self._index,
+            slot, coords, metric, max_range, k1, k2)
+
+        result = Query(_log(_xapian.Query, postingsource),
+                       _refs=[postingsource], _conn=self)
+        result._set_serialised(serialised)
+        return result
 
     def query_facet(self, field, val, approx=False,
                     conservative=True, accelerate=True):
@@ -2400,6 +2437,11 @@ class SearchConnection(object):
         # (http://trac.xapian.org/ticket/311)
         return slotnum, not asc
 
+    class SortByGeolocation(object):
+        def __init__(self, fieldname, centre):
+            self.fieldname = fieldname
+            self.centre = centre
+
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
                gettags=None,
@@ -2463,6 +2505,9 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
+
+        serialised = self._make_parent_func_repr("search")
+
         if 'facets' in _checkxapian.missing_features:
             if getfacets is not None or \
                allowfacets is not None or \
@@ -2486,6 +2531,27 @@ class SearchConnection(object):
             if isinstance(sortby, basestring):
                 enq.set_sort_by_value_then_relevance(
                     *self._get_sort_slot_and_dir(sortby))
+            elif isinstance(sortby, self.SortByGeolocation):
+                # Get the slot
+                try:
+                    slot = self._field_mappings.get_slot(sortby.fieldname, 'loc')
+                except KeyError:
+                    # Return a "match nothing" query
+                    return Query(_log(_xapian.Query), _conn=self,
+                                 _serialised=serialised)
+
+                # Get the coords
+                coords = _xapian.LatLongCoords()
+                if isinstance(sortby.centre, basestring):
+                    coords.insert(_xapian.LatLongCoord.parse_latlong(sortby.centre))
+                else:
+                    for coord in sortby.centre:
+                        coords.insert(_xapian.LatLongCoord.parse_latlong(coord))
+
+                # Make and use the sorter
+                metric = _xapian.GreatCircleMetric()
+                sorter = _xapian.LatLongDistanceSorter(slot, coords, metric)
+                enq.set_sort_by_key_then_relevance(sorter)
             else:
                 sorter = xapian.MultiValueSorter()
                 for field in sortby:

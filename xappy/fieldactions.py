@@ -161,6 +161,16 @@ def _act_weight(fieldname, doc, field, context, type=None):
     value = log(xapian.sortable_serialise, value)
     doc.add_value(fieldname, value, 'weight')
 
+def _act_geolocation(fieldname, doc, field, context):
+    """Perform the GEOLOCATION action.
+
+    """
+    if field.value != '':
+        coords = xapian.LatLongCoords.unserialise(doc.get_value(fieldname, 'loc'))
+        coord = xapian.LatLongCoord.parse_latlong(field.value)
+        coords.insert(coord)
+        doc.add_value(fieldname, coords.serialise(), 'loc')
+
 def _act_index_freetext(fieldname, doc, field, context, weight=1,
                         language=None, stop=None, spell=False,
                         nopos=False,
@@ -406,6 +416,10 @@ class FieldActions(object):
       search time as part of the ranking formula.  The values in the field
       should be (string representations of) floating point numbers.
 
+    - `GEOLOCATION`: index geolocation information.  Fields supplied should be
+      latitude-longitude values, and will be searchable by distance from the
+      point.
+
     """
 
     # See the class docstring for the meanings of the following constants.
@@ -417,6 +431,7 @@ class FieldActions(object):
     TAG = 6
     FACET = 7
     WEIGHT = 8
+    GEOLOCATION = 9
 
     # Sorting and collapsing store the data in a value, but the format depends
     # on the sort type.  Easiest way to implement is to treat them as the same
@@ -452,6 +467,7 @@ class FieldActions(object):
                           FieldActions.TAG,
                           FieldActions.FACET,
                           FieldActions.WEIGHT,
+                          FieldActions.GEOLOCATION,
                          ):
             raise errors.IndexerError("Unknown field action: %r" % action)
 
@@ -607,6 +623,7 @@ class FieldActions(object):
         TAG: ('TAG', (), _act_tag, {'prefix': True,}, ),
         FACET: ('FACET', ('type', 'ranges'), _act_facet, {'prefix': True, 'slot': 'facet',}, ),
         WEIGHT: ('WEIGHT', (), _act_weight, {'slot': 'weight',}, ),
+        GEOLOCATION: ('GEOLOCATION', (), _act_geolocation, {'slot': 'loc'}, ),
 
         SORT_AND_COLLAPSE: ('SORT_AND_COLLAPSE', ('type', ), _act_sort_and_collapse, {'slot': 'collsort',}, ),
     }

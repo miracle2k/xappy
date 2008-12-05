@@ -16,24 +16,28 @@
 
 from xappytest import *
 from xappy.fieldactions import FieldActions
+import xapian
 
-class DifferenceSearchTest(TestCase):
+class DistanceSearchTest(TestCase):
+    locations = [
+        ('Alderney', '49.5474 -2.8435'),
+        ('Enfield', '51.6667 -0.0667', '51.3333 -0.0667'),
+        ('Trent Park', '51.3417 -0.1583'),
+    ]
 
     def pre_test(self):
         self.dbpath = os.path.join(self.tempdir, 'db')
         self.iconn = xappy.IndexerConnection(self.dbpath)
-        ranges = [(x, x + 1) for x in xrange(10)]
-        self.iconn.add_field_action('foo', xappy.FieldActions.SORTABLE,
-                                    type='float', ranges=ranges)
-        self.iconn.add_field_action('foo', xappy.FieldActions.STORE_CONTENT)
-        self.iconn.add_field_action('bar', xappy.FieldActions.FACET,
-                                    type='float', ranges=ranges)
-        self.iconn.add_field_action('bar', xappy.FieldActions.STORE_CONTENT)
-        for val in xrange(10):
+
+        self.iconn.add_field_action('location', xappy.FieldActions.GEOLOCATION)
+        self.iconn.add_field_action('name', xappy.FieldActions.STORE_CONTENT)
+        self.iconn.add_field_action('name', xappy.FieldActions.INDEX_FREETEXT, spell=True)
+        for vals in self.locations:
+            name, vals = vals[0], vals[1:]
             doc = xappy.UnprocessedDocument()
-            sval = val + 0.5
-            doc.fields.append(xappy.Field('foo', sval))
-            doc.fields.append(xappy.Field('bar', sval))
+            doc.append('name', name)
+            for val in vals:
+                doc.append('location', val)
             self.iconn.add(doc)
         self.iconn.close()
         self.sconn = xappy.SearchConnection(self.dbpath)
@@ -41,75 +45,26 @@ class DifferenceSearchTest(TestCase):
     def post_test(self):
         self.sconn.close()
 
-    def make_dist_comp(self, val, field):
-        return lambda x: abs(val - self.sconn.get_document(x.id).data[field][0])
+    def test_distance(self):
+        doc = self.sconn.get_document('0')
+        centre = xapian.LatLongCoords.unserialise(doc.get_value('location', 'loc'))
+        self.assertEqual(centre.size(), 1)
 
-    def difference_test(self, val, field, purpose, approx=True):
-        q = self.sconn.query_difference(field, val, purpose, approx=approx)
-        res =  list(self.sconn.search(q, 0, 10))
-        orig = res[:]
-        dist = self.make_dist_comp(val, field)
-        res.sort(lambda x, y: cmp(dist(x), dist(y)))
-        self.assertEqual(orig, res)
+        doc = self.sconn.get_document('1')
+        centre = xapian.LatLongCoords.unserialise(doc.get_value('location', 'loc'))
+        self.assertEqual(centre.size(), 2)
 
-    def test_difference_sortable_low(self):
-        self.difference_test(0, 'foo', 'collsort')
+        doc = self.sconn.get_document('2')
+        centre = xapian.LatLongCoords.unserialise(doc.get_value('location', 'loc'))
+        self.assertEqual(centre.size(), 1)
 
-    def test_difference_sortable_low_exact(self):
-        self.difference_test(0, 'foo', 'collsort', False)
+        q = self.sconn.query_all()
+        geosort = self.sconn.SortByGeolocation('location', '0, 0')
+        res = list(self.sconn.search(q, 0, 10, sortby=geosort))
+        self.assertEqual([int(item.id) for item in res], [0, 1, 2])
 
-    def test_difference_facet_low(self):
-        self.difference_test(0, 'bar', 'facet')
-
-    def test_difference_facet_low_exact(self):
-        self.difference_test(0, 'bar', 'facet', False)
-
-    def test_difference_sortable_mid(self):
-        self.difference_test(5, 'foo', 'collsort')
-
-    def test_difference_sortable_mid_exact(self):
-        self.difference_test(5, 'foo', 'collsort', False)
-
-    def test_difference_facet_mid(self):
-        self.difference_test(5, 'bar', 'facet')
-
-    def test_difference_facet_mid_exact(self):
-        self.difference_test(5, 'bar', 'facet', False)
-
-    def test_difference_sortable_high(self):
-        self.difference_test(10, 'foo', 'collsort')
-
-    def test_difference_sortable_high_exact(self):
-        self.difference_test(10, 'foo', 'collsort',  False)
-
-    def test_difference_facet_high(self):
-        self.difference_test(10, 'bar', 'facet')
-
-    def test_difference_facet_high_exact(self):
-        self.difference_test(10, 'bar', 'facet', False)
-
-    def cutoff_test(self, val, field, purpose, approx = True):
-        difference_test = "abs(x - y) if abs(x - y) < 3 else -1"
-
-        query = self.sconn.query_difference(field, val, purpose,
-                                            approx=approx,
-                                            difference_func=difference_test)
-        res = self.sconn.search(query, 0, 10)
-        dist = self.make_dist_comp(val, field)
-        filtered = filter(lambda x: dist(x) < 3, res)
-        self.assert_(len(filtered) == 6)
-
-    def test_cuttoff_facet_approx(self):
-        self.cutoff_test(5, 'bar', 'facet')
-
-    def test_cuttoff_facet_exact(self):
-        self.cutoff_test(5, 'bar', 'facet', False)
-
-    def test_cuttoff_sortable_approx(self):
-        self.cutoff_test(5, 'foo', 'collsort')
-
-    def test_cuttoff_facet_exact(self):
-        self.cutoff_test(5, 'foo', 'collsort', False)
+        q = self.sconn.query_distance('location', '0, 0')
+        #res = list(self.sconn.search(q, 0, 10))
 
 if __name__ == '__main__':
     main()

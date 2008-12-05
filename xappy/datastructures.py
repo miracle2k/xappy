@@ -94,7 +94,7 @@ class UnprocessedDocument(object):
         self.fields.append(Field(*args, **kwargs))
 
     def extend(self, fields):
-        """Append a sequence or iterable of fields or grous to the document.
+        """Append a sequence or iterable of fields or groups to the document.
 
         This is simply a shortcut for adding several Field objects to the
         document, by calling `append` with each item in the list of fields
@@ -320,7 +320,7 @@ class ProcessedDocument(object):
         """
         self._set_from_unpacked_data()
         return self._groups
-#
+
     def _get_id(self):
         tl = self._doc.termlist()
         try:
