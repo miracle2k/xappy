@@ -38,37 +38,38 @@ class TestFieldAssociations(TestCase):
         iconn.add_field_action('h', xappy.FieldActions.FACET, type="float")
 
         doc = xappy.UnprocessedDocument()
-        doc.fields.append(xappy.Field('a', 'Africa America'))
-        doc.fields.append(xappy.Field('b', 'Andes America'))
-        doc.fields.append(xappy.Field('c', 'Arctic America'))
-        doc.fields.append(xappy.Field('d', 'Australia'))
-        doc.fields.append(xappy.Field('e', '1.0'))
-        doc.fields.append(xappy.Field('f', 'Ave'))
-        doc.fields.append(xappy.Field('g', 'Atlantic'))
-        doc.fields.append(xappy.Field('h', '1.0'))
+        doc.extend((('a', 'Africa America'),
+                    ('b', 'Andes America'),
+                    ('c', 'Arctic America'),
+                    ('d', 'Australia'),
+                    ('e', '1.0'),
+                    ('f', 'Ave'),
+                    ('g', 'Atlantic'),
+                    ('h', '1.0'),
+                   ))
         iconn.add(doc)
 
         doc = xappy.UnprocessedDocument()
-        doc.fields.append(xappy.Field('a', 'Africa America', 'Brown Bible'))
-        doc.fields.append(xappy.Field('b', 'Andes America', 'Bath Bible'))
-        doc.fields.append(xappy.Field('c', 'Arctic America', 'Lesser Baptist'))
-        doc.fields.append(xappy.Field('c', 'Arctic America', 'Baptist Bible',
-                                      weight=2.0))
-        doc.fields.append(xappy.Field('c', 'Arctic America'))
-        doc.fields.append(xappy.Field('d', 'Australia', 'Braille'))
-        doc.fields.append(xappy.Field('e', '1.0', 'Sortable one'))
-        doc.fields.append(xappy.Field('f', 'Ave', 'Blvd'))
-        doc.fields.append(xappy.Field('g', 'Atlantic', 'British'))
-        doc.fields.append(xappy.Field('h', '1.0', 'Facet one'))
+        doc.extend((('a', 'Africa America', 'Brown Bible'),
+                    ('b', 'Andes America', 'Bath Bible'),
+                    ('c', 'Arctic America', 'Lesser Baptist'),
+                    ('c', 'Arctic America', 'Baptist Bible', 2.0),
+                    ('c', 'Arctic America'),
+                    ('d', 'Australia', 'Braille'),
+                    ('e', '1.0', 'Sortable one'),
+                    ('f', 'Ave', 'Blvd'),
+                    ('g', 'Atlantic', 'British'),
+                    ('h', '1.0', 'Facet one'),
+                   ))
         iconn.add(doc)
 
         doc = xappy.UnprocessedDocument()
-        doc.fields.append(xappy.Field('c', 'Arctic America', 'Lesser Baptist'))
-        doc.fields.append(xappy.Field('c', 'Arctic America', 'Lesser Baptist'))
-        doc.fields.append(xappy.Field('c', 'Arctic America', 'Baptist Bible',
-                                      weight=1.5))
-        doc.fields.append(xappy.Field('c', 'Arctic America'))
-        doc.fields.append(xappy.Field('c', 'Baptist Bible'))
+        doc.extend((('c', 'Arctic America', 'Lesser Baptist'),
+                    ('c', 'Arctic America', 'Lesser Baptist'),
+                    ('c', 'Arctic America', 'Baptist Bible', 1.5),
+                    ('c', 'Arctic America'),
+                    ('c', 'Baptist Bible'),
+                   ))
         iconn.add(doc)
 
         iconn.flush()

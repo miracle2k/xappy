@@ -164,7 +164,7 @@ class SearchResult(ProcessedDocument):
         # Merge in the terms and values from the stored field associations.
         self._add_termvalue_assocs(self._get_assocs())
 
-    def relevant_data(self, allow=None, deny=None, query=None):
+    def relevant_data(self, allow=None, deny=None, query=None, group=False):
         """Return field data which was relevant for this result.
 
         This will return a tuple of fields which have data stored for them
@@ -193,6 +193,9 @@ class SearchResult(ProcessedDocument):
         from SearchConnection.query_parse() or related methods, which will be
         used as the basis of selecting relevant data rather than the query
         which was used for the search.
+
+        If `group` is set to True, any field data which shares a FieldGroup
+        with some relevant data will also be returned.
  
         """
         if query is None:
@@ -242,10 +245,44 @@ class SearchResult(ProcessedDocument):
                        for field, score in fieldscores.iteritems()]
         scoreditems.sort()
         result = []
-        for score, field in scoreditems:
-            fielddata = [(-weight, self.data[field][offset]) for offset, weight in fieldassocs[field].iteritems()]
-            fielddata.sort()
-            result.append((field, tuple(data for weight, data in fielddata)))
+
+        if group:
+            # Look for any data items which are in a group, and add the other
+            # members of the group, if found.
+            # First, build a dict from (field, offset) to group number
+            grouplu = {}
+            count = 0
+            for group in self._groups:
+                for field, offset in group:
+                    grouplu[(field, offset)] = count
+                count += 1
+
+            # keyed by fieldname, values are sets of offsets for that field
+            relevant_offsets = {}
+
+            for score, field in scoreditems:
+                for offset, weight in fieldassocs[field].iteritems():
+                    relevant_offsets.setdefault(field, {})[offset] = weight
+                    groupnum = grouplu.get((field, offset), None)
+                    if groupnum is not None:
+                        for groupfield, groupoffset in self._groups[groupnum]:
+                            relevant_offsets.setdefault(groupfield, {})[groupoffset] = weight
+
+            for score, field in scoreditems:
+                fielddata = [(-weight, self.data[field][offset]) for offset, weight in relevant_offsets[field].iteritems()]
+                del relevant_offsets[field]
+                fielddata.sort()
+                result.append((field, tuple(data for weight, data in fielddata)))
+            for field in relevant_offsets:
+                fielddata = [(-weight, self.data[field][offset]) for offset, weight in relevant_offsets[field].iteritems()]
+                fielddata.sort()
+                result.append((field, tuple(data for weight, data in fielddata)))
+        else:
+            # Not grouped - just return the relevant data for each field.
+            for score, field in scoreditems:
+                fielddata = [(-weight, self.data[field][offset]) for offset, weight in fieldassocs[field].iteritems()]
+                fielddata.sort()
+                result.append((field, tuple(data for weight, data in fielddata)))
         return tuple(result)
 
     def summarise(self, field, maxlen=600, hl=('<b>', '</b>'), query=None):
