@@ -47,7 +47,7 @@ class FieldGroup(object):
     """A group of Fields in a document.
 
     """
-    # Use __slots__ because we're going to have very many Field objects in
+    # Use __slots__ because we're going to have very many FieldGroup objects in
     # typical usage.
     __slots__ = 'fields'
 
