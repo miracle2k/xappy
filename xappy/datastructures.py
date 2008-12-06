@@ -96,20 +96,22 @@ class UnprocessedDocument(object):
     def extend(self, fields):
         """Append a sequence or iterable of fields or groups to the document.
 
-        This is simply a shortcut for adding several Field objects to the
-        document, by calling `append` with each item in the list of fields
-        supplied.
+        This is simply a shortcut for adding several Field or FieldGroup
+        objects to the document, by calling `append` with each item in the list
+        of fields supplied.
 
         `fields` should be a sequence containing items which are either Field
-        objects, or sequences of parameters for creating Field objects, or
-        FieldGroups.
+        objects or FieldGroup objects, or sequences of parameters for creating
+        Field objects or FieldGroup objects.
 
         """
         for field in fields:
-            if isinstance(field, Field):
+            if isinstance(field, (Field, FieldGroup)):
                 self.fields.append(field)
-            else:
+            elif isinstance(field[0], basestring):
                 self.fields.append(Field(*field))
+            else:
+                self.fields.append(FieldGroup(field))
 
 class ProcessedDocument(object):
     """A processed document, as stored in the index.
