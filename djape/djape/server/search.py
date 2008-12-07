@@ -814,6 +814,8 @@ def add(request, db_name):
                              'doc': (1, None, None, None),
                              })
 
+    # FIXME - give an error if database doesn't already exist.
+
     db = xappy.IndexerConnection(get_db_path(db_name))
     try:
         prev_doc_count = db.get_doccount()
@@ -832,3 +834,54 @@ def add(request, db_name):
     finally:
         db.close()
 
+@jsonreturning
+@timed
+@errchecked
+def delete(request, db_name):
+    """Delete a document.
+
+    Accepts POST requests only.
+
+    Returns an error if the database doesn't already exist.
+
+    Supported parameters:
+
+     'id': (required, may be repeated) Document ID (string)
+ 
+    If the id is not present, it is ignored.
+
+    Returns, if successfully deleted:
+    {
+     'ok': 1,
+     'ids': # list of ids deleted (ie, only those ids which existed before the
+                                   call)
+     'doc_count': # new number of documents in database (ie, after deletes).
+     'prev_doc_count': # number of documents in database before the deletes.
+    }
+
+    """
+    db_name = validate_dbname(db_name)
+    params = validate_params(request.POST, {
+                             'id': (1, None, None, None),
+                             })
+
+    # FIXME - give an error if database doesn't already exist.
+
+    db = xappy.IndexerConnection(get_db_path(db_name))
+    try:
+        prev_doc_count = db.get_doccount()
+        deadids = []
+        doc_count = prev_doc_count
+
+        for id in params['id']:
+            db.delete(id)
+            count = db.get_doccount()
+            if doc_count != count:
+                doc_count = count
+                deadids.append(id)
+
+        db.flush()
+        return {'ok': 1, 'ids': deadids, 'doc_count': doc_count,
+            'prev_doc_count': prev_doc_count}
+    finally:
+        db.close()
