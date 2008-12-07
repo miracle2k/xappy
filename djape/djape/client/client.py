@@ -299,9 +299,9 @@ class Client(object):
         return self._doreq('add/' + db_name, data={'doc': [doc.as_json()]})
 
     def bulkadd(self, docs, db_name=None):
-        """Add a load of documents tothe database.
+        """Add a set of documents to the database.
 
-        `doc` the document (as a Document object).
+        `docs`: a sequence of documents (as Document objects).
 
         """
         if db_name is None:
@@ -313,3 +313,32 @@ class Client(object):
 
         return self._doreq('add/' + db_name, data={'doc': [doc.as_json() for doc in docs]})
 
+    def delete(self, id, db_name=None):
+        """Delete a document from the database.
+
+        `id` the document ID (as a string).
+
+        """
+        if db_name is None:
+            db_name = self.default_db_name
+        if db_name is None:
+            raise errors.SearchClientError('Missing db_name')
+        if self.default_prefix is not None:
+            db_name = self.default_prefix + '_' + db_name
+
+        return self._doreq('delete/' + db_name, data={'id': [id]})
+
+    def bulkdelete(self, ids, db_name=None):
+        """Delete a set of documents from the database.
+
+        `ids`: a sequence of document IDs (as strings).
+
+        """
+        if db_name is None:
+            db_name = self.default_db_name
+        if db_name is None:
+            raise errors.SearchClientError('Missing db_name')
+        if self.default_prefix is not None:
+            db_name = self.default_prefix + '_' + db_name
+
+        return self._doreq('delete/' + db_name, data={'id': list(ids)})
