@@ -50,15 +50,12 @@ try:
 except ImportError:
     profile = None
     pstats = None
-    # do not advertise the non-free profiler everytime; its existence is
-    # already documented at the README.Debian file
-    #
-    #import warnings
-    #msg = ("Your installation of Python does not have a profile module. "
-    #       "If you're on Debian, you can apt-get python2.4-profiler from "
-    #       "non-free in a separate step. See http://www.cherrypy.org/wiki/"
-    #       "ProfilingOnDebian for details.")
-    #warnings.warn(msg)
+    import warnings
+    msg = ("Your installation of Python does not have a profile module. "
+           "If you're on Debian, you can apt-get python2.4-profiler from "
+           "non-free in a separate step. See http://www.cherrypy.org/wiki/"
+           "ProfilingOnDebian for details.")
+    warnings.warn(msg)
 
 import os, os.path
 import sys
@@ -81,7 +78,7 @@ class Profiler(object):
             os.makedirs(path)
     
     def run(self, func, *args, **params):
-        """run(func, *args, **params). Dumps profile data into self.path."""
+        """Dump profile data into self.path."""
         global _count
         c = _count = _count + 1
         path = os.path.join(self.path, "cp_%04d.prof" % c)
@@ -97,15 +94,24 @@ class Profiler(object):
     
     def stats(self, filename, sortby='cumulative'):
         """stats(index) -> output of print_stats() for the given profile."""
-        s = pstats.Stats(os.path.join(self.path, filename))
-        s.strip_dirs()
-        s.sort_stats(sortby)
-        oldout = sys.stdout
-        try:
-            sys.stdout = sio = StringIO.StringIO()
+        sio = StringIO.StringIO()
+        if sys.version_info >= (2, 5):
+            s = pstats.Stats(os.path.join(self.path, filename), stream=sio)
+            s.strip_dirs()
+            s.sort_stats(sortby)
             s.print_stats()
-        finally:
-            sys.stdout = oldout
+        else:
+            # pstats.Stats before Python 2.5 didn't take a 'stream' arg,
+            # but just printed to stdout. So re-route stdout.
+            s = pstats.Stats(os.path.join(self.path, filename))
+            s.strip_dirs()
+            s.sort_stats(sortby)
+            oldout = sys.stdout
+            try:
+                sys.stdout = sio
+                s.print_stats()
+            finally:
+                sys.stdout = oldout
         response = sio.getvalue()
         sio.close()
         return response
@@ -154,7 +160,15 @@ class ProfileAggregator(Profiler):
 
 class make_app:
     def __init__(self, nextapp, path=None, aggregate=False):
-        """Make a WSGI middleware app which wraps 'nextapp' with profiling."""
+        """Make a WSGI middleware app which wraps 'nextapp' with profiling.
+        
+        nextapp: the WSGI application to wrap, usually an instance of
+            cherrypy.Application.
+        path: where to dump the profiling output.
+        aggregate: if True, profile data for all HTTP requests will go in
+            a single file. If False (the default), each HTTP request will
+            dump its profile data into a separate file.
+        """
         self.nextapp = nextapp
         self.aggregate = aggregate
         if aggregate:

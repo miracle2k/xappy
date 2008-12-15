@@ -1,3 +1,7 @@
+Mon Dec 15 20:16:00 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* cpserv.py,ext/cherrypy/: Install CherryPy 3.1.1 in ext/
+
 Sun Dec 07 10:31:51 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* djape/client/client.py: Add a delete() and bulkdelete() method,

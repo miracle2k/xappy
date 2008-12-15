@@ -4,7 +4,7 @@ import sys
 import os.path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ext'))
 
-import cherrypy
+import cherrypy.wsgiserver
 from djape.server.application import Application
 
 server = cherrypy.wsgiserver.CherryPyWSGIServer(('0.0.0.0', 8080),
