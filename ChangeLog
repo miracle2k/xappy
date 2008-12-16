@@ -1,11 +1,3 @@
-Sun Dec 07 10:01:56 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
-
-	* djape/djape/__init__.py,djape/djape/client/,djape/djape/cpserv.py,
-	  djape/djape/server/: Add "djape" - a web service exposing a
-	  subset of the xappy feature set, and a corresponding client.
-	  Currently at an early stage - in particular, there are no tests,
-	  and no documentation, and several important features missing.
-
 Sat Dec 06 18:28:43 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Add "group" option to relevant data,
