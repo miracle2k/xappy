@@ -166,6 +166,7 @@ def _act_geolocation(fieldname, doc, field, context):
 
     """
     if field.value != '':
+        # FIXME - this is O(N*N) in the number of entries in the field.
         coords = xapian.LatLongCoords.unserialise(doc.get_value(fieldname, 'loc'))
         coord = xapian.LatLongCoord.parse_latlong(field.value)
         coords.insert(coord)
