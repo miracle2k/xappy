@@ -22,6 +22,9 @@
 #  $basedir/branchpoints/clustering: a checkout of the clustering branch at the
 #  revision the branch was made (ie, before any changes were made on it).
 #
+#  $basedir/branchpoints/geospatial: a checkout of the geospatial branch at the
+#  revision the branch was made (ie, before any changes were made on it).
+#
 #  $basedir/branches/matchspy: a checkout of the matchspy branch at the latest
 #  revision.
 #
@@ -31,14 +34,18 @@
 #  $basedir/branches/clustering: a checkout of the clustering branch at the
 #  latest revision.
 #
+#  $basedir/branches/geospatial: a checkout of the geospatial branch at the
+#  latest revision.
+#
 #  $basedir/head/trunk: a checkout of HEAD, at the latest revision.
 #
 #  $xappylibdir: a checkout of xappy/trunk.
 
 rev="1.1.0"
-matchspy_branchpoint="11599"
-opsynonym_branchpoint="11599"
-clustering_branchpoint="11599"
+matchspy_branchpoint="11701"
+opsynonym_branchpoint="11701"
+clustering_branchpoint="11701"
+geospatial_branchpoint="11743"
 basedir="$HOME/private/Working/xapian/pristine/"
 xappylibdir="$HOME/xappy/libs/"
 
@@ -52,12 +59,17 @@ svn update -r$opsynonym_branchpoint
 cd $basedir/branchpoints/clustering
 svn update -r$clustering_branchpoint
 
+cd $basedir/branchpoints/geospatial
+svn update -r$geospatial_branchpoint
+
 echo "Updating branch trees"
 cd $basedir/branches/matchspy
 svn update
 cd $basedir/branches/opsynonym
 svn update
 cd $basedir/branches/clustering
+svn update
+cd $basedir/branches/geospatial
 svn update
 
 echo "Updating head"
@@ -72,12 +84,16 @@ rm -rf $basedir/branchpoints/opsynonym_export
 svn export $basedir/branchpoints/opsynonym $basedir/branchpoints/opsynonym_export
 rm -rf $basedir/branchpoints/clustering_export
 svn export $basedir/branchpoints/clustering $basedir/branchpoints/clustering_export
+rm -rf $basedir/branchpoints/geospatial_export
+svn export $basedir/branchpoints/geospatial $basedir/branchpoints/geospatial_export
 rm -rf $basedir/branches/matchspy_export
 svn export $basedir/branches/matchspy $basedir/branches/matchspy_export
 rm -rf $basedir/branches/opsynonym_export
 svn export $basedir/branches/opsynonym $basedir/branches/opsynonym_export
 rm -rf $basedir/branches/clustering_export
 svn export $basedir/branches/clustering $basedir/branches/clustering_export
+rm -rf $basedir/branches/geospatial_export
+svn export $basedir/branches/geospatial $basedir/branches/geospatial_export
 
 rm -rf $basedir/head/trunk_export
 svn export $basedir/head/trunk $basedir/head/trunk_export
@@ -107,6 +123,14 @@ diff -Nur --ignore-matching-lines='\$Author' \
  | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
   >$basedir/clustering_changes.patch
 
+echo "Getting patches from geospatial branch"
+cd $basedir
+diff -Nur --ignore-matching-lines='\$Author' \
+  branchpoints/geospatial_export \
+  branches/geospatial_export \
+ | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
+  >$basedir/geospatial_changes.patch
+
 # Get the diffs made to HEAD since the branch points
 echo "Getting changes to HEAD since matchspy branch"
 cd $basedir
@@ -129,6 +153,13 @@ diff -Nur --ignore-matching-lines='\$Author' \
   head/trunk_export \
   >$basedir/head_changes_since_clustering_branch.patch && true
 
+echo "Getting changes to HEAD since geospatial branch"
+cd $basedir
+diff -Nur --ignore-matching-lines='\$Author' \
+  branchpoints/geospatial_export \
+  head/trunk_export \
+  >$basedir/head_changes_since_geospatial_branch.patch && true
+
 # Apply the patches to HEAD
 cd $basedir/head/trunk_export
 echo "Applying patches from matchspy branch"
@@ -137,6 +168,8 @@ echo "Applying patches from opsynonym branch"
 patch -p2 < $basedir/opsynonym_changes.patch
 echo "Applying patches from clustering branch"
 patch -p2 < $basedir/clustering_changes.patch
+echo "Applying patches from geospatial branch"
+patch -p2 < $basedir/geospatial_changes.patch
 
 # Make tarballs
 echo "Building tarballs"
