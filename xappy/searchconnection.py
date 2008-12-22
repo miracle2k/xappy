@@ -1590,6 +1590,20 @@ class SearchConnection(object):
     def query_distance(self, field, centre, max_range=0.0, k1=1000.0, k2=1.0):
         """Create a query which returns documents in order of distance.
 
+        `field` is the field to get coordinates from, and must have been
+        indexed with the GEOSPATIAL field action.
+
+        `centre` is the center of the search - it may either be a string
+        holding a latlong pair, or an iterable of strings containing latlong
+        pairs.  If multiple points are specified, the closest distance from one
+        of these points to the coordinates stored in the document will be used
+        for the search.
+
+        `max_range` is the maximum range, in metres, to use in the search: no
+        items at a greater distance than this will be returned.
+
+        `k1` and `k2` control how the weights varies with distance.
+
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")

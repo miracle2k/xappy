@@ -1,3 +1,7 @@
+Mon Dec 22 18:50:51 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add doccomment for query_distance().
+
 Mon Dec 22 17:43:35 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/fieldactions.py,xappy/searchconnection.py,
