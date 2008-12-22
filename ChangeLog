@@ -1,3 +1,14 @@
+Mon Dec 22 20:06:09 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/datastructures.py: Add ProcessedDocument.get_distance() to
+	  get the distance from a document to a point, or to another
+	  document.
+	* xappy/searchconnection.py: Add
+	  SearchConnection.calc_distance() to get the distance between two
+	  points.  This is a static method, because there's nothing
+	  particular to a SearchConnection used in it, but it seems like
+	  the most natural place for it to go at present.
+
 Mon Dec 22 19:27:12 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/field_associations.py: Add test that

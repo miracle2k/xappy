@@ -1545,6 +1545,35 @@ class SearchConnection(object):
 
             return self.query_external_weight(DifferenceWeight())
 
+    @staticmethod
+    def calc_distance(location1, location2):
+        """Calculate the distance, in metres, between two points.
+
+        `location1` and `location2` are the locations to measure the distance
+        between.  They should each be a string holding a single latlong
+        coordinate, or a list of strings holding latlong coordinates.
+
+        The closest distance between a point in location1 and in location2 will
+        be returned.
+
+        """
+        coords1 = xapian.LatLongCoords()
+        if isinstance(location1, basestring):
+            coords1.insert(xapian.LatLongCoord.parse_latlong(location1))
+        else:
+            for coord in location1:
+                coords1.insert(xapian.LatLongCoord.parse_latlong(coord))
+
+        coords2 = xapian.LatLongCoords()
+        if isinstance(location2, basestring):
+            coords2.insert(xapian.LatLongCoord.parse_latlong(location2))
+        else:
+            for coord in location2:
+                coords2.insert(xapian.LatLongCoord.parse_latlong(coord))
+
+        metric = xapian.GreatCircleMetric()
+        return metric(coords1, coords2)
+
     def query_distance(self, field, centre, max_range=0.0, k1=1000.0, k2=1.0):
         """Create a query which returns documents in order of distance.
 

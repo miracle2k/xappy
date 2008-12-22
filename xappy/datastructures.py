@@ -387,6 +387,37 @@ class ProcessedDocument(object):
         self._set_from_unpacked_data()
         return self._groups
 
+    def get_distance(self, field, location):
+        """Get the distance between this document and a location, in metres.
+
+        If the location is another document, the distance between the locations
+        stored in the specified field in each document is returned.
+
+        Otherwise, the location may be a string holding a latlong coordinate to
+        find the distance from a point, or a list of strings holding latlong
+        coordinates to find the distance to the closest of the points.
+
+        The field must have been processed with the GEOSPATIAL action.
+
+        """
+        if isinstance(location, ProcessedDocument):
+            location = location.get_value(field, purpose='loc')
+            location = xapian.LatLongCoords.unserialise(location)
+        else:
+            coords = xapian.LatLongCoords()
+            if isinstance(location, basestring):
+                coords.insert(xapian.LatLongCoord.parse_latlong(location))
+            else:
+                for coord in location:
+                    coords.insert(xapian.LatLongCoord.parse_latlong(coord))
+            location = coords
+
+        doccoords = self.get_value(field, purpose='loc')
+        doccoords = xapian.LatLongCoords.unserialise(doccoords)
+
+        metric = xapian.GreatCircleMetric()
+        return metric(doccoords, location)
+
     def _get_id(self):
         tl = self._doc.termlist()
         try:
