@@ -98,7 +98,7 @@ class TestFieldGroups(TestCase):
         id = list(self.sconn.iterids())[0]
         doc = self.sconn.get_document(id)
         self.assertEqual(doc._get_groups(),
-                         [(('b', 0), ('c', 0)), (('g', 0), ('h', 0))])
+                         [(('b', 0), ('c', 0)), (('e', 0),), (('g', 0), ('h', 0))])
 
         id = list(self.sconn.iterids())[1]
         doc = self.sconn.get_document(id)
@@ -134,6 +134,27 @@ class TestFieldGroups(TestCase):
                           'g': ['Atlantic'],
                           'f': ['Ave'],
                           'h': ['1.0']})
+        self.assertEqual(results[0].grouped_data(),
+                         ({
+                          'a': ['Africa America', 'Uninteresting'],
+                          'b': ['Notinteresting'],
+                          'd': ['Australia'],
+                          'f': ['Ave'],
+                          },
+                          [{
+                           'b': ['Andes America'],
+                           'c': ['Arctic America'],
+                          },
+                          {
+                           'e': ['1.0'],
+                          },
+                          {
+                           'g': ['Atlantic'],
+                           'h': ['1.0'],
+                          }
+                          ]
+                         )
+                        )
         self.assertEqual(results[0].relevant_data(),
                          (('a', ('Africa America',)),
                           ('b', ('Andes America',))))

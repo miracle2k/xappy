@@ -665,8 +665,8 @@ class ActionSet(object):
                         # If no actions are defined, just ignore the field.
                         continue
                     actions.perform(result, field, context)
-                if len(context.currfield_group) > 1:
-                    # Have had more than one field for which data has been
+                if len(context.currfield_group) > 0:
+                    # Have had at least one field for which data has been
                     # stored.
                     result._get_groups().append(tuple(context.currfield_group))
                 context.currfield_group = None

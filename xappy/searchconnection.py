@@ -94,6 +94,9 @@ class SearchResult(ProcessedDocument):
         # associated (fieldname, offset) data.
         self._valueassocs = None
 
+        # Map from (field, offset) to group number.
+        self._grouplu = None
+
     def _get_language(self, field):
         """Get the language that should be used for a given field.
 
@@ -163,6 +166,49 @@ class SearchResult(ProcessedDocument):
 
         # Merge in the terms and values from the stored field associations.
         self._add_termvalue_assocs(self._get_assocs())
+
+    def _calc_group_lookup(self):
+        """Calculate a lookup for the group data, if not already done.
+
+        """
+        if self._grouplu is not None:
+            return
+
+        self._grouplu = {}
+        count = 0
+        for group in self._get_groups():
+            for field, offset in group:
+                self._grouplu[(field, offset)] = count
+            count += 1
+
+    def grouped_data(self):
+        """Return all the data, organised by group.
+
+        Returns a tuple of two items: the first is a dictionary (from field to
+        list of values) of all ungrouped data, and the second is a list of the
+        groups of data, in which each item is a dictionary (from field to list
+        of values).
+
+        """
+        self._calc_group_lookup()
+
+        ungrouped = {}
+        groups = {}
+
+        for field, vals in self.data.iteritems():
+            for offset in xrange(len(vals)):
+                groupnum = self._grouplu.get((field, offset), None)
+                if groupnum is None:
+                    ungrouped.setdefault(field, []).append(vals[offset])
+                else:
+                    groups.setdefault(groupnum, {}).setdefault(field, []).append(vals[offset])
+        groupnums = list(groups.iterkeys())
+        groupnums.sort()
+        sortedgroups = []
+        for groupnum in groupnums:
+            sortedgroups.append(groups[groupnum])
+
+        return ungrouped, sortedgroups
 
     def relevant_data(self, allow=None, deny=None, query=None, group=False):
         """Return field data which was relevant for this result.
@@ -250,12 +296,7 @@ class SearchResult(ProcessedDocument):
             # Look for any data items which are in a group, and add the other
             # members of the group, if found.
             # First, build a dict from (field, offset) to group number
-            grouplu = {}
-            count = 0
-            for group in self._groups:
-                for field, offset in group:
-                    grouplu[(field, offset)] = count
-                count += 1
+            self._calc_group_lookup()
 
             # keyed by fieldname, values are sets of offsets for that field
             relevant_offsets = {}
@@ -263,9 +304,9 @@ class SearchResult(ProcessedDocument):
             for score, field in scoreditems:
                 for offset, weight in fieldassocs[field].iteritems():
                     relevant_offsets.setdefault(field, {})[offset] = weight
-                    groupnum = grouplu.get((field, offset), None)
+                    groupnum = self._grouplu.get((field, offset), None)
                     if groupnum is not None:
-                        for groupfield, groupoffset in self._groups[groupnum]:
+                        for groupfield, groupoffset in self._get_groups()[groupnum]:
                             relevant_offsets.setdefault(groupfield, {})[groupoffset] = weight
 
             for score, field in scoreditems:
