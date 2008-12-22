@@ -121,7 +121,12 @@ class ProcessedDocument(object):
 
     """
 
-    __slots__ = '_doc', '_fieldmappings', '_data', '_assocs', '_groups'
+    __slots__ = ('_doc',
+                 '_fieldmappings',
+                 '_data',
+                 '_assocs',
+                 '_groups',
+                 '_grouped_data')
     def __init__(self, fieldmappings, xapdoc=None):
         """Create a ProcessedDocument.
 
@@ -143,6 +148,9 @@ class ProcessedDocument(object):
         self._assocs = None
         # List of lists of (fieldname, offset) position.
         self._groups = None
+
+        # Cache of data, in grouped form.
+        self._grouped_data = None
 
     def add_term(self, field, term, wdfinc=1, positions=None):
         """Add a term to the document.
@@ -244,6 +252,7 @@ class ProcessedDocument(object):
             self._data = None
             self._assocs = None
             self._groups = None
+            self._grouped_data = None
         return self._doc
 
     def _unpack_data(self):
@@ -270,10 +279,12 @@ class ProcessedDocument(object):
         data, assocs, groups = self._unpack_data()
         if self._data is None:
             self._data = data
+            self._grouped_data = None
         if self._assocs is None:
             self._assocs = assocs
         if self._groups is None:
             self._groups = groups
+            self._grouped_data = None
 
     def _get_data(self):
         self._set_from_unpacked_data()
@@ -287,6 +298,59 @@ class ProcessedDocument(object):
 
     This data is a dictionary of entries, where the key is a fieldname, and the
     value is a list of strings.
+
+    """)
+
+    def _calc_group_lookup(self):
+        """Calculate a lookup for the group data, if not already done.
+
+        """
+        grouplu = {}
+        count = 0
+        for group in self._get_groups():
+            for field, offset in group:
+                grouplu[(field, offset)] = count
+            count += 1
+        return grouplu
+
+    def _get_grouped_data(self):
+        """Return all the data, organised by group.
+
+        Returns a tuple of two items: the first is a dictionary (from field to
+        list of values) of all ungrouped data, and the second is a list of the
+        groups of data, in which each item is a dictionary (from field to list
+        of values).
+
+        """
+        if self._grouped_data is not None:
+            return self._grouped_data
+        grouplu = self._calc_group_lookup()
+
+        ungrouped = {}
+        groups = {}
+
+        for field, vals in self.data.iteritems():
+            for offset in xrange(len(vals)):
+                groupnum = grouplu.get((field, offset), None)
+                if groupnum is None:
+                    ungrouped.setdefault(field, []).append(vals[offset])
+                else:
+                    groups.setdefault(groupnum, {}).setdefault(field, []).append(vals[offset])
+        groupnums = list(groups.iterkeys())
+        groupnums.sort()
+        sortedgroups = []
+        for groupnum in groupnums:
+            sortedgroups.append(groups[groupnum])
+
+        self._grouped_data = (ungrouped, sortedgroups)
+        return self._grouped_data
+    grouped_data = property(_get_grouped_data, doc=
+    """The data stored in this processed document, organised by group.
+
+    This is a tuple of two items: the first is a dictionary (from field to
+    list of values) of all ungrouped data, and the second is a list of the
+    groups of data, in which each item is a dictionary (from field to list
+    of values).
 
     """)
 

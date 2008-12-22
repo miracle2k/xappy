@@ -134,7 +134,7 @@ class TestFieldGroups(TestCase):
                           'g': ['Atlantic'],
                           'f': ['Ave'],
                           'h': ['1.0']})
-        self.assertEqual(results[0].grouped_data(),
+        self.assertEqual(results[0].grouped_data,
                          ({
                           'a': ['Africa America', 'Uninteresting'],
                           'b': ['Notinteresting'],
