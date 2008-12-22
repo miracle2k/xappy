@@ -1,3 +1,16 @@
+Mon Dec 22 15:20:13 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Use new xapian packages, which include
+	  geospatial stuff.
+	* docs/introduction.rst,xappy/doctests/searchconnection_doctest2.txt:
+	  Fix various tests to cover fixes in the similarity search
+	  algorithms in xapian core - various terms which didn't really
+	  contribute to the similarity are no longer produced by it.
+	* xappy/searchconnection.py: Change sort-by-distance to sort in
+	  increasing distance order, rather than decreasing, and keep
+	  references to the bits used by the DistancePostingSource.
+	* xappy/unittests/distance.py: Enable test of query_distance().
+
 Mon Dec 22 14:16:07 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: Update branchpoints, and add

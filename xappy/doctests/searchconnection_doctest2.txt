@@ -438,13 +438,13 @@ Do a similarity search
 >>> len(ids)
 3
 >>> sconn.significant_terms(ids, maxterms=5)
-[('title', '8'), ('title', '5'), ('title', '2'), ('title', 'test'), ('title', 'document')]
+[('title', '8'), ('title', '5'), ('title', '2')]
 >>> q2 = sconn.query_similar(ids, simterms=5)
 >>> str(q2)
-'Xapian::Query((XB8 ELITE_SET 5 XB5 ELITE_SET 5 XB2 ELITE_SET 5 XBtest ELITE_SET 5 XBdocument))'
+'Xapian::Query((XB8 ELITE_SET 5 XB5 ELITE_SET 5 XB2))'
 >>> q2 = sconn.query_similar(ids, simterms=5, allow='text')
 >>> str(q2)
-'Xapian::Query((XDdocument ELITE_SET 5 XDthis ELITE_SET 5 XDtest ELITE_SET 5 XDmore ELITE_SET 5 XDis))'
+'Xapian::Query()'
 
 Try a search with various weight cutoff restrictions:
 >>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date")
@@ -490,7 +490,7 @@ True
 
 Find the interesting terms in a set of documents:
 >>> [(docid, sconn.significant_terms(docid, 3)) for docid in sconn.iterids()][:3]
-[('0', [('title', '0'), ('title', 'test'), ('title', 'document')]), ('1', [('title', '1'), ('title', 'test'), ('title', 'document')]), ('10', [('title', '16'), ('title', 'test'), ('title', 'document')])]
+[('0', [('title', '0')]), ('1', [('title', '1')]), ('10', [('title', '16')])]
 
 
 Tidy up after ourselves:

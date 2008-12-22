@@ -64,7 +64,7 @@ class DistanceSearchTest(TestCase):
         self.assertEqual([int(item.id) for item in res], [0, 1, 2])
 
         q = self.sconn.query_distance('location', '0, 0')
-        #res = list(self.sconn.search(q, 0, 10))
+        res = list(self.sconn.search(q, 0, 10))
 
 if __name__ == '__main__':
     main()

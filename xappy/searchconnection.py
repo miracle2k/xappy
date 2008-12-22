@@ -1546,7 +1546,7 @@ class SearchConnection(object):
 
             return self.query_external_weight(DifferenceWeight())
 
-    def query_distance(self, field, centre, max_range=0.0, k1=1.0, k2=1.0):
+    def query_distance(self, field, centre, max_range=0.0, k1=1000.0, k2=1.0):
         """Create a query which returns documents in order of distance.
 
         """
@@ -1578,7 +1578,8 @@ class SearchConnection(object):
             slot, coords, metric, max_range, k1, k2)
 
         result = Query(_log(_xapian.Query, postingsource),
-                       _refs=[postingsource], _conn=self)
+                       _refs=[postingsource, coords, metric],
+                       _conn=self)
         result._set_serialised(serialised)
         return result
 
@@ -2588,7 +2589,7 @@ class SearchConnection(object):
                 # Make and use the sorter
                 metric = _xapian.GreatCircleMetric()
                 sorter = _xapian.LatLongDistanceSorter(slot, coords, metric)
-                enq.set_sort_by_key_then_relevance(sorter)
+                enq.set_sort_by_key_then_relevance(sorter, False)
             else:
                 sorter = xapian.MultiValueSorter()
                 for field in sortby:

@@ -560,7 +560,7 @@ To perform a simple similarity search, based on a few document IDs::
   >>> simq = conn.query_similar(('Bible1',))
   >>> results = conn.search(simq, 0, 10)
   >>> [result.id for result in results]
-  ['Bible1', 'Bible2', '0']
+  ['Bible1', 'Bible2']
 
 Note that the document ID supplied came first in the set of results.  While
 this is not guaranteed (in particular, it may not occur if there are other
@@ -584,7 +584,7 @@ be only those documents which match the normal search::
 
   >>> results = conn.search(combined, 0, 10)
   >>> [result.id for result in results]
-  ['Bible1', 'Bible2', '0']
+  ['Bible1', 'Bible2']
 
 
 Concurrent update limitations
