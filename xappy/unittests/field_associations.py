@@ -98,6 +98,9 @@ class TestFieldAssociations(TestCase):
         self.assertEqual(results[0]._get_assocs(), {})
         self.assertNotEqual(results[1]._get_assocs(), {})
 
+        # Check that grouped_data is the same as data when there's no group.
+        self.assertEqual(results[0].data, results[0].grouped_data[0])
+
         # Check that the relevant data is appropriate.  For the second result,
         # the associated data should be returned.
         self.assertEqual(results[0].relevant_data(), (('a', ('Africa America',)),))
