@@ -46,5 +46,13 @@ class TestQueryId(TestCase):
         results = query.search(0, 10)
         self.assertEqual([r.id for r in results], ["121", "123"])
 
+        query = self.sconn.query_id(["121"])
+        results = query.search(0, 10)
+        self.assertEqual([r.id for r in results], ["121"])
+
+        query = self.sconn.query_id("121")
+        results = query.search(0, 10)
+        self.assertEqual([r.id for r in results], ["121"])
+
 if __name__ == '__main__':
     main()
