@@ -2288,6 +2288,27 @@ class SearchConnection(object):
         return Query(_conn=self,
                      _serialised = self._make_parent_func_repr("query_none"))
 
+    def query_id(self, docid):
+        """A query which matches documents with the specified ids.
+
+        `docid` contains the xappy document ID to search for.  It may be a
+        single document ID, or an iterator returning a list of IDs.  In the
+        latter case, documents with any of the IDs listed will be returned.
+
+        Note that it is not recommended to use a large number of document IDs
+        (for example, over 100) with this method, since it will not produce a
+        particularly efficient query.
+
+        """
+        if isinstance(docid, basestring):
+            terms = ['Q' + docid]
+        else:
+            terms = ['Q' + docid for docid in docid]
+
+        return Query(_log(_xapian.Query, _xapian.Query.OP_OR, terms),
+                     _conn=self,
+                     _serialised = self._make_parent_func_repr("query_id"))
+
     def query_from_evalable(self, serialised):
         """Create a query from an serialised evalable repr string.
 

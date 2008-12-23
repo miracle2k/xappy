@@ -1,3 +1,9 @@
+Tue Dec 23 00:04:15 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add query_id() function to search for
+	  documents with a particular ID.
+	* xappy/unittests/query_id_test.py: Add test of query_id().
+
 Mon Dec 22 20:06:09 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/datastructures.py: Add ProcessedDocument.get_distance() to
