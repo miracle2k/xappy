@@ -93,6 +93,8 @@ class IndexerConnection(object):
         try:
             self._load_config()
         except:
+            if hasattr(self._index, 'close'):
+                self._index.close()
             self._index = None
             raise
 
@@ -613,19 +615,22 @@ class IndexerConnection(object):
             return
         try:
             self.flush()
+            try:
+                self._index.close()
+            except AttributeError:
+                # Xapian versions earlier than 1.1.0 didn't have a close()
+                # method, so we just had to rely on the garbage collector to
+                # clean up.  Ignore the exception that occurs if we're using
+                # 1.0.x.
+                # FIXME - remove this special case when we no longer support
+                # the 1.0.x release series.  Also remove the equivalent special
+                # case in __init__.
+                pass
         finally:
-            # There is currently no "close()" method for xapian databases, so
-            # we have to rely on the garbage collector.  Since we never copy
-            # the _index property out of this class, there should be no cycles,
-            # so the standard python implementation should garbage collect
-            # _index straight away.  A close() method is planned to be added to
-            # xapian at some point - when it is, we should call it here to make
-            # the code more robust.
-            # FIXME - add a call to xapian's close method (and also do that in
-            # the exception handler in __init__)
             self._index = None
             self._indexpath = None
             self._field_actions = None
+            self._field_mappings = None
             self._config_modified = False
 
     def get_doccount(self):
