@@ -1,3 +1,8 @@
+Mon Jan 12 14:55:46 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Updated script, which doesn't require
+	  lots of pre-existing checkouts.
+
 Fri Dec 26 15:48:27 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py,xappy/searchconnection.py: Update to

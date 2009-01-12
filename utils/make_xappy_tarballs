@@ -13,30 +13,6 @@
 
 # The directories used are:
 #
-#  $basedir/branchpoints/matchspy: a checkout of the matchspy branch at the
-#  revision the branch was made (ie, before any changes were made on it).
-#
-#  $basedir/branchpoints/opsynonym: a checkout of the opsynonym branch at the
-#  revision the branch was made (ie, before any changes were made on it).
-#
-#  $basedir/branchpoints/clustering: a checkout of the clustering branch at the
-#  revision the branch was made (ie, before any changes were made on it).
-#
-#  $basedir/branchpoints/geospatial: a checkout of the geospatial branch at the
-#  revision the branch was made (ie, before any changes were made on it).
-#
-#  $basedir/branches/matchspy: a checkout of the matchspy branch at the latest
-#  revision.
-#
-#  $basedir/branches/opsynonym: a checkout of the opsynonym branch at the
-#  latest revision.
-#
-#  $basedir/branches/clustering: a checkout of the clustering branch at the
-#  latest revision.
-#
-#  $basedir/branches/geospatial: a checkout of the geospatial branch at the
-#  latest revision.
-#
 #  $basedir/head/trunk: a checkout of HEAD, at the latest revision.
 #
 #  $xappylibdir: a checkout of xappy/trunk.
@@ -46,130 +22,70 @@ matchspy_branchpoint="11701"
 opsynonym_branchpoint="11701"
 clustering_branchpoint="11701"
 geospatial_branchpoint="11743"
-basedir="$HOME/private/Working/xapian/pristine/"
+
+basedir="$HOME/xappy/maketarballs"
 xappylibdir="$HOME/xappy/libs/"
 
-echo "Updating branchpoint trees"
-cd $basedir/branchpoints/matchspy
-svn update -r$matchspy_branchpoint
-
-cd $basedir/branchpoints/opsynonym
-svn update -r$opsynonym_branchpoint
-
-cd $basedir/branchpoints/clustering
-svn update -r$clustering_branchpoint
-
-cd $basedir/branchpoints/geospatial
-svn update -r$geospatial_branchpoint
-
-echo "Updating branch trees"
-cd $basedir/branches/matchspy
-svn update
-cd $basedir/branches/opsynonym
-svn update
-cd $basedir/branches/clustering
-svn update
-cd $basedir/branches/geospatial
-svn update
+mkdir -p ${basedir}
 
 echo "Updating head"
-cd $basedir/head/trunk
-svn update
+mkdir -p ${basedir}/head
+cd ${basedir}/head
+svn co -q svn://svn.xapian.org/xapian/trunk
+cd trunk
 head_rev=`svn info | grep Revision | cut -f 2 -d ' '`
 
-echo "Exporting clean trees"
-rm -rf $basedir/branchpoints/matchspy_export
-svn export $basedir/branchpoints/matchspy $basedir/branchpoints/matchspy_export
-rm -rf $basedir/branchpoints/opsynonym_export
-svn export $basedir/branchpoints/opsynonym $basedir/branchpoints/opsynonym_export
-rm -rf $basedir/branchpoints/clustering_export
-svn export $basedir/branchpoints/clustering $basedir/branchpoints/clustering_export
-rm -rf $basedir/branchpoints/geospatial_export
-svn export $basedir/branchpoints/geospatial $basedir/branchpoints/geospatial_export
-rm -rf $basedir/branches/matchspy_export
-svn export $basedir/branches/matchspy $basedir/branches/matchspy_export
-rm -rf $basedir/branches/opsynonym_export
-svn export $basedir/branches/opsynonym $basedir/branches/opsynonym_export
-rm -rf $basedir/branches/clustering_export
-svn export $basedir/branches/clustering $basedir/branches/clustering_export
-rm -rf $basedir/branches/geospatial_export
-svn export $basedir/branches/geospatial $basedir/branches/geospatial_export
+echo "Getting branch patches ..."
+echo " ... matchspy"
+if [ ! -e $basedir/matchspy_changes_${head_rev}.patch ] ; then
+svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'"\
+	"svn://svn.xapian.org/xapian/trunk@$matchspy_branchpoint" \
+	"svn://svn.xapian.org/xapian/branches/matchspy" \
+| filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
+  >$basedir/matchspy_changes_${head_rev}.patch
+fi
 
+echo " ... opsynonym"
+if [ ! -e $basedir/opsynonym_changes_${head_rev}.patch ] ; then
+svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'"\
+	"svn://svn.xapian.org/xapian/trunk@$opsynonym_branchpoint" \
+	"svn://svn.xapian.org/xapian/branches/opsynonym" \
+| filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
+  >$basedir/opsynonym_changes_${head_rev}.patch
+fi
+
+echo " ... clustering"
+if [ ! -e $basedir/clustering_changes_${head_rev}.patch ] ; then
+svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'"\
+	"svn://svn.xapian.org/xapian/trunk@$clustering_branchpoint" \
+	"svn://svn.xapian.org/xapian/branches/clustering" \
+| filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
+  >$basedir/clustering_changes_${head_rev}.patch
+fi
+
+echo " ... geospatial"
+if [ ! -e $basedir/geospatial_changes_${head_rev}.patch ] ; then
+svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'"\
+	"svn://svn.xapian.org/xapian/trunk@$geospatial_branchpoint" \
+	"svn://svn.xapian.org/xapian/branches/geospatial" \
+| filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
+  >$basedir/geospatial_changes_${head_rev}.patch
+fi
+
+echo "Exporting clean tree"
 rm -rf $basedir/head/trunk_export
 svn export $basedir/head/trunk $basedir/head/trunk_export
-
-# Get the diffs we made on branches.
-echo "Getting patches from matchspy branch"
-cd $basedir
-diff -Nur --ignore-matching-lines='\$Author' \
-  branchpoints/matchspy_export \
-  branches/matchspy_export \
- | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
-  >$basedir/matchspy_changes.patch
-
-echo "Getting patches from opsynonym branch"
-cd $basedir
-diff -Nur --ignore-matching-lines='\$Author' \
-  branchpoints/opsynonym_export \
-  branches/opsynonym_export \
- | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
-  >$basedir/opsynonym_changes.patch
-
-echo "Getting patches from clustering branch"
-cd $basedir
-diff -Nur --ignore-matching-lines='\$Author' \
-  branchpoints/clustering_export \
-  branches/clustering_export \
- | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
-  >$basedir/clustering_changes.patch
-
-echo "Getting patches from geospatial branch"
-cd $basedir
-diff -Nur --ignore-matching-lines='\$Author' \
-  branchpoints/geospatial_export \
-  branches/geospatial_export \
- | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
-  >$basedir/geospatial_changes.patch
-
-# Get the diffs made to HEAD since the branch points
-echo "Getting changes to HEAD since matchspy branch"
-cd $basedir
-diff -Nur --ignore-matching-lines='\$Author' \
-  branchpoints/matchspy_export \
-  head/trunk_export \
-  >$basedir/head_changes_since_matchspy_branch.patch && true
-
-echo "Getting changes to HEAD since opsynonym branch"
-cd $basedir
-diff -Nur --ignore-matching-lines='\$Author' \
-  branchpoints/opsynonym_export \
-  head/trunk_export \
-  >$basedir/head_changes_since_opsynonym_branch.patch && true
-
-echo "Getting changes to HEAD since clustering branch"
-cd $basedir
-diff -Nur --ignore-matching-lines='\$Author' \
-  branchpoints/clustering_export \
-  head/trunk_export \
-  >$basedir/head_changes_since_clustering_branch.patch && true
-
-echo "Getting changes to HEAD since geospatial branch"
-cd $basedir
-diff -Nur --ignore-matching-lines='\$Author' \
-  branchpoints/geospatial_export \
-  head/trunk_export \
-  >$basedir/head_changes_since_geospatial_branch.patch && true
 
 # Apply the patches to HEAD
 cd $basedir/head/trunk_export
 echo "Applying patches from matchspy branch"
-patch -p2 < $basedir/matchspy_changes.patch
+patch -p0 < $basedir/matchspy_changes_${head_rev}.patch
 echo "Applying patches from opsynonym branch"
-patch -p2 < $basedir/opsynonym_changes.patch
+patch -p0 < $basedir/opsynonym_changes_${head_rev}.patch
 echo "Applying patches from clustering branch"
-patch -p2 < $basedir/clustering_changes.patch
+patch -p0 < $basedir/clustering_changes_${head_rev}.patch
 echo "Applying patches from geospatial branch"
-patch -p2 < $basedir/geospatial_changes.patch
+patch -p0 < $basedir/geospatial_changes_${head_rev}.patch
 
 # Make tarballs
 echo "Building tarballs"
@@ -204,9 +120,9 @@ cd $xappylibdir
 mv tmp/xapian-core-${head_rev}.tgz .
 mv tmp/xapian-bindings-${head_rev}.tgz .
 
+rmdir tmp
+
 # Make a tarball of the windows build files
 cd $basedir/head/trunk_export/xapian-maintainer-tools/
 tar -H ustar -zcf win32msvc-${head_rev}.tgz win32msvc
 cp win32msvc-${head_rev}.tgz $xappylibdir/
-
-rmdir tmp
