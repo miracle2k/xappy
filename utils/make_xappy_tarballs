@@ -75,6 +75,7 @@ fi
 echo "Exporting clean tree"
 rm -rf $basedir/head/trunk_export
 svn export $basedir/head/trunk $basedir/head/trunk_export
+svn export $basedir/head/trunk/swig $basedir/head/trunk_export/swig
 
 # Apply the patches to HEAD
 cd $basedir/head/trunk_export
@@ -90,6 +91,8 @@ patch -p0 < $basedir/geospatial_changes_${head_rev}.patch
 # Make tarballs
 echo "Building tarballs"
 cd $basedir/head/trunk_export
+rm -rf search-xapian
+rm -rf xapian-applications
 ./bootstrap
 ./configure
 (cd xapian-core && make && make dist)
