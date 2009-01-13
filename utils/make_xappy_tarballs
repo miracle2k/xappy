@@ -83,7 +83,7 @@ svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'" \
 fi
 
 echo " ... valuemapsource"
-
+valuemapsource_rev=`svn info svn://svn.xapian.org/xapian/branches/valuemapsource | grep "Last Changed Rev" | cut -f 4 -d ' '`
 if [ ! -e $basedir/valuemapsource_changes_${valuemapsource_branchpoint}_${valuemapsource_rev}.patch ] ; then
 svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'" \
 	"svn://svn.xapian.org/xapian/trunk@$valuemapsource_branchpoint" \
