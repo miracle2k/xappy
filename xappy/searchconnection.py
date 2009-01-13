@@ -174,7 +174,7 @@ class SearchResult(ProcessedDocument):
         which was relevant to the search, together with the data which was
         relevant.  The returned tuple items will be tuples of (fieldname,
         data), where data is a tuple of strings.
-        
+
         In order to be returned the fields must have the STORE_CONTENT action,
         but must also be included in the query (so must have other actions
         specified too).  If there are multiple instances of a field, only those
@@ -199,7 +199,7 @@ class SearchResult(ProcessedDocument):
 
         If `group` is set to True, any field data which shares a FieldGroup
         with some relevant data will also be returned.
- 
+
         """
         if query is None:
             query = self._results._query
@@ -1027,7 +1027,6 @@ class SearchConnection(object):
                 if action == FieldActions.INDEX_FREETEXT:
                     for kwargs in kwargslist:
                         return kwargs['type']
-        
 
     def _load_config(self):
         """Load the configuration for the database.
@@ -2947,24 +2946,30 @@ class SearchConnection(object):
 
     def query_valuemap(self, field, weightmap, default_weight=None):
         """Return a query consisting of a value map posting source.
-        
-        `field` should have been indexed with field action FACET.
-        `weightmap` is a dict of value strings to weights.
-        `default_weight` is the weight to return if the document's value has no 
-            mapping, and defaults to 0.0
-        
+
+         - `field` should have been indexed with field action FACET.
+         - `weightmap` is a dict of value strings to weights.
+         - `default_weight` is the weight to return if the document's value has
+           no mapping, and defaults to 0.0.
+
         """
+        serialised = self._make_parent_func_repr("query_valuemap")
         slot = self._field_mappings.get_slot(field, 'facet')
-        
+
         # Construct a posting source
         ps = xapian.ValueMapPostingSource(self._index, slot)
         if default_weight is not None:
-            ps.set_default_weight(default_weight)            
+            if default_weight < 0:
+                raise ValueError("default_weight must be >= 0")
+            ps.set_default_weight(default_weight)
         for k, v in weightmap.items():
+            if v < 0:
+                raise ValueError("weights in weightmap must be >= 0")
             ps.add_mapping(k, v)
-        
-        return _xapian.Query(ps)
-        
+
+        return Query(_log(_xapian.Query, ps),
+                     _refs=[ps], _conn=self,
+                     _serialised=serialised)
 
 if __name__ == '__main__':
     import doctest, sys

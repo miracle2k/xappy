@@ -1,3 +1,12 @@
+Tue Jan 13 13:03:38 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Remove trailing whitespace, and tidy
+	  some documentation comment formatting.  Validate the weights
+	  passed to query_valuemap(), and return a xappy.Query() object
+	  instead of a xapian.Query() object from it, to keep a reference
+	  to the postingsource alive, and also to enable query
+	  serialisation and combination syntax.
+
 Tue Jan 13 12:55:58 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: In _get_eterms with an non-indexed
