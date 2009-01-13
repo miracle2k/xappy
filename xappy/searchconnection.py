@@ -2143,9 +2143,11 @@ class SearchConnection(object):
 
                 # Add the document to the temporary database, and then reset
                 # its docid.
-                doc.prepare()
-                tempdb.add_document(doc._doc)
-                doc.id = orig_docid
+                try:
+                    doc.prepare()
+                    tempdb.add_document(doc._doc)
+                finally:
+                    doc.id = orig_docid
                 newids.append(temp_docid)
             else:
                 newids.append(doc)
