@@ -2943,6 +2943,27 @@ class SearchConnection(object):
         prefix = self._field_mappings.get_prefix(field)
         return PrefixedTermIter(prefix, self._index.allterms(prefix))
 
+    def query_valuemap(self, field, weightmap, default_weight=None):
+        """Return a query consisting of a value map posting source.
+        
+        `field` should have been indexed with field action FACET.
+        `weightmap` is a dict of value strings to weights.
+        `default_weight` is the weight to return if the document's value has no 
+            mapping, and defaults to 0.0
+        
+        """
+        slot = self._field_mappings.get_slot(field, 'facet')
+        
+        # Construct a posting source
+        ps = xapian.ValueMapPostingSource(self._index, slot)
+        if default_weight is not None:
+            ps.set_default_weight(default_weight)            
+        for k, v in weightmap.items():
+            ps.add_mapping(k, v)
+        
+        return _xapian.Query(ps)
+        
+
 if __name__ == '__main__':
     import doctest, sys
     doctest.testmod(sys.modules[__name__])
