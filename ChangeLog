@@ -1,3 +1,10 @@
+Tue Jan 13 13:20:23 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update package build script to use the
+	  last-changed revision number on each branch for the branch diffs
+	  file, to avoid having to refetch all of them on any commit
+	  anywhere in the xapian tree.
+
 Tue Jan 13 13:03:38 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Remove trailing whitespace, and tidy
