@@ -2947,14 +2947,14 @@ class SearchConnection(object):
     def query_valuemap(self, field, weightmap, default_weight=None):
         """Return a query consisting of a value map posting source.
 
-         - `field` should have been indexed with field action FACET.
+         - `field` should have been indexed with field action SORTABLE.
          - `weightmap` is a dict of value strings to weights.
          - `default_weight` is the weight to return if the document's value has
            no mapping, and defaults to 0.0.
 
         """
-        serialised = self._make_parent_func_repr("query_valuemap")
-        slot = self._field_mappings.get_slot(field, 'facet')
+        serialised = self._make_parent_func_repr("query_valuemap")        
+        slot = self._field_mappings.get_slot(field, 'collsort')
 
         # Construct a posting source
         ps = xapian.ValueMapPostingSource(self._index, slot)

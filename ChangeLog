@@ -1,3 +1,10 @@
+Tue Jan 13 17:10:47 GMT 2009  Tom Mortimer <tom@lemurconsulting.com>
+
+    * xappy/searchconnection.py: Switched to using SORTABLE action for 
+      query_valuemap, avoiding format problems of FACET.
+    * xappy/tests/valuemapsource_1: Added test cases for simple queries 
+      with and without default weights
+      
 Tue Jan 13 14:58:00 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: Don't forget to build SWIG before
