@@ -22,9 +22,10 @@ matchspy_branchpoint="11701"
 opsynonym_branchpoint="11701"
 clustering_branchpoint="11701"
 geospatial_branchpoint="11743"
+valuemapsource_branchpoint="11820"
 
-basedir="$HOME/xappy/maketarballs"
-xappylibdir="$HOME/xappy/libs/"
+basedir="$HOME/src/xappy/maketarballs"
+xappylibdir="$HOME/src/xappy/libs/"
 
 mkdir -p ${basedir}
 
@@ -72,6 +73,15 @@ svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'"\
   >$basedir/geospatial_changes_${head_rev}.patch
 fi
 
+echo " ... valuemapsource"
+if [ ! -e $basedir/valuemapsource_changes_${head_rev}.patch ] ; then
+svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'"\
+	"svn://svn.xapian.org/xapian/trunk@$valuemapsource_branchpoint" \
+	"svn://svn.xapian.org/xapian/branches/valuemapsource" \
+| filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html'
+  >$basedir/valuemapsource_changes_${head_rev}.patch
+fi
+
 echo "Exporting clean tree"
 rm -rf $basedir/head/trunk_export
 svn export $basedir/head/trunk $basedir/head/trunk_export
@@ -87,6 +97,8 @@ echo "Applying patches from clustering branch"
 patch -p0 < $basedir/clustering_changes_${head_rev}.patch
 echo "Applying patches from geospatial branch"
 patch -p0 < $basedir/geospatial_changes_${head_rev}.patch
+echo "Applying patches from valuemapsource branch"
+patch -p0 < $basedir/valuemapsource_changes_${head_rev}.patch
 
 # Make tarballs
 echo "Building tarballs"
