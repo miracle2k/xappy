@@ -24,8 +24,13 @@ clustering_branchpoint="11701"
 geospatial_branchpoint="11743"
 valuemapsource_branchpoint="11820"
 
+if [ -e "$HOME/xappy" ]; then
+basedir="$HOME/xappy/maketarballs"
+xappylibdir="$HOME/xappy/libs/"
+else
 basedir="$HOME/src/xappy/maketarballs"
 xappylibdir="$HOME/src/xappy/libs/"
+fi
 
 mkdir -p ${basedir}
 
@@ -39,71 +44,73 @@ head_rev=`svn info | grep Revision | cut -f 2 -d ' '`
 echo "Getting branch patches ..."
 echo " ... matchspy"
 matchspy_rev=`svn info svn://svn.xapian.org/xapian/branches/matchspy | grep "Last Changed Rev" | cut -f 4 -d ' '`
-if [ ! -e $basedir/matchspy_changes_${matchspy_rev}.patch ] ; then
+if [ ! -e $basedir/matchspy_changes_${matchspy_branchpoint}_${matchspy_rev}.patch ] ; then
 svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'" \
 	"svn://svn.xapian.org/xapian/trunk@$matchspy_branchpoint" \
 	"svn://svn.xapian.org/xapian/branches/matchspy" \
 | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
-  >$basedir/matchspy_changes_${matchspy_rev}.patch
+  >$basedir/matchspy_changes_${matchspy_branchpoint}_${matchspy_rev}.patch
 fi
 
 echo " ... opsynonym"
 opsynonym_rev=`svn info svn://svn.xapian.org/xapian/branches/opsynonym | grep "Last Changed Rev" | cut -f 4 -d ' '`
-if [ ! -e $basedir/opsynonym_changes_${opsynonym_rev}.patch ] ; then
+if [ ! -e $basedir/opsynonym_changes_${opsynonym_branchpoint}_${opsynonym_rev}.patch ] ; then
 svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'" \
 	"svn://svn.xapian.org/xapian/trunk@$opsynonym_branchpoint" \
 	"svn://svn.xapian.org/xapian/branches/opsynonym" \
 | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
-  >$basedir/opsynonym_changes_${opsynonym_rev}.patch
+  >$basedir/opsynonym_changes_${opsynonym_branchpoint}_${opsynonym_rev}.patch
 fi
 
 echo " ... clustering"
 clustering_rev=`svn info svn://svn.xapian.org/xapian/branches/clustering | grep "Last Changed Rev" | cut -f 4 -d ' '`
-if [ ! -e $basedir/clustering_changes_${clustering_rev}.patch ] ; then
+if [ ! -e $basedir/clustering_changes_${clustering_branchpoint}_${clustering_rev}.patch ] ; then
 svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'" \
 	"svn://svn.xapian.org/xapian/trunk@$clustering_branchpoint" \
 	"svn://svn.xapian.org/xapian/branches/clustering" \
 | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
-  >$basedir/clustering_changes_${clustering_rev}.patch
+  >$basedir/clustering_changes_${clustering_branchpoint}_${clustering_rev}.patch
 fi
 
 echo " ... geospatial"
 geospatial_rev=`svn info svn://svn.xapian.org/xapian/branches/geospatial | grep "Last Changed Rev" | cut -f 4 -d ' '`
-if [ ! -e $basedir/geospatial_changes_${geospatial_rev}.patch ] ; then
+if [ ! -e $basedir/geospatial_changes_${geospatial_branchpoint}_${geospatial_rev}.patch ] ; then
 svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'" \
 	"svn://svn.xapian.org/xapian/trunk@$geospatial_branchpoint" \
 	"svn://svn.xapian.org/xapian/branches/geospatial" \
 | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
-  >$basedir/geospatial_changes_${geospatial_rev}.patch
+  >$basedir/geospatial_changes_${geospatial_branchpoint}_${geospatial_rev}.patch
 fi
 
 echo " ... valuemapsource"
 
-if [ ! -e $basedir/valuemapsource_changes_${valuemapsource_rev}.patch ] ; then
+if [ ! -e $basedir/valuemapsource_changes_${valuemapsource_branchpoint}_${valuemapsource_rev}.patch ] ; then
 svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'" \
 	"svn://svn.xapian.org/xapian/trunk@$valuemapsource_branchpoint" \
 	"svn://svn.xapian.org/xapian/branches/valuemapsource" \
 | filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' \
-  >$basedir/valuemapsource_changes_${valuemapsource_rev}.patch
+  >$basedir/valuemapsource_changes_${valuemapsource_branchpoint}_${valuemapsource_rev}.patch
 fi
 
 echo "Exporting clean tree"
 rm -rf $basedir/head/trunk_export
 svn export $basedir/head/trunk $basedir/head/trunk_export
-svn export $basedir/head/trunk/swig $basedir/head/trunk_export/swig
+if [ ! -d $basedir/head/trunk_export/swig ] ; then
+  svn export $basedir/head/trunk/swig $basedir/head/trunk_export/swig
+fi
 
 # Apply the patches to HEAD
 cd $basedir/head/trunk_export
 echo "Applying patches from matchspy branch"
-patch -p0 < $basedir/matchspy_changes_${matchspy_rev}.patch
+patch -p0 < $basedir/matchspy_changes_${matchspy_branchpoint}_${matchspy_rev}.patch
 echo "Applying patches from opsynonym branch"
-patch -p0 < $basedir/opsynonym_changes_${opsynonym_rev}.patch
+patch -p0 < $basedir/opsynonym_changes_${opsynonym_branchpoint}_${opsynonym_rev}.patch
 echo "Applying patches from clustering branch"
-patch -p0 < $basedir/clustering_changes_${clustering_rev}.patch
+patch -p0 < $basedir/clustering_changes_${clustering_branchpoint}_${clustering_rev}.patch
 echo "Applying patches from geospatial branch"
-patch -p0 < $basedir/geospatial_changes_${geospatial_rev}.patch
+patch -p0 < $basedir/geospatial_changes_${geospatial_branchpoint}_${geospatial_rev}.patch
 echo "Applying patches from valuemapsource branch"
-patch -p0 < $basedir/valuemapsource_changes_${valuemapsource_rev}.patch
+patch -p0 < $basedir/valuemapsource_changes_${valuemapsource_branchpoint}_${valuemapsource_rev}.patch
 
 # Make tarballs
 echo "Building tarballs"
@@ -117,6 +124,7 @@ rm -rf xapian-applications
 
 # Copy the tarballs into xappy
 echo "Repacking tarballs"
+mkdir -p $xappylibdir
 cd $xappylibdir
 mkdir -p tmp
 cd tmp
