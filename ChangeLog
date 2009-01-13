@@ -1,3 +1,8 @@
+Tue Jan 13 14:58:00 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Don't forget to build SWIG before
+	  using it!
+
 Tue Jan 13 14:39:35 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: Replace accidentally removed line.

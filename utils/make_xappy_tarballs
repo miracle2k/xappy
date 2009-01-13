@@ -120,6 +120,7 @@ rm -rf xapian-applications
 ./bootstrap
 ./configure
 (cd xapian-core && make && make dist)
+(cd swig && make)
 (cd xapian-bindings && make && make dist)
 
 # Copy the tarballs into xappy
