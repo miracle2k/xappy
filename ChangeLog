@@ -1,10 +1,14 @@
+Mon Jan 19 14:17:02 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* coverage.py: Update coverage version.
+
 Tue Jan 13 17:10:47 GMT 2009  Tom Mortimer <tom@lemurconsulting.com>
 
-    * xappy/searchconnection.py: Switched to using SORTABLE action for 
-      query_valuemap, avoiding format problems of FACET.
-    * xappy/tests/valuemapsource_1: Added test cases for simple queries 
-      with and without default weights
-      
+	* xappy/searchconnection.py: Switched to using SORTABLE action for
+	  query_valuemap, avoiding format problems of FACET.
+	* xappy/tests/valuemapsource_1: Added test cases for simple queries
+	  with and without default weights
+
 Tue Jan 13 14:58:00 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: Don't forget to build SWIG before
@@ -793,7 +797,7 @@ Mon May 12 19:58:34 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 	  float before storing them.
 
 Mon May 12 18:32:14 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
- 
+
 	* xappy/fieldactions.py: Fix typo.
 	* xappy/searchconnection.py: Add support for ranking search results
 	  using weight fields. Also, add get_max_possible_weight(query) to
