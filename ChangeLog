@@ -1,3 +1,11 @@
+Mon Jan 19 17:45:02 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* external_posting_source/sortdatabase/Makefile,
+	  external_posting_source/sortdatabase/sortdatabase.cc,
+	  external_posting_source/sortdatabase/test_sortdatabase.py: Add
+	  sortdatabase command, to sort a database by an external list of
+	  orders.
+
 Mon Jan 19 14:18:37 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/get_xapian.py: Update versions of xapian packages.
