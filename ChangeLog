@@ -1,3 +1,7 @@
+Mon Jan 19 14:18:37 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Update versions of xapian packages.
+
 Mon Jan 19 14:17:02 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* coverage.py: Update coverage version.
