@@ -1,3 +1,8 @@
+Tue Jan 20 10:18:28 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/field_associations.py: Add test for relevant_data
+	  when allow_field_specific is False.
+
 Mon Jan 19 17:45:02 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* external_posting_source/sortdatabase/Makefile,

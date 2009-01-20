@@ -27,6 +27,7 @@ class TestFieldAssociations(TestCase):
         iconn.add_field_action('f', xappy.FieldActions.STORE_CONTENT)
         iconn.add_field_action('g', xappy.FieldActions.STORE_CONTENT)
         iconn.add_field_action('h', xappy.FieldActions.STORE_CONTENT)
+        iconn.add_field_action('i', xappy.FieldActions.STORE_CONTENT)
 
         iconn.add_field_action('a', xappy.FieldActions.INDEX_FREETEXT)
         iconn.add_field_action('b', xappy.FieldActions.INDEX_FREETEXT)
@@ -36,6 +37,8 @@ class TestFieldAssociations(TestCase):
         iconn.add_field_action('f', xappy.FieldActions.TAG)
         iconn.add_field_action('g', xappy.FieldActions.FACET, type="string")
         iconn.add_field_action('h', xappy.FieldActions.FACET, type="float")
+        iconn.add_field_action('i', xappy.FieldActions.INDEX_FREETEXT,
+                               allow_field_specific=False)
 
         doc = xappy.UnprocessedDocument()
         doc.extend((('a', 'Africa America'),
@@ -72,12 +75,29 @@ class TestFieldAssociations(TestCase):
                    ))
         iconn.add(doc)
 
+        doc = xappy.UnprocessedDocument()
+        doc.extend((('i', 'Some interesting words'),
+                    ('i', 'Some boring words'),
+                   ))
+        iconn.add(doc)
+
         iconn.flush()
         iconn.close()
         self.sconn = xappy.SearchConnection(self.indexpath)
 
     def post_test(self):
         self.sconn.close()
+
+    def test_non_field_specific_relevant_data(self):
+        """The get_relevant_data with non-field-specific fields.
+
+        """
+        q = self.sconn.query_parse('interesting')
+        results = q.search(0, 10)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].relevant_data(),
+                         (('i', ('Some interesting words',)),)
+                        )
 
     def test_freetext_assocs(self):
         """Test field associations for freetext fields.
