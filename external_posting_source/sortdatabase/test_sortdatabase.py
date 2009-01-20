@@ -12,9 +12,9 @@ def make_sample_db(dbpath, length):
     import xapian
     db = xapian.WritableDatabase(dbpath, xapian.DB_CREATE)
     for num in xrange(1, length + 1):
-    	doc = xapian.Document()
-	doc.add_term("T%d" % num)
-	db.add_document(doc)
+        doc = xapian.Document()
+        doc.add_term("T%d" % num)
+        db.add_document(doc)
 
 if __name__ == '__main__':
     length = 50
