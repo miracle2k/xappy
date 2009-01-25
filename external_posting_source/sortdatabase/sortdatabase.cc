@@ -74,12 +74,12 @@ read_from_file(int handle, char * p, size_t n, size_t min)
 Xapian::docid
 read_next_docid(int handle)
 {
-    char buf[4];
-    size_t bytes = read_from_file(handle, buf, 4, 4);
+    int32 id;
+    size_t bytes = read_from_file(handle, reinterpret_cast<char*>(&id), 4, 4);
     if (bytes != 4) {
 	throw Xapian::DatabaseError("Error reading from file", errno);
     }
-    return buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0];
+    return id;
 }
 
 int
