@@ -68,7 +68,7 @@ DecreasingWeightSource::next(Xapian::weight min_weight) {
     if (!finished) 
       ++pos;
 
-    if ((pos >= weights.end()) | (*pos < min_weight) )
+    if ((pos >= weights.end()) || (*pos < min_weight) )
       finished = true;
   }
 }
@@ -78,7 +78,7 @@ DecreasingWeightSource::skip_to(Xapian::docid did, Xapian::weight min_weight) {
   started = true;
   if (!finished) {
     pos = weights.begin() + (did - 1);
-    if ( pos >= weights.end() | *pos < min_weight) 
+    if ( pos >= weights.end() || *pos < min_weight) 
       finished = true;
   }
 }
