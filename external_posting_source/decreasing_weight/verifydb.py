@@ -4,19 +4,14 @@ decreasing_weight_source.DecreasingWeightSource to work correctly.
 
 """
 
-
 import xappy
 
 def main(dbname):
     conn = xappy.SearchConnection(dbname)
-    failed = False;
-    for i, d in enumerate(conn.iter_documents()):
-        if (i+1) != d._doc.get_docid():
-            print "WARNING: database %s has non-contiguous doc ids!" % dbname
-            failed = True
-            break
-    if not failed:
-        print "database %s has contiguous doc ids starting at 1" % dbname
+    if conn.get_doccount() == conn._index.get_lastdocid():
+        print "Database %s has contiguous doc ids starting at 1." % dbname
+    else:
+        print "WARNING: Database %s has non-contiguous doc ids!" % dbname
 
 if __name__ == '__main__':
     import sys
