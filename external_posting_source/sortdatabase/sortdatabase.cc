@@ -74,7 +74,7 @@ read_from_file(int handle, char * p, size_t n, size_t min)
 Xapian::docid
 read_next_docid(int handle)
 {
-    int32 id;
+    int id;
     size_t bytes = read_from_file(handle, reinterpret_cast<char*>(&id), 4, 4);
     if (bytes != 4) {
 	throw Xapian::DatabaseError("Error reading from file", errno);
