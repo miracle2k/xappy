@@ -14,6 +14,7 @@ namespace Xapian {
 
 #include <xapian/postingsource.h>
 #include <vector>
+#include <fstream>
 
 /* Reads weights from the filename supplied to the constructor.  The
    file must contain 32 bit floating point values, one for each
@@ -33,6 +34,39 @@ class DecreasingWeightSource : public Xapian::PostingSource {
 
     public:
 	DecreasingWeightSource(char *);
+	Xapian::doccount get_termfreq_min() const;
+	Xapian::doccount get_termfreq_est() const;
+	Xapian::doccount get_termfreq_max() const;
+        Xapian::weight get_maxweight() const;
+	void reset();
+	void next(Xapian::weight);
+        void skip_to(Xapian::docid, Xapian::weight);
+	bool at_end() const;
+	Xapian::docid get_docid() const;
+        Xapian::weight get_weight() const;
+};
+
+/* Reads weights from the filename supplied to the constructor.  The
+   file must contain 32 bit floating point values, one for each
+   document in a xapian database, in document id order. The weights
+   must be decreasing.
+
+   It is assumed that the database has no gaps in its document ids.
+
+   See ../sortdatabase/ for creating an appropriate database.
+ */
+
+class FDecreasingWeightSource : public Xapian::PostingSource {
+	std::ifstream weights;
+        Xapian::weight val;
+        Xapian::docid pos;
+        int size;
+	bool started;
+        bool finished;
+        void set_current_val();
+
+    public:
+	FDecreasingWeightSource(const char *);
 	Xapian::doccount get_termfreq_min() const;
 	Xapian::doccount get_termfreq_est() const;
 	Xapian::doccount get_termfreq_max() const;

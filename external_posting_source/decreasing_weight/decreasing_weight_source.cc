@@ -97,5 +97,95 @@ Xapian::weight
 DecreasingWeightSource::get_weight() const {
   // can we be called before started or after finished? if so does it
   // matter what we return?
-    return *pos;
+  return *pos;
+}
+
+
+const size_t increment = sizeof(weight_data_type);
+
+FDecreasingWeightSource::FDecreasingWeightSource(const char * weight_filename) :
+  weights(weight_filename, std::ios::binary | std::ios::in | std::ios::ate) {
+  if (!weights.is_open())
+    throw std::invalid_argument(weight_filename);
+  size = weights.tellg()/increment;
+  reset();
+}
+
+Xapian::doccount
+FDecreasingWeightSource::get_termfreq_min() const{
+  return size;
+}
+
+Xapian::doccount
+FDecreasingWeightSource::get_termfreq_est() const{
+  return size;
+}
+
+Xapian::doccount
+FDecreasingWeightSource::get_termfreq_max() const{
+  return size;
+}
+
+Xapian::weight
+FDecreasingWeightSource::get_maxweight() const {
+  return get_weight();
+}
+
+void
+FDecreasingWeightSource::reset() {
+  started = false;
+  finished = false;
+  weights.seekg(0);
+  val = 0;
+  pos = 0;
+}
+
+void
+FDecreasingWeightSource::next(Xapian::weight min_weight) {
+  if (!finished) {
+    if (!started) {
+      started = true;
+      ++pos;
+    }
+    else 
+      weights.seekg(increment, std::ios::cur);
+    set_current_val();
+    }
+  if ( weights.eof() || val < min_weight )
+    finished = true;
+}
+
+void 
+FDecreasingWeightSource::skip_to(Xapian::docid did, Xapian::weight min_weight) {
+  started = true;
+  if (!finished) {
+    weights.seekg(did*increment, std::ios::beg);
+    pos = did;
+    set_current_val();
+    if ( weights.eof() || val < min_weight) 
+      finished = true;
+  }
+}
+
+bool
+FDecreasingWeightSource:: at_end() const {
+  return finished;
+}
+
+Xapian::docid
+FDecreasingWeightSource::get_docid() const {
+  return pos;
+}
+
+Xapian::weight
+FDecreasingWeightSource::get_weight() const {
+  return val;
+}
+
+void
+FDecreasingWeightSource::set_current_val() {
+  weight_data_type v;
+  weights.read(reinterpret_cast<char *>(&v), increment);
+  weights.seekg(-increment, std::ios::cur);
+  val = v;
 }
