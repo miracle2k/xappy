@@ -33,7 +33,6 @@ def main(index):
         do_time(index, st, 10000)
         do_time(index, st, 10000, True)
 
-
 if __name__ == "__main__":
     import sys
     main(sys.argv[1])
