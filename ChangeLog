@@ -1,3 +1,10 @@
+Fri Feb 06 11:55:51 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* external_posting_source/sortdatabase/sortdatabase.cc: Separate
+	  reading the documents from writing them, in the hope of a
+	  performance boost.  Doesn't seem to help much, but committing the
+	  code in case I'm missing something.
+
 Tue Jan 20 10:18:28 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/field_associations.py: Add test for relevant_data

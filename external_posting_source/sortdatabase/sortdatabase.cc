@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <vector>
 
 using namespace std;
 
@@ -154,9 +155,16 @@ try {
 	    int width = static_cast<int>(log10(double(dbsize))) + 1;
 
 	    Xapian::doccount c = 0;
+	    Xapian::doccount c2 = 0;
+	    std::vector<Xapian::Document> docs;
+	    docs.reserve(10000);
 	    while (c < dbsize) {
 		Xapian::docid docid = read_next_docid(order_handle);
-		db_out.add_document(db_in.get_document(docid));
+		Xapian::Document doc(db_in.get_document(docid));
+		doc.termlist_count();
+		doc.values_count();
+		doc.get_data();
+		docs.push_back(doc);
 
 		// Update for the first 10, and then every 13th document
 		// counting back from the end (this means that all the
@@ -165,7 +173,21 @@ try {
 		++c;
 		if (c <= 10 || (dbsize - c) % 13 == 0) {
 		    cout << '\r' << leaf << ": ";
-		    cout << setw(width) << c << '/' << dbsize << flush;
+		    cout << setw(width) << c << " read, " << c2 << " written, out of " << dbsize << flush;
+		}
+
+		if (docs.size() == 10000) {
+		    std::vector<Xapian::Document>::const_iterator i;
+		    for (i = docs.begin(); i != docs.end(); ++i)
+		    {
+			db_out.add_document(*i);
+			++c2;
+			if (c2 <= 10 || (dbsize - c2) % 13 == 0) {
+			    cout << '\r' << leaf << ": ";
+			    cout << setw(width) << c << " read, " << c2 << " written, out of " << dbsize << flush;
+			}
+		    }
+		    docs.clear();
 		}
 	    }
 
