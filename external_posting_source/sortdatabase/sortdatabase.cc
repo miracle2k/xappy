@@ -19,6 +19,9 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  */
 
+#define PROG_NAME "sortdatabase"
+#define PROG_DESC "Sort a xapian database into a different order."
+
 #include <xapian.h>
 
 #include <iomanip>
@@ -32,17 +35,44 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <map>
 #include <vector>
 
 using namespace std;
 
-#define PROG_NAME "sortdatabase"
-#define PROG_DESC "Sort a xapian database into a different order."
+#if defined __WIN32__ || defined __EMX__
+#else
+#define O_BINARY 0
+#endif
+
+// This ought to be enough for any of the conversions below.
+#define BUFSIZE 100
+
+#ifdef SNPRINTF
+#define CONVERT_TO_STRING(FMT) \
+    char buf[BUFSIZE];\
+    int len = SNPRINTF(buf, BUFSIZE, (FMT), val);\
+    if (len == -1 || len > BUFSIZE) return string(buf, BUFSIZE);\
+    return string(buf, len);
+#else
+#define CONVERT_TO_STRING(FMT) \
+    char buf[BUFSIZE];\
+    buf[BUFSIZE - 1] = '\0';\
+    sprintf(buf, (FMT), val);\
+    if (buf[BUFSIZE - 1]) abort(); /* Uh-oh, buffer overrun */ \
+    return string(buf);
+#endif
+
+string
+om_tostring(Xapian::doccount val)
+{
+    CONVERT_TO_STRING("%d");
+}
 
 static void
 show_usage(int rc)
 {
-    cout << "Usage: "PROG_NAME" SOURCE_DATABASE ORDER DESTINATION_DATABASE\n\n"
+    cout << "Usage: "PROG_NAME" SOURCE_DATABASE ORDER TMPDIR DESTINATION_DATABASE\n\n"
 "ORDER is a file containing a list of document IDs: each document ID is "
 "represented as a 4 byte, fixed width quantity.\n\n"
 "Options:\n"
@@ -52,7 +82,29 @@ show_usage(int rc)
 }
 
 size_t
-read_from_file(int handle, char * p, size_t n, size_t min)
+pread_from_file(int handle, off_t offset, unsigned char * p, size_t n, size_t min)
+{
+    size_t total = 0;
+    while (n) {
+	ssize_t c = pread(handle, p, n, offset);
+	if (c <= 0) {
+	    if (c == 0) {
+		if (total >= min) break;
+		throw Xapian::DatabaseError("Couldn't read enough (EOF)");
+	    }
+	    if (errno == EINTR) continue;
+	    throw Xapian::DatabaseError("Error reading from file", errno);
+	}
+	offset += c;
+	p += c;
+	total += c;
+	n -= c;
+    }
+    return total;
+}
+
+size_t
+read_from_file(int handle, unsigned char * p, size_t n, size_t min)
 {
     size_t total = 0;
     while (n) {
@@ -60,7 +112,7 @@ read_from_file(int handle, char * p, size_t n, size_t min)
 	if (c <= 0) {
 	    if (c == 0) {
 		if (total >= min) break;
-		throw Xapian::DatabaseError("Couldn't read enough (EOF)");
+		throw Xapian::DatabaseError("Couldn't read enough (EOF): read " + om_tostring(total) + " wanted " + om_tostring(min));
 	    }
 	    if (errno == EINTR) continue;
 	    throw Xapian::DatabaseError("Error reading from file", errno);
@@ -73,14 +125,95 @@ read_from_file(int handle, char * p, size_t n, size_t min)
 }
 
 Xapian::docid
-read_next_docid(int handle)
+read_docid(int handle, Xapian::docid oldid)
 {
-    int id;
-    size_t bytes = read_from_file(handle, reinterpret_cast<char*>(&id), 4, 4);
+    off_t offset = oldid * 4;
+    unsigned char buf[4];
+    size_t bytes = pread_from_file(handle, offset, buf, 4, 4);
     if (bytes != 4) {
 	throw Xapian::DatabaseError("Error reading from file", errno);
     }
-    return id;
+    return buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0];
+}
+
+unsigned int
+uint_from_file(int handle, bool * eof)
+{
+    unsigned char buf[4];
+    size_t min = 0;
+    if (eof == NULL) min = 4;
+    size_t bytes = read_from_file(handle, buf, 4, min);
+    if (bytes == 0) {
+	if (eof != NULL) *eof = true;
+	return 0;
+    }
+    if (bytes != 4) {
+	throw Xapian::DatabaseError("Error reading from file", errno);
+    }
+    return buf[3] << 24 | buf[2] << 16 | buf[1] << 8 | buf[0];
+}
+
+std::string
+uint_to_string(unsigned int id)
+{
+    unsigned char buf[4];
+    buf[0] = id & 0xff;
+    buf[1] = (id >> 8) & 0xff;
+    buf[2] = (id >> 16) & 0xff;
+    buf[3] = (id >> 24) & 0xff;
+    return string((const char *)buf, 4);
+}
+
+unsigned int
+write_docs_to_groups(std::string groupbase,
+		     Xapian::doccount dbsize,
+		     Xapian::doccount docs_read,
+		     Xapian::doccount * docs_grouped,
+		     size_t group_size,
+		     const std::vector<std::pair<Xapian::docid, std::string> > & docs)
+{
+    int width = static_cast<int>(log10(double(dbsize))) + 1;
+    std::map<Xapian::doccount, std::vector<std::pair<Xapian::docid, std::string> > > groups;
+    std::vector<std::pair<Xapian::docid, std::string> >::const_iterator dociter;
+    for (dociter = docs.begin(); dociter != docs.end(); ++dociter) {
+	Xapian::doccount groupid = dociter->first / group_size;
+	groups[groupid].push_back(*dociter);
+    }
+
+    if (groups.begin() == groups.end())
+	return 0;
+
+    std::map<Xapian::doccount, std::vector<std::pair<Xapian::docid, std::string> > >::const_iterator groupiter;
+    for (groupiter = groups.begin(); groupiter != groups.end(); ++groupiter) {
+	std::string num = om_tostring(groupiter->first);
+	std::string grouppath = groupbase + num;
+	int group_handle = ::open(grouppath.c_str(), O_WRONLY | O_BINARY | O_APPEND | O_CREAT, 0666);
+	if (group_handle < 0) {
+	    cerr << "Failed to open groupfile " << grouppath << ": " << strerror(errno) << "\n";
+	    exit(1);
+	}
+	std::string buf;
+	for (dociter = groupiter->second.begin();
+	     dociter != groupiter->second.end();
+	     ++dociter) {
+	    buf.append(uint_to_string(dociter->first));
+	    buf.append(uint_to_string(dociter->second.size()));
+	    buf.append(dociter->second);
+
+	    ++(*docs_grouped);
+	    if (*docs_grouped <= 10 || (dbsize - *docs_grouped) % 13 == 0) {
+		cout << '\r' << setw(width) << docs_read << " read, " <<
+			*docs_grouped << " grouped, " <<
+			"out of " << dbsize << flush;
+	    }
+	}
+	write(group_handle, buf.data(), buf.size());
+	::close(group_handle);
+    }
+
+    groupiter = groups.end();
+    --groupiter;
+    return (groupiter->first);
 }
 
 int
@@ -99,7 +232,7 @@ try {
 
     // We expect exactly three arguments: the source database path followed by
     // the order file, followed by the destination database path.
-    if (argc != 4) show_usage(1);
+    if (argc != 5) show_usage(1);
 
     // Create the destination database, using DB_CREATE so that we don't
     // try to overwrite or update an existing database in case the user
@@ -116,23 +249,15 @@ try {
 
     // Open the order file.
     char * order = argv[2];
-#if defined __WIN32__ || defined __EMX__
-#else
-#define O_BINARY 0
-#endif
     int order_handle = ::open(order, O_RDONLY | O_BINARY);
     if (order_handle < 0) {
 	throw Xapian::DatabaseError("Couldn't open order file");
     }
 
-    off_t order_size;
-    {
-	struct stat buf;
-	if (fstat(order_handle, &buf)) {
-	    throw Xapian::DatabaseError("Couldn't stat the order file", errno);
-	}
-	order_size = buf.st_size;
-    }
+    // Get the temporary dir.
+    std::string tempdir = argv[3];
+
+    std::string groupbase = tempdir + "/group_";
 
     Xapian::Database db_in;
     try {
@@ -147,47 +272,97 @@ try {
 	if (leaf) ++leaf; else leaf = src;
 
 	// Iterate over all the documents in db_in, copying each to db_out.
-	Xapian::doccount dbsize = order_size / 4;
+	Xapian::doccount dbsize = db_in.get_doccount();
 	if (dbsize == 0) {
 	    cout << leaf << ": empty!" << endl;
 	} else {
 	    // Calculate how many decimal digits there are in dbsize.
 	    int width = static_cast<int>(log10(double(dbsize))) + 1;
 
-	    Xapian::doccount c = 0;
-	    Xapian::doccount c2 = 0;
-	    std::vector<Xapian::Document> docs;
-	    docs.reserve(10000);
-	    while (c < dbsize) {
-		Xapian::docid docid = read_next_docid(order_handle);
-		Xapian::Document doc(db_in.get_document(docid));
-		doc.termlist_count();
-		doc.values_count();
-		doc.get_data();
-		docs.push_back(doc);
+	    Xapian::doccount docs_written = 0;
+	    std::vector<std::pair<Xapian::docid, std::string> > docs;
 
-		// Update for the first 10, and then every 13th document
-		// counting back from the end (this means that all the
-		// digits "rotate" and the counter ends up on the exact
-		// total.
-		++c;
-		if (c <= 10 || (dbsize - c) % 13 == 0) {
-		    cout << '\r' << leaf << ": ";
-		    cout << setw(width) << c << " read, " << c2 << " written, out of " << dbsize << flush;
+	    // FIXME - the following should be configurable.
+	    size_t flush_size = 100000; // Number of documents to read before sorting into groups.
+	    size_t group_size = 100000; // Number of documents to put in each chunk (actually, size of the docid range used for each chunk)
+	    docs.reserve(flush_size);
+
+	    Xapian::PostingIterator dociter(db_in.postlist_begin(std::string()));
+
+	    cout << leaf << "\n";
+	    Xapian::doccount docs_read = 0;
+	    Xapian::doccount docs_grouped = 0;
+	    unsigned int maxgroup = 0;
+	    unsigned int bufbytes = 0;
+	    while (dociter != db_in.postlist_end(std::string())) {
+		Xapian::docid oldid = *dociter;
+		Xapian::Document doc(db_in.get_document(oldid));
+		Xapian::docid newid = read_docid(order_handle, oldid);
+		std::string serdoc = doc.serialise();
+		docs.push_back(std::make_pair(newid, serdoc));
+		bufbytes += serdoc.size();
+		++docs_read;
+		++dociter;
+		if (docs_read <= 10 || (dbsize - docs_read) % 13 == 0) {
+		    cout << '\r' << setw(width) << docs_read << " read, " <<
+			    docs_grouped << " grouped, " <<
+			    "out of " << dbsize <<
+			    " (" << (bufbytes / 1024 / 1024) << "Mb buffered)     " << flush;
+		}
+		if (docs.size() == flush_size) {
+		    unsigned int mg = write_docs_to_groups(groupbase, dbsize, docs_read, &docs_grouped, group_size, docs);
+		    if (maxgroup < mg) maxgroup = mg;
+		    docs.clear();
+		    bufbytes = 0;
+		}
+	    }
+	    {
+		unsigned int mg = write_docs_to_groups(groupbase, dbsize, docs_read, &docs_grouped, group_size, docs);
+		if (maxgroup < mg) maxgroup = mg;
+		docs.clear();
+		bufbytes = 0;
+	    }
+	    cout << '\n' << docs_grouped << " in " << (maxgroup + 1) << " groups\n";
+
+	    // Read each group, sort the contents, and write them.
+	    unsigned int groupnum;
+	    for (groupnum = 0; groupnum <= maxgroup; ++groupnum) {
+		std::string num = om_tostring(groupnum);
+		std::string grouppath = groupbase + num;
+		int group_handle = ::open(grouppath.c_str(), O_RDONLY | O_BINARY);
+		if (group_handle < 0) {
+		    //cerr << "Failed to open groupfile " << grouppath << ": " << strerror(errno) << "\n";
+		    continue;
 		}
 
-		if (docs.size() == 10000) {
-		    std::vector<Xapian::Document>::const_iterator i;
-		    for (i = docs.begin(); i != docs.end(); ++i)
-		    {
-			db_out.add_document(*i);
-			++c2;
-			if (c2 <= 10 || (dbsize - c2) % 13 == 0) {
-			    cout << '\r' << leaf << ": ";
-			    cout << setw(width) << c << " read, " << c2 << " written, out of " << dbsize << flush;
-			}
+		std::map<Xapian::docid, std::string> grouped_docs;
+		while(1) {
+		    bool eof = false;
+		    Xapian::docid new_docid = uint_from_file(group_handle, &eof);
+		    if (eof) break;
+		    size_t docstr_len = uint_from_file(group_handle, NULL);
+		    unsigned char buf[docstr_len];
+		    size_t bytes = read_from_file(group_handle, buf, docstr_len, docstr_len);
+		    if (bytes != docstr_len) {
+			throw Xapian::DatabaseError("Couldn't read all of doc from file");
 		    }
-		    docs.clear();
+		    std::string docstr((char *)buf, docstr_len);
+		    grouped_docs[new_docid] = docstr;
+		}
+
+		::close(group_handle);
+
+		std::map<Xapian::docid, std::string>::const_iterator groupdocs;
+		for (groupdocs = grouped_docs.begin();
+		     groupdocs != grouped_docs.end();
+		     ++groupdocs)
+		{
+		    db_out.replace_document(groupdocs->first, Xapian::Document::unserialise(groupdocs->second));
+		    ++docs_written;
+		    if (docs_written <= 10 || (dbsize - docs_written) % 13 == 0) {
+			cout << '\r' << leaf << ": ";
+			cout << setw(width) << docs_written << " written, out of " << dbsize << "                    " << flush;
+		    }
 		}
 	    }
 
@@ -199,6 +374,10 @@ try {
 	::close(order_handle);
 	throw;
     }
+
+    cout << "Flushing document data..." << flush;
+    db_out.flush();
+    cout << " done." << endl;
 
     cout << "Copying spelling data..." << flush;
     Xapian::TermIterator spellword = db_in.spellings_begin();

@@ -1,3 +1,12 @@
+Wed Feb 11 18:59:17 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* external_posting_source/sortdatabase/Makefile,
+	  external_posting_source/sortdatabase/make_order.py,
+	  external_posting_source/sortdatabase/sortdatabase.cc: Much faster
+	  sortdatabase code.  Reads documents in order, in big batches,
+	  writes the documents to batch files, then reads each batch file,
+	  sorts it, and writes the documents in it.
+
 Fri Feb 06 11:55:51 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* external_posting_source/sortdatabase/sortdatabase.cc: Separate
