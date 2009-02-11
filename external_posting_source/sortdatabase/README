@@ -1,0 +1,36 @@
+How to sort a database:
+
+First, you need to build a database with the value in a particular value slot.
+For example, if you have a field with action "WEIGHT", and field name "weight",
+the weight values will be stored in a slot named "weight" with purpose
+"weight".
+
+Next, you need to build a file holding the order into which the documents
+should be sorted.  This is done by running:
+
+ python make_order.py [db_path] [fieldname] [purpose] [output file]
+
+For example:
+
+ python make_order.py unsorted_db weight weight orderfile
+
+
+Next, you need to run the sortdatabase program.  This can be compiled using the
+makefile in this directory, as long as the "xapian-compat" command is on your
+PATH.  This is run as:
+
+ ./sortdatabase [db_path] [order file] [temporary directory] [output_db_path]
+
+Where [order file] is the output of the "make_order.py" command, [temporary
+directory] is a temporary directory to write work files to (note - this must
+exist and be empty before the run), and [output_db_path] is the path that the
+final, sorted, database should be written to.
+
+The XAPIAN_FLUSH_THRESHOLD environment variable has an effect on this command -
+you should set it to a high value if you have lots of memory.
+
+For example:
+
+ rm -rf tmpdir
+ mkdir tmpdir
+ XAPIAN_FLUSH_THRESHOLD=100000 ./sortdatabase unsorted_db orderfile tmpdir sorted_db
