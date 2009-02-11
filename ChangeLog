@@ -1,3 +1,7 @@
+Wed Feb 11 23:08:17 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Update version of packages to get.
+
 Wed Feb 11 22:35:21 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* external_posting_source/sortdatabase/README: Document the
