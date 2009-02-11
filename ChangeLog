@@ -1,3 +1,8 @@
+Wed Feb 11 22:35:21 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* external_posting_source/sortdatabase/README: Document the
+	  "reversed" parameter to make_order.py
+
 Wed Feb 11 21:23:55 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* external_posting_source/sortdatabase/README: Add instructions for

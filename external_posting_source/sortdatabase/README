@@ -8,11 +8,15 @@ the weight values will be stored in a slot named "weight" with purpose
 Next, you need to build a file holding the order into which the documents
 should be sorted.  This is done by running:
 
- python make_order.py [db_path] [fieldname] [purpose] [output file]
+ python make_order.py [db_path] [fieldname] [purpose] [output file] [reversed]
+
+[reversed] is optional - if any argument is present here, the output file
+will be such that the highest weight is first (which is probably what you
+want).
 
 For example:
 
- python make_order.py unsorted_db weight weight orderfile
+ python make_order.py unsorted_db weight weight orderfile 1
 
 
 Next, you need to run the sortdatabase program.  This can be compiled using the
