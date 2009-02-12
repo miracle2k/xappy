@@ -20,7 +20,7 @@ For example:
 
 
 Next, you need to run the sortdatabase program.  This can be compiled using the
-makefile in this directory, as long as the "xapian-compat" command is on your
+makefile in this directory, as long as the "xapian-config" command is on your
 PATH.  This is run as:
 
  ./sortdatabase [db_path] [order file] [temporary directory] [output_db_path]
