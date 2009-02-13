@@ -65,6 +65,18 @@ class DistanceSearchTest(TestCase):
 
         q = self.sconn.query_distance('location', '0, 0')
         res = list(self.sconn.search(q, 0, 10))
+        self.assertEqual([int(item.id) for item in res], [0, 1, 2])
+        self.assertEqual([int(item.get_distance('location', '0, 0') / 1000) for item in res], [5517, 5709, 5710])
+
+        q = self.sconn.query_distance('location', '0, 0', max_range=5600)
+        res = list(self.sconn.search(q, 0, 10))
+        self.assertEqual([int(item.id) for item in res], [0, 1, 2])
+        self.assertEqual([int(item.get_distance('location', '0, 0') / 1000) for item in res], [5517])
+
+        q = self.sconn.query_distance('location', '0, 0', max_range=5720)
+        res = list(self.sconn.search(q, 0, 10))
+        self.assertEqual([int(item.id) for item in res], [0, 1, 2])
+        self.assertEqual([int(item.get_distance('location', '0, 0') / 1000) for item in res], [5517, 5709, 5710])
 
 if __name__ == '__main__':
     main()

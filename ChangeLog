@@ -1,3 +1,8 @@
+Fri Feb 13 10:31:04 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/distance.py: Extend unittest to cover
+	  max_range parameter.
+
 Thu Feb 12 09:37:57 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* external_posting_source/sortdatabase/README: Fix typo.
