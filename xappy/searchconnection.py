@@ -262,10 +262,11 @@ class SearchResult(ProcessedDocument):
             for score, field in scoreditems:
                 for offset, weight in fieldassocs[field].iteritems():
                     relevant_offsets.setdefault(field, {})[offset] = weight
-                    groupnum = self._grouplu.get((field, offset), None)
-                    if groupnum is not None:
-                        for groupfield, groupoffset in self._get_groups()[groupnum]:
-                            relevant_offsets.setdefault(groupfield, {})[groupoffset] = weight
+                    groupnums = self._grouplu.get((field, offset), None)
+                    if groupnums is not None:
+                        for gn in groupnums:
+                            for groupfield, groupoffset in self._get_groups()[gn]:
+                                relevant_offsets.setdefault(groupfield, {})[groupoffset] = weight
 
             for score, field in scoreditems:
                 fielddata = [(-weight, self.data[field][offset]) for offset, weight in relevant_offsets[field].iteritems()]

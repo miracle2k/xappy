@@ -309,7 +309,7 @@ class ProcessedDocument(object):
         count = 0
         for group in self._get_groups():
             for field, offset in group:
-                grouplu[(field, offset)] = count
+                grouplu.setdefault((field, offset), []).append(count)
             count += 1
         return grouplu
 
@@ -331,11 +331,12 @@ class ProcessedDocument(object):
 
         for field, vals in self.data.iteritems():
             for offset in xrange(len(vals)):
-                groupnum = grouplu.get((field, offset), None)
-                if groupnum is None:
+                groupnums = grouplu.get((field, offset), None)
+                if groupnums is None:
                     ungrouped.setdefault(field, []).append(vals[offset])
                 else:
-                    groups.setdefault(groupnum, {}).setdefault(field, []).append(vals[offset])
+                    for gn in groupnums:
+                        groups.setdefault(gn, {}).setdefault(field, []).append(vals[offset])
         groupnums = list(groups.iterkeys())
         groupnums.sort()
         sortedgroups = []

@@ -1,3 +1,10 @@
+Fri Feb 13 23:17:42 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* AUTHORS,xappy/datastructures.py,xappy/searchconnection.py,
+	  xappy/unittests/field_groups.py: Patch and unittest for bug with
+	  field groups which contain duplicated data.  Thanks to Pablo
+	  Hoffman for the fix and test.
+
 Fri Feb 13 10:31:04 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/distance.py: Extend unittest to cover

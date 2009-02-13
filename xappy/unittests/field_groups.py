@@ -27,6 +27,8 @@ class TestFieldGroups(TestCase):
         iconn.add_field_action('f', xappy.FieldActions.STORE_CONTENT)
         iconn.add_field_action('g', xappy.FieldActions.STORE_CONTENT)
         iconn.add_field_action('h', xappy.FieldActions.STORE_CONTENT)
+        iconn.add_field_action('j', xappy.FieldActions.STORE_CONTENT)
+        iconn.add_field_action('k', xappy.FieldActions.STORE_CONTENT)
 
         iconn.add_field_action('a', xappy.FieldActions.INDEX_FREETEXT)
         iconn.add_field_action('b', xappy.FieldActions.INDEX_FREETEXT)
@@ -49,6 +51,8 @@ class TestFieldGroups(TestCase):
                     ('f', 'Ave'),
                     xappy.FieldGroup([('g', 'Atlantic'), ('h', '1.0')]),
                     ('i', 'Apt America'),
+                    xappy.FieldGroup([('j', 'Same value'), ('k', 'Same value 2')]),
+                    xappy.FieldGroup([('j', 'Same value'), ('k', 'Same value 2')]),
                    ))
         pdoc = iconn.process(doc)
         self.groups = pdoc._groups
@@ -98,7 +102,7 @@ class TestFieldGroups(TestCase):
         id = list(self.sconn.iterids())[0]
         doc = self.sconn.get_document(id)
         self.assertEqual(doc._get_groups(),
-                         [(('b', 0), ('c', 0)), (('e', 0),), (('g', 0), ('h', 0))])
+                         [(('b', 0), ('c', 0)), (('e', 0),), (('g', 0), ('h', 0)), (('j', 0), ('k', 0)), (('j', 0), ('k', 0))])
 
         id = list(self.sconn.iterids())[1]
         doc = self.sconn.get_document(id)
@@ -133,7 +137,9 @@ class TestFieldGroups(TestCase):
                           'd': ['Australia'],
                           'g': ['Atlantic'],
                           'f': ['Ave'],
-                          'h': ['1.0']})
+                          'h': ['1.0'],
+                          'j': ['Same value'],
+                          'k': ['Same value 2']})
         self.assertEqual(results[0].grouped_data,
                          ({
                           'a': ['Africa America', 'Uninteresting'],
@@ -151,6 +157,14 @@ class TestFieldGroups(TestCase):
                           {
                            'g': ['Atlantic'],
                            'h': ['1.0'],
+                          },
+                          {
+                           'j': ['Same value'],
+                           'k': ['Same value 2'],
+                          },
+                          {
+                           'j': ['Same value'],
+                           'k': ['Same value 2'],
                           }
                           ]
                          )
