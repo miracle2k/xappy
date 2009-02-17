@@ -1,3 +1,10 @@
+Tue Feb 17 19:13:25 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/errors.py,xappy/indexerconnection.py,
+	  xappy/unittests/indexer_errors.py: Another patch from Pablo
+	  Hoffman, this time to add a specific error type for reporting
+	  that an ID has already been used.
+
 Tue Feb 17 15:31:39 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/datastructures.py,xappy/unittests/field_groups.py: Patch

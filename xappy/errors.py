@@ -33,6 +33,12 @@ class IndexerError(SearchEngineError):
 
     """
 
+class DuplicatedIdError(IndexerError):
+    r"""Class used to report errors when a new document is added to an index
+    with an ID which already exists.
+    
+    """
+
 class SearchError(SearchEngineError):
     r"""Class used to report errors relating to the search API.
 

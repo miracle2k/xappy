@@ -322,7 +322,7 @@ class IndexerConnection(object):
         else:
             id = orig_id
             if self._index.term_exists('Q' + id):
-                raise errors.IndexerError("Document ID of document supplied to add() is not unique.")
+                raise errors.DuplicatedIdError("Document ID of document supplied to add() is not unique.")
 
         # Add the document.
         xapdoc = document.prepare()
