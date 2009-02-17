@@ -143,7 +143,7 @@ error:
 >>> conn.add(doc)
 Traceback (most recent call last):
 ...
-IndexerError: Document ID of document supplied to add() is not unique.
+DuplicatedIdError: Document ID of document supplied to add() is not unique.
 >>> conn.get_doccount()
 4
 
