@@ -1,3 +1,11 @@
+Tue Feb 17 19:21:53 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py,xappy/unittests/field_groups.py:
+	  Another patch from Pablo: this one replaces the old, not very
+	  handy, "group" parameter to relevant_data() with a
+	  "groupnumbers" parameter, which returns the group number for each
+	  bit of returned data.
+
 Tue Feb 17 19:16:00 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/doctests/indexerconnection_doctest1.txt: Update doctest to

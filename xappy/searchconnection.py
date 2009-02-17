@@ -1,7 +1,7 @@
-
 #!/usr/bin/env python
 #
-# Copyright (C) 2007,2008 Lemur Consulting Ltd
+# Copyright (C) 2007,2008,2009 Lemur Consulting Ltd
+# Copyright (C) 2009 Pablo Hoffman
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -167,13 +167,21 @@ class SearchResult(ProcessedDocument):
         # Merge in the terms and values from the stored field associations.
         self._add_termvalue_assocs(self._get_assocs())
 
-    def relevant_data(self, allow=None, deny=None, query=None, group=False):
+    def relevant_data(self, allow=None, deny=None, query=None,
+                      groupnumbers=False):
         """Return field data which was relevant for this result.
 
         This will return a tuple of fields which have data stored for them
         which was relevant to the search, together with the data which was
-        relevant.  The returned tuple items will be tuples of (fieldname,
-        data), where data is a tuple of strings.
+        relevant.
+
+        If `groupnumbers` is `False` the returned tuple items will be tuples of
+        (fieldname, data), where data is itself a tuple of strings. If
+        `groupnumbers` is `True` the returned tuple items will be tuples of
+        (fielddata, groupnum), instead of strings, where groupnum is the group
+        number (starting from zero) which the relevant data belongs to. For
+        ungrouped data, groupnum is `None`. You can use the `groupdict`
+        attribute to get the full data for each group from the group numbers.
 
         In order to be returned the fields must have the STORE_CONTENT action,
         but must also be included in the query (so must have other actions
@@ -249,7 +257,7 @@ class SearchResult(ProcessedDocument):
         scoreditems.sort()
         result = []
 
-        if group:
+        if groupnumbers:
             # Look for any data items which are in a group, and add the other
             # members of the group, if found.
             # First, build a dict from (field, offset) to group number
@@ -261,22 +269,18 @@ class SearchResult(ProcessedDocument):
 
             for score, field in scoreditems:
                 for offset, weight in fieldassocs[field].iteritems():
-                    relevant_offsets.setdefault(field, {})[offset] = weight
+                    relevant_offsets.setdefault(field, {})[offset] = weight, None
                     groupnums = self._grouplu.get((field, offset), None)
                     if groupnums is not None:
                         for gn in groupnums:
                             for groupfield, groupoffset in self._get_groups()[gn]:
-                                relevant_offsets.setdefault(groupfield, {})[groupoffset] = weight
+                                relevant_offsets.setdefault(groupfield, {})[groupoffset] = weight, gn
 
             for score, field in scoreditems:
-                fielddata = [(-weight, self.data[field][offset]) for offset, weight in relevant_offsets[field].iteritems()]
+                fielddata = [(-weight, self.data[field][offset]) for offset, (weight, groupnum) in relevant_offsets[field].iteritems()]
                 del relevant_offsets[field]
                 fielddata.sort()
-                result.append((field, tuple(data for weight, data in fielddata)))
-            for field in relevant_offsets:
-                fielddata = [(-weight, self.data[field][offset]) for offset, weight in relevant_offsets[field].iteritems()]
-                fielddata.sort()
-                result.append((field, tuple(data for weight, data in fielddata)))
+                result.append((field, tuple((data, groupnum) for weight, data in fielddata)))
         else:
             # Not grouped - just return the relevant data for each field.
             for score, field in scoreditems:
@@ -2954,7 +2958,7 @@ class SearchConnection(object):
            no mapping, and defaults to 0.0.
 
         """
-        serialised = self._make_parent_func_repr("query_valuemap")        
+        serialised = self._make_parent_func_repr("query_valuemap")
         slot = self._field_mappings.get_slot(field, 'collsort')
 
         # Construct a posting source

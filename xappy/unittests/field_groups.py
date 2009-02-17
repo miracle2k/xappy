@@ -201,11 +201,10 @@ class TestFieldGroups(TestCase):
         self.assertEqual(results[0].relevant_data(),
                          (('a', ('Africa America',)),
                           ('b', ('Andes America',))))
-        self.assertEqual(results[0].relevant_data(group=True),
+        self.assertEqual(results[0].relevant_data(groupnumbers=True),
                          (
-                          ('a', ('Africa America',)),
-                          ('b', ('Andes America',)),
-                          ('c', ('Arctic America',)),
+                          ('a', (('Africa America', None),)),
+                          ('b', (('Andes America', 0),)),
                          ))
 
         results = (q1 | q2 | q8).search(0, 10)
@@ -215,11 +214,11 @@ class TestFieldGroups(TestCase):
                           ('c', ('Arctic America',)),
                          ))
 
-        self.assertEqual(results[0].relevant_data(group=True),
+        self.assertEqual(results[0].relevant_data(groupnumbers=True),
                          (
-                          ('a', ('Africa America',)),
-                          ('b', ('Andes America',)),
-                          ('c', ('Arctic America',)),
+                          ('a', (('Africa America', None),)),
+                          ('b', (('Andes America', 0),)),
+                          ('c', (('Arctic America', 0),)),
                          ))
 
         results = (q1 | q2 | q3).search(0, 10)
@@ -228,11 +227,10 @@ class TestFieldGroups(TestCase):
                           ('a', ('Africa America',)),
                          ))
 
-        self.assertEqual(results[0].relevant_data(group=True),
+        self.assertEqual(results[0].relevant_data(groupnumbers=True),
                          (
-                          ('b', ('Andes America', 'Notinteresting')),
-                          ('a', ('Africa America',)),
-                          ('c', ('Arctic America',)),
+                          ('b', (('Andes America', None), ('Notinteresting', None))),
+                          ('a', (('Africa America', None),)),
                          ))
 
 if __name__ == '__main__':
