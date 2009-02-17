@@ -355,6 +355,18 @@ class ProcessedDocument(object):
 
     """)
 
+    def _get_groupdict(self):
+        ungrouped, groups = self.grouped_data
+        groupdict = dict(enumerate(groups))
+        groupdict[None] = ungrouped
+        return groupdict
+    groupdict = property(_get_groupdict, doc=
+    """A dict containing the grouped data stored in this processed document
+    where the keys are the group numbers (starting from zero) and the values are
+    dicts with the data for each group. Ungrouped data is also contained in
+    this dict on key=`None`.
+    """)
+
     def _get_assocs(self):
         """Get the field associations for this document.
         

@@ -1,3 +1,9 @@
+Tue Feb 17 15:31:39 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/datastructures.py,xappy/unittests/field_groups.py: Patch
+	  from Pablo Hoffman to return a dictionary of the groups, keyed by
+	  group number.
+
 Fri Feb 13 23:17:42 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* AUTHORS,xappy/datastructures.py,xappy/searchconnection.py,

@@ -169,6 +169,35 @@ class TestFieldGroups(TestCase):
                           ]
                          )
                         )
+        self.assertEqual(results[0].groupdict,
+                         {None: {
+                                 'a': ['Africa America', 'Uninteresting'],
+                                 'b': ['Notinteresting'],
+                                 'd': ['Australia'],
+                                 'f': ['Ave'],
+                                },
+                          0: {
+                               'b': ['Andes America'],
+                               'c': ['Arctic America'],
+                             },
+                          1: {
+                               'e': ['1.0'],
+                             },
+                          2: {
+                               'g': ['Atlantic'],
+                               'h': ['1.0'],
+                             },
+                          3: {
+                               'j': ['Same value'],
+                               'k': ['Same value 2'],
+                             },
+                          4: {
+                               'j': ['Same value'],
+                               'k': ['Same value 2'],
+                             }
+                         })
+
+
         self.assertEqual(results[0].relevant_data(),
                          (('a', ('Africa America',)),
                           ('b', ('Andes America',))))
