@@ -1,3 +1,8 @@
+Wed Feb 18 04:55:16 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py,xappy/unittests/field_groups.py: Fix to
+	  previous patch (thanks to Pablo, again).
+
 Tue Feb 17 19:21:53 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py,xappy/unittests/field_groups.py:

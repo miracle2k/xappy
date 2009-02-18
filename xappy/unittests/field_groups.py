@@ -229,7 +229,7 @@ class TestFieldGroups(TestCase):
 
         self.assertEqual(results[0].relevant_data(groupnumbers=True),
                          (
-                          ('b', (('Andes America', None), ('Notinteresting', None))),
+                          ('b', (('Andes America', 0), ('Notinteresting', None))),
                           ('a', (('Africa America', None),)),
                          ))
 

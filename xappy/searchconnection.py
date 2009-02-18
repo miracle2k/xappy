@@ -277,10 +277,10 @@ class SearchResult(ProcessedDocument):
                                 relevant_offsets.setdefault(groupfield, {})[groupoffset] = weight, gn
 
             for score, field in scoreditems:
-                fielddata = [(-weight, self.data[field][offset]) for offset, (weight, groupnum) in relevant_offsets[field].iteritems()]
+                fielddata = [(-weight, self.data[field][offset], groupnum) for offset, (weight, groupnum) in relevant_offsets[field].iteritems()]
                 del relevant_offsets[field]
                 fielddata.sort()
-                result.append((field, tuple((data, groupnum) for weight, data in fielddata)))
+                result.append((field, tuple((data, groupnum) for weight, data, groupnum in fielddata)))
         else:
             # Not grouped - just return the relevant data for each field.
             for score, field in scoreditems:
