@@ -20,6 +20,7 @@ r"""datastructures.py: Datastructures for search engine core.
 """
 __docformat__ = "restructuredtext en"
 
+import hashlib
 import errors
 from replaylog import log
 from fields import Field, FieldGroup
@@ -366,6 +367,29 @@ class ProcessedDocument(object):
     dicts with the data for each group. Ungrouped data is also contained in
     this dict on key=`None`.
     """)
+
+    def calc_hash(self):
+        """Return a (40 hex char) hash of this document calculated from:
+
+            * the document ID 
+            * the stored data (including group associations)
+            * the terms and wdfs
+            * the values and slots
+
+        This is a unique hash based on the document contents which can be used
+        to avoid indexing duplicate data.
+
+        """
+        self.prepare()
+        sha1 = hashlib.sha1()
+        if hasattr(self._doc, 'serialise'):
+            sha1.update(self._doc.serialise())
+        else:
+            sha1.update(self.id)
+            sha1.update(self._doc.get_data())
+            sha1.update("\0".join("%s\0%s" % (t.term, t.wdf) for t in self._doc.termlist()))
+            sha1.update("\0".join("%d\0%s" % (v.num, v.value) for v in self._doc.values()))
+        return sha1.hexdigest()
 
     def _get_assocs(self):
         """Get the field associations for this document.
