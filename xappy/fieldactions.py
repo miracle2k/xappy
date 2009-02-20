@@ -588,12 +588,14 @@ class FieldActions(object):
         # Append the action to the list of actions
         self._actions[action].append(kwargs)
 
-    def perform(self, doc, field, context):
+    def perform(self, doc, field, context, store_only=False):
         """Perform the actions on the field.
 
         - `doc` is a ProcessedDocument to store the result of the actions in.
         - `field` is the field object to read the data for the actions from.
         - `context` is an ActionContext object used to keep state in.
+        - `store_only` is a boolean. If `True` the field will only be stored.
+           Otherwise, all actions will be performed.
 
         """
         context.currfield_assoc = None
@@ -605,6 +607,9 @@ class FieldActions(object):
             info = self._action_info[actiontype]
             for kwargs in actionlist:
                 info[2](self._fieldname, doc, field, context, **kwargs)
+
+        if store_only:
+            return
 
         # Then do all the other actions.
         for actiontype, actionlist in self._actions.iteritems():
@@ -654,7 +659,7 @@ class ActionSet(object):
     def __iter__(self):
         return iter(self.actions)
 
-    def perform(self, result, document, context):
+    def perform(self, result, document, context, store_only=False):
         for field_or_group in document.fields:
             if isinstance(field_or_group, fields.FieldGroup):
                 context.currfield_group = []
@@ -664,7 +669,7 @@ class ActionSet(object):
                     except KeyError:
                         # If no actions are defined, just ignore the field.
                         continue
-                    actions.perform(result, field, context)
+                    actions.perform(result, field, context, store_only)
                 if len(context.currfield_group) > 0:
                     # Have had at least one field for which data has been
                     # stored.
@@ -677,7 +682,7 @@ class ActionSet(object):
             except KeyError:
                 # If no actions are defined, just ignore the field.
                 continue
-            actions.perform(result, field_or_group, context)
+            actions.perform(result, field_or_group, context, store_only)
 
 
 if __name__ == '__main__':

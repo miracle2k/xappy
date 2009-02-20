@@ -248,7 +248,7 @@ class IndexerConnection(object):
             raise errors.IndexerError("IndexerConnection has been closed")
         return self._field_actions.keys()
 
-    def process(self, document):
+    def process(self, document, store_only=False):
         """Process an UnprocessedDocument with the settings in this database.
 
         The resulting ProcessedDocument is returned.
@@ -261,6 +261,15 @@ class IndexerConnection(object):
         you want to split processing of documents from adding documents to the
         database for performance reasons.
 
+        If `store_only` is `True` only the STORE_CONTENT action will be
+        processed for the document, which means that the document data will be
+        stored but not searchable.  If this is used, the document is only
+        accessible by using get_document(), or by iterating through all the
+        documents.  Note that some queries, such as those produced by
+        SearchConnection.query_all(), work by iterating through all the
+        documents, so will still return documents indexed with `store_only` set
+        to True.
+
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
@@ -268,7 +277,7 @@ class IndexerConnection(object):
         result.id = document.id
         context = ActionContext(self._index)
 
-        self._field_actions.perform(result, document, context)
+        self._field_actions.perform(result, document, context, store_only)
 
         return result
 
@@ -292,7 +301,7 @@ class IndexerConnection(object):
         # the above calculation predicts is used for buffering in practice.
         return count * 5
 
-    def add(self, document):
+    def add(self, document, store_only=False):
         """Add a new document to the search engine index.
 
         If the document has a id set, and the id already exists in
@@ -305,12 +314,16 @@ class IndexerConnection(object):
         The supplied document may be an instance of UnprocessedDocument, or an
         instance of ProcessedDocument.
 
+        If `store_only` is `True` the document will only be stored but not
+        indexed for searching. See process() method for more info about this
+        argument.
+
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
         if not hasattr(document, '_doc'):
             # It's not a processed document.
-            document = self.process(document)
+            document = self.process(document, store_only)
 
         # Ensure that we have a id
         orig_id = document.id
@@ -337,7 +350,7 @@ class IndexerConnection(object):
             document.id = orig_id
         return id
 
-    def replace(self, document):
+    def replace(self, document, store_only=False):
         """Replace a document in the search engine index.
 
         If the document does not have a id set, an exception will be
@@ -346,12 +359,16 @@ class IndexerConnection(object):
         If the document has a id set, and the id does not already
         exist in the database, this method will have the same effect as add().
 
+        If `store_only` is `True` the document will only be stored but not
+        indexed for searching. See process() method for more info about this
+        argument.
+
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
         if not hasattr(document, '_doc'):
             # It's not a processed document.
-            document = self.process(document)
+            document = self.process(document, store_only)
 
         # Ensure that we have a id
         id = document.id

@@ -1,3 +1,11 @@
+Fri Feb 20 10:21:03 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fieldactions.py,xappy/indexerconnection.py,
+	  xappy/unittests/store_only.py: Patch from Pablo, with minor
+	  tweaks from me, to add a store_only parameter to the methods
+	  which process documents which only runs the STORE_CONTENT
+	  actions.
+
 Wed Feb 18 04:55:16 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py,xappy/unittests/field_groups.py: Fix to
