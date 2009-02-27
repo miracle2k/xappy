@@ -54,7 +54,7 @@ class TestImgSeek(TestCase):
         q = self.sconn.query_image_similarity('image', docid='0')
         s = self.sconn.search(q, 0, 10)
 
-        # candle is more similar to looroll than a cat.
+        # Candle is more similar to looroll than a cat.
         self.assertEqual([i.data['file'][0][:-4] for i in s],
                          ['looroll', 'candle', 'cat'])
 
