@@ -26,6 +26,10 @@ import fields
 import marshall
 from replaylog import log
 import xapian
+try:
+    import xapian.imgseek
+except ImportError:
+    pass
 import parsedate
 
 def _act_store_content(fieldname, doc, field, context):
@@ -171,6 +175,18 @@ def _act_geolocation(fieldname, doc, field, context):
         coord = xapian.LatLongCoord.parse_latlong(field.value)
         coords.insert(coord)
         doc.add_value(fieldname, coords.serialise(), 'loc')
+
+def _act_imgseek(fieldname, doc, field, context):
+    """ Perform the IMGSEEK action.
+
+    """
+    if field.value:
+        import xapian.imgseek
+        imgsigs = xapian.imgseek.ImgSigs.unserialise(
+            doc.get_value(fieldname, 'imgseek'))
+        imgsig = xapian.imgseek.ImgSig.register_Image(field.value)
+        imgsigs.insert(imgsig)
+        doc.add_value(fieldname, imgsigs.serialise(), 'imgseek')
 
 def _act_index_freetext(fieldname, doc, field, context, weight=1,
                         language=None, stop=None, spell=False,
@@ -421,6 +437,10 @@ class FieldActions(object):
       latitude-longitude values, and will be searchable by distance from the
       point.
 
+    - `IMGSEEK`: Index an image for similarity searching. Fields
+      supplied must be a url that references the image data. The image
+      must be a JPEG or a format supported by the QImageIO
+      class. <http://doc.trolltech.com/3.3/qimageio.html>
     """
 
     # See the class docstring for the meanings of the following constants.
@@ -433,6 +453,7 @@ class FieldActions(object):
     FACET = 7
     WEIGHT = 8
     GEOLOCATION = 9
+    IMGSEEK = 10
 
     # Sorting and collapsing store the data in a value, but the format depends
     # on the sort type.  Easiest way to implement is to treat them as the same
@@ -447,6 +468,8 @@ class FieldActions(object):
         _unsupported_actions.append(FACET)
     if 'valueweight' in _checkxapian.missing_features:
         _unsupported_actions.append(WEIGHT)
+    if 'imgseek' in _checkxapian.missing_features:
+        _unsupported_actions.append(IMGSEEK)
 
     def __init__(self, fieldname):
         # Dictionary of actions, keyed by type.
@@ -469,6 +492,7 @@ class FieldActions(object):
                           FieldActions.FACET,
                           FieldActions.WEIGHT,
                           FieldActions.GEOLOCATION,
+                          FieldActions.IMGSEEK,
                          ):
             raise errors.IndexerError("Unknown field action: %r" % action)
 
@@ -630,7 +654,7 @@ class FieldActions(object):
         FACET: ('FACET', ('type', 'ranges'), _act_facet, {'prefix': True, 'slot': 'facet',}, ),
         WEIGHT: ('WEIGHT', (), _act_weight, {'slot': 'weight',}, ),
         GEOLOCATION: ('GEOLOCATION', (), _act_geolocation, {'slot': 'loc'}, ),
-
+        IMGSEEK: ('IMGSEEK', (), _act_imgseek, {'slot': 'imgseek'},),
         SORT_AND_COLLAPSE: ('SORT_AND_COLLAPSE', ('type', ), _act_sort_and_collapse, {'slot': 'collsort',}, ),
     }
 

@@ -1,3 +1,12 @@
+Fri Feb 27 14:23:26 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/_checkxapian.py,xappy/fieldactions.py,
+	  xappy/searchconnection.py,xappy/unittests/imgseek.py: Add new
+	  IMGSEEK field action, and corresponding query_image_similarity()
+	  method.  Also add test case.  All requires a new set of xapian
+	  pacakges, which are not yet available other than from SVN - this
+	  feature is still under heavy development.
+
 Fri Feb 27 13:05:03 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/testdata/sampleimages/candle.jpg,

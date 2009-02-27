@@ -44,3 +44,8 @@ if not hasattr(xapian, 'CategorySelectMatchSpy'):
     missing_features['facets'] = 1
 if not hasattr(xapian, 'ValueWeightPostingSource'):
     missing_features['valueweight'] = 1
+
+try:
+    import xapian.imgseek
+except ImportError:
+    missing_features['imgseek'] = 1

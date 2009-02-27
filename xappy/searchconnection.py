@@ -1633,6 +1633,61 @@ class SearchConnection(object):
         result._set_serialised(serialised)
         return result
 
+    def query_image_similarity(self, field, image=None, docid=None, xapid=None):
+        """Create an image similarity query.
+        
+        This query returns documents in order of similarity to the supplied
+        image.
+
+        `field` is the field to get image similarity data from and must have
+        been indexed with the IMGSEEK field action.
+
+        Exactly one of `image`, `docid`, `xapid` must be supplied, to indicate the
+        target of the similarity search.
+        
+         - If `image` is supplied, it should be the path to an image file.
+         - If `docid` is supplied, it should be a document ID in the database.
+         - If `xapid` is supplied, it should be the xapian document ID in the
+           database (as would be supplied to get_document()).
+
+        If multiple images are referenced by the specified field in the target
+        document or searched documents, the best match is used.
+
+        """
+        serialised = self._make_parent_func_repr("query_image_similarity")
+        import xapian.imgseek
+
+        if len(filter(lambda x: x is not None, (image, docid, xapid))) != 1:
+            raise _errors.SearchError(
+                "Exactly one of image, docid or xapid is required for"
+                " query_image_similarity().")
+
+        # Get the image signatures.
+        if image:
+            try:
+                sig = xapian.imgseek.ImgSig.register_Image(image)
+            except xapian.InvalidArgumentError:
+                raise _errors.SearchError(
+                    'Invalid or unsupported image file passed to '
+                    'query_image_similarity(): ' + image)
+            sigs = xapian.imgseek.ImgSigs(sig)
+        else:
+            doc = self.get_document(docid=docid, xapid=xapid)
+            val = doc.get_value(field, 'imgseek')
+            sigs = xapian.imgseek.ImgSigs.unserialise(val)
+
+        try:
+            slot = self._field_mappings.get_slot(field, 'imgseek')
+        except KeyError:
+            return Query(_log(_xapian.Query), _conn=self,
+                         _serialised=serialised)
+
+        ps = xapian.imgseek.ImgSigSimilarityPostingSource(sigs, slot)
+        result = Query(_log(_xapian.Query, ps),
+                       _refs=[ps],
+                       _conn=self)
+        return result
+
     def query_facet(self, field, val, approx=False,
                     conservative=True, accelerate=True):
         """Create a query for a facet value.
