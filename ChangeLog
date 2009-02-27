@@ -1,3 +1,10 @@
+Fri Feb 27 13:05:03 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/testdata/sampleimages/candle.jpg,
+	  xappy/unittests/testdata/sampleimages/cat.jpg,
+	  xappy/unittests/testdata/sampleimages/looroll.jpg: Add some
+	  sample data for testing image search.
+
 Fri Feb 20 10:39:36 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/datastructures.py,xappy/unittests/calc_hash.py: Add
