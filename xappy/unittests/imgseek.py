@@ -15,17 +15,18 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 from xappytest import *
 
-class TestImgSeek(TestCase):
+class TImgSeek(object):
     """Test of the image similarity search action.
 
     """
+
     def pre_test(self):
         """Build a database of test images.
 
         """
         self.indexpath = os.path.join(self.tempdir, 'foo')
         iconn = xappy.IndexerConnection(self.indexpath)
-        iconn.add_field_action('image', xappy.FieldActions.IMGSEEK)
+        iconn.add_field_action('image', xappy.FieldActions.IMGSEEK, terms = self.terms)
         iconn.add_field_action('file', xappy.FieldActions.STORE_CONTENT)
         imagedir = os.path.join(os.path.dirname(__file__), 'testdata', 'sampleimages')
         for dirpath, dirnames, filenames in os.walk(imagedir):
@@ -45,6 +46,8 @@ class TestImgSeek(TestCase):
         """
         self.sconn.close()
 
+
+        
     def test_query_image_similarity(self):
         """Basic test of image similarity search.
 
@@ -58,9 +61,24 @@ class TestImgSeek(TestCase):
         self.assertEqual([i.data['file'][0][:-4] for i in s],
                          ['looroll', 'candle', 'cat'])
 
-        self.assertAlmostEqual(s[0].weight, 100.0)
-        self.assertAlmostEqual(s[1].weight, 33.41085261614748)
-        self.assertAlmostEqual(s[2].weight, 20.697674393961904)
+        if not self.terms:
+            self.assertAlmostEqual(s[0].weight, 100.0)
+            self.assertAlmostEqual(s[1].weight, 33.41085261614748)
+            self.assertAlmostEqual(s[2].weight, 20.697674393961904)
+
+class TestImgSeekVals(TImgSeek, TestCase):
+
+    def pre_test(self):
+        self.terms = False
+        super(TestImgSeekVals, self).pre_test()
+
+class TestImgSeekTerms(TImgSeek, TestCase):
+
+    def pre_test(self):
+        self.terms = True
+        super(TestImgSeekTerms, self).pre_test()
+
+
  
 if __name__ == '__main__':
     main()

@@ -31,7 +31,8 @@ import itertools
 import xapian as _xapian
 from datastructures import *
 from fieldactions import ActionContext, FieldActions, \
-         ActionSet, SortableMarshaller, convert_range_to_term
+         ActionSet, SortableMarshaller, convert_range_to_term, \
+         _get_imgterms
 import fieldmappings as _fieldmappings
 from fields import Field, FieldGroup
 import highlight as _highlight
@@ -987,6 +988,7 @@ class SearchConnection(object):
                 self._index.close()
             self._index = None
             raise
+        self._imgterms_cache = {}
 
     def __del__(self):
         self.close()
@@ -1662,19 +1664,32 @@ class SearchConnection(object):
                 "Exactly one of image, docid or xapid is required for"
                 " query_image_similarity().")
 
-        # Get the image signatures.
+        actions =  self._field_actions[field]._actions
+        terms = actions[FieldActions.IMGSEEK][0]['terms']
         if image:
+            # Build a signature from an image.
             try:
                 sig = xapian.imgseek.ImgSig.register_Image(image)
             except xapian.InvalidArgumentError:
                 raise _errors.SearchError(
                     'Invalid or unsupported image file passed to '
                     'query_image_similarity(): ' + image)
-            sigs = xapian.imgseek.ImgSigs(sig)
+            if terms:
+                imgterms = _get_imgterms(self, field)
+                return Query(imgterms.querySimilarSig(sig), _conn=self)
+            else:
+                sigs = xapian.imgseek.ImgSigs(sig)
+
         else:
+            # Build a signature from a stored document.
             doc = self.get_document(docid=docid, xapid=xapid)
-            val = doc.get_value(field, 'imgseek')
-            sigs = xapian.imgseek.ImgSigs.unserialise(val)
+            if terms:
+                imgterms = _get_imgterms(self, field)
+                return Query(imgterms.querySimilarDoc(doc._doc),
+                             _conn = self)
+            else:
+                val = doc.get_value(field, 'imgseek')
+                sigs = xapian.imgseek.ImgSigs.unserialise(val)
 
         try:
             slot = self._field_mappings.get_slot(field, 'imgseek')

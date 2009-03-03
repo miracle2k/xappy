@@ -89,6 +89,7 @@ class IndexerConnection(object):
         self._facet_hierarchy = {}
         self._facet_query_table = {}
         self._next_docid = 0
+        self._imgterms_cache = {}
         self._config_modified = False
         try:
             self._load_config()
@@ -275,7 +276,7 @@ class IndexerConnection(object):
             raise errors.IndexerError("IndexerConnection has been closed")
         result = ProcessedDocument(self._field_mappings)
         result.id = document.id
-        context = ActionContext(self._index)
+        context = ActionContext(self)
 
         self._field_actions.perform(result, document, context, store_only)
 

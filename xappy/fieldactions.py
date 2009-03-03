@@ -176,17 +176,35 @@ def _act_geolocation(fieldname, doc, field, context):
         coords.insert(coord)
         doc.add_value(fieldname, coords.serialise(), 'loc')
 
-def _act_imgseek(fieldname, doc, field, context):
+def _get_imgterms(conn, fieldname):
+    """Get an ImgTerms object for a given field.
+
+    The ImgTerms objects are created lazily, when one is first needed for each
+    field.
+
+    """
+    imgterms = conn._imgterms_cache.get(fieldname)
+    if not imgterms:
+        prefix = conn._field_mappings.get_prefix(fieldname)
+        imgterms = xapian.imgseek.ImgTerms(prefix)
+        conn._imgterms_cache[fieldname] = imgterms
+    return imgterms
+    
+def _act_imgseek(fieldname, doc, field, context, terms=True):
     """ Perform the IMGSEEK action.
 
     """
     if field.value:
         import xapian.imgseek
-        imgsigs = xapian.imgseek.ImgSigs.unserialise(
-            doc.get_value(fieldname, 'imgseek'))
         imgsig = xapian.imgseek.ImgSig.register_Image(field.value)
-        imgsigs.insert(imgsig)
-        doc.add_value(fieldname, imgsigs.serialise(), 'imgseek')
+        if terms:
+            imgterms = _get_imgterms(context.conn, fieldname)
+            imgterms.AddTerms(doc._doc, imgsig)
+        else:
+            imgsigs = xapian.imgseek.ImgSigs.unserialise(
+                doc.get_value(fieldname, 'imgseek'))
+            imgsigs.insert(imgsig)
+            doc.add_value(fieldname, imgsigs.serialise(), 'imgseek')
 
 def _act_index_freetext(fieldname, doc, field, context, weight=1,
                         language=None, stop=None, spell=False,
@@ -342,8 +360,9 @@ class ActionContext(object):
     SearchConnection.process() method).
 
     """
-    def __init__(self, index, readonly=False):
-        self.index = index
+    def __init__(self, conn, readonly=False):
+        self.conn = conn
+        self.index = conn._index
         self.readonly = readonly
         self.current_language = None
         self.current_position = 0
@@ -654,7 +673,7 @@ class FieldActions(object):
         FACET: ('FACET', ('type', 'ranges'), _act_facet, {'prefix': True, 'slot': 'facet',}, ),
         WEIGHT: ('WEIGHT', (), _act_weight, {'slot': 'weight',}, ),
         GEOLOCATION: ('GEOLOCATION', (), _act_geolocation, {'slot': 'loc'}, ),
-        IMGSEEK: ('IMGSEEK', (), _act_imgseek, {'slot': 'imgseek'},),
+        IMGSEEK: ('IMGSEEK', ('terms'), _act_imgseek, {'prefix': True, 'slot': 'imgseek',},),
         SORT_AND_COLLAPSE: ('SORT_AND_COLLAPSE', ('type', ), _act_sort_and_collapse, {'slot': 'collsort',}, ),
     }
 
