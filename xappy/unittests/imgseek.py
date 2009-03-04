@@ -26,7 +26,7 @@ class TImgSeek(object):
         """
         self.indexpath = os.path.join(self.tempdir, 'foo')
         iconn = xappy.IndexerConnection(self.indexpath)
-        iconn.add_field_action('image', xappy.FieldActions.IMGSEEK, terms = self.terms)
+        iconn.add_field_action('image', xappy.FieldActions.IMGSEEK, terms = self.terms, buckets = 250)
         iconn.add_field_action('file', xappy.FieldActions.STORE_CONTENT)
         imagedir = os.path.join(os.path.dirname(__file__), 'testdata', 'sampleimages')
         for dirpath, dirnames, filenames in os.walk(imagedir):
@@ -71,8 +71,9 @@ class TImgSeek(object):
                          ['looroll', 'candle', 'cat'])
 
         #print s[0].weight
-        #print s[1].weight, s[1].weight / s[0].weight
-        #print s[2].weight, s[2].weight / s[0].weight
+        #print s[1].weight, s[1].weight - s[0].weight
+        #print s[2].weight, s[2].weight - s[1].weight
+        #print (s[2].weight - s[1].weight) / (s[1].weight - s[0].weight)
         if not self.terms:
             self.assertAlmostEqual(s[0].weight, 100.0)
             self.assertAlmostEqual(s[1].weight, 30.2729191247)
