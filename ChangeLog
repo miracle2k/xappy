@@ -1,3 +1,8 @@
+Wed Mar 04 16:34:22 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fieldactions.py: add "buckets" parameter to IMGSEEK action,
+	  to allow the number of buckets to be controlled.
+
 Wed Mar 04 14:59:16 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/imgseek.py: Add (commented out) debugging prints.

@@ -185,12 +185,20 @@ def _get_imgterms(conn, fieldname):
     """
     imgterms = conn._imgterms_cache.get(fieldname)
     if not imgterms:
+        actions = conn._field_actions[fieldname]._actions
+        params = {}
+        for action, kwargslist in actions.iteritems():
+            if action == FieldActions.IMGSEEK:
+                params = kwargslist[0]
+                break
         prefix = conn._field_mappings.get_prefix(fieldname)
-        imgterms = xapian.imgseek.ImgTerms(prefix)
+        # get the number of buckets - default to 250
+        buckets = int(params.get('buckets', 250))
+        imgterms = xapian.imgseek.ImgTerms(prefix, buckets)
         conn._imgterms_cache[fieldname] = imgterms
     return imgterms
     
-def _act_imgseek(fieldname, doc, field, context, terms=True):
+def _act_imgseek(fieldname, doc, field, context, terms=True, buckets=None):
     """ Perform the IMGSEEK action.
 
     """
@@ -673,7 +681,7 @@ class FieldActions(object):
         FACET: ('FACET', ('type', 'ranges'), _act_facet, {'prefix': True, 'slot': 'facet',}, ),
         WEIGHT: ('WEIGHT', (), _act_weight, {'slot': 'weight',}, ),
         GEOLOCATION: ('GEOLOCATION', (), _act_geolocation, {'slot': 'loc'}, ),
-        IMGSEEK: ('IMGSEEK', ('terms'), _act_imgseek, {'prefix': True, 'slot': 'imgseek',},),
+        IMGSEEK: ('IMGSEEK', ('terms', 'buckets'), _act_imgseek, {'prefix': True, 'slot': 'imgseek',},),
         SORT_AND_COLLAPSE: ('SORT_AND_COLLAPSE', ('type', ), _act_sort_and_collapse, {'slot': 'collsort',}, ),
     }
 
