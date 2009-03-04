@@ -43,10 +43,9 @@ class TImgSeek(object):
 
     def post_test(self):
         """Clean up after the test.
+
         """
         self.sconn.close()
-
-
         
     def test_query_image_similarity(self):
         """Basic test of image similarity search.
@@ -54,17 +53,30 @@ class TImgSeek(object):
         """
         # Check that we have similarity
         self.assertEqual(self.sconn.get_doccount(), 3)
+        import time
+        prestarttime = time.time()
         q = self.sconn.query_image_similarity('image', docid='0')
+        starttime = time.time()
+        q = self.sconn.query_image_similarity('image', docid='0')
+        querytime = time.time()
         s = self.sconn.search(q, 0, 10)
+        endtime = time.time()
+        #print str(q).replace(' OR', '\n OR').replace(' XOR', '\n  XOR')
+        #print "imgtermsmaketime:", (starttime - prestarttime)
+        #print "querymaketime:", (querytime - starttime)
+        #print "totaltime:", (endtime - starttime)
 
         # Candle is more similar to looroll than a cat.
         self.assertEqual([i.data['file'][0][:-4] for i in s],
                          ['looroll', 'candle', 'cat'])
 
+        #print s[0].weight
+        #print s[1].weight, s[1].weight / s[0].weight
+        #print s[2].weight, s[2].weight / s[0].weight
         if not self.terms:
             self.assertAlmostEqual(s[0].weight, 100.0)
-            self.assertAlmostEqual(s[1].weight, 33.41085261614748)
-            self.assertAlmostEqual(s[2].weight, 20.697674393961904)
+            self.assertAlmostEqual(s[1].weight, 30.2729191247)
+            self.assertAlmostEqual(s[2].weight, 9.07806908676)
 
 class TestImgSeekVals(TImgSeek, TestCase):
 

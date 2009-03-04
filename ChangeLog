@@ -1,3 +1,7 @@
+Wed Mar 04 14:59:16 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/imgseek.py: Add (commented out) debugging prints.
+
 Tue Mar 03 17:10:16 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/fieldactions.py,
