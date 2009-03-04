@@ -33,11 +33,11 @@ example::
 
   conn.add_field_action('image', xappy.FieldActions.IMGSEEK, terms = True)
 
-Note the `terms` argument. If this is True then the on adding data to
-the field a number of terms are added to the document, which can
+Note the `terms` argument. If this is True then on adding data to the
+field a number of terms are added to the document, which can
 subsuently used for querying. If false, then serialised data about the
 image is stored in a value which is used for the same purpose at query
-time. For large database `terms = True` is normally significantly
+time. For large databases `terms = True` is normally significantly
 faster than `terms = False`.
 
 At indexing time the corresponding field of a document must be
