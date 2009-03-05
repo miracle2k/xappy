@@ -1152,7 +1152,7 @@ class SearchConnection(object):
             raise errors.SearchError("SearchConnection has been closed")
         result = ProcessedDocument(self._field_mappings)
         result.id = document.id
-        context = ActionContext(self._index, readonly=True)
+        context = ActionContext(self, readonly=True)
 
         self._field_actions.perform(result, document, context)
 
@@ -1469,7 +1469,7 @@ class SearchConnection(object):
 
         def make_query(scale, low_val, hi_val):
             term = convert_range_to_term(prefix, low_val, hi_val)
-            postingsource = _xapian.FixedWeightPostingSource(self._index, scale)
+            postingsource = _xapian.FixedWeightPostingSource(scale)
             fixedwt_query = Query(_log(_xapian.Query, postingsource),
                            _refs=[postingsource], _conn=self)
             return fixedwt_query.filter(Query(_xapian.Query(term), _conn = self))
@@ -1626,7 +1626,7 @@ class SearchConnection(object):
                          _serialised=serialised)
 
         # Make the posting source
-        postingsource = _xapian.LatLongDistancePostingSource(self._index,
+        postingsource = _xapian.LatLongDistancePostingSource(
             slot, coords, metric, max_range, k1, k2)
 
         result = Query(_log(_xapian.Query, postingsource),
@@ -2067,7 +2067,7 @@ class SearchConnection(object):
                 if value is not None:
                     raise _errors.SearchError("Value supplied for a WEIGHT field must be None")
                 slot = self._field_mappings.get_slot(field, 'weight')
-                postingsource = _xapian.ValueWeightPostingSource(self._index, slot)
+                postingsource = _xapian.ValueWeightPostingSource(slot)
                 result = Query(_log(_xapian.Query, postingsource),
                                _refs=[postingsource], _conn=self)
                 result._set_serialised(serialised)
@@ -2315,8 +2315,8 @@ class SearchConnection(object):
                 self.conn = conn
                 self.wtsource = wtsource
 
-            def reset(self):
-                self.alldocs = self.conn._index.postlist('')
+            def reset(self, xapdb):
+                self.alldocs = xapdb.postlist('')
 
             def get_termfreq_min(self): return 0
             def get_termfreq_est(self): return self.conn._index.get_doccount()
@@ -3032,7 +3032,7 @@ class SearchConnection(object):
         slot = self._field_mappings.get_slot(field, 'collsort')
 
         # Construct a posting source
-        ps = xapian.ValueMapPostingSource(self._index, slot)
+        ps = xapian.ValueMapPostingSource(slot)
         if default_weight is not None:
             if default_weight < 0:
                 raise ValueError("default_weight must be >= 0")

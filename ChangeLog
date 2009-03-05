@@ -1,3 +1,7 @@
+Thu Mar 05 16:09:44 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Update for new xappy tarballs.
+
 Thu Mar 05 10:43:36 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: More updates to base revisions.
