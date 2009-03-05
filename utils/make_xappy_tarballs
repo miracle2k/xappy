@@ -21,8 +21,8 @@ rev="1.1.0"
 matchspy_branchpoint="12001"
 opsynonym_branchpoint="12001"
 clustering_branchpoint="12001"
-geospatial_branchpoint="11998"
-postingsources_branchpoint="12082"
+geospatial_branchpoint="12101"
+postingsources_branchpoint="12101"
 
 if [ -e "$HOME/xappy" ]; then
 basedir="$HOME/xappy/maketarballs"
