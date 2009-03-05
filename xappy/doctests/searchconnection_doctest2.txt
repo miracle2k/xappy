@@ -49,24 +49,6 @@ Open a connection for indexing:
 >>> iconn.add_field_action('facet9', FieldActions.SORTABLE)
 
 
-A field can only be sorted according to one type:
->>> iconn.add_field_action('date', FieldActions.SORTABLE, type='float')
-Traceback (most recent call last):
-...
-IndexerError: Field 'date' is already marked for sorting, with a different sort type
-
-
-If we set the sort type to an unknown value, we get errors when it is used:
-
->>> iconn.add_field_action('price2', FieldActions.SORTABLE, type='unknown')
->>> doc = UnprocessedDocument()
->>> doc.fields.append(Field('price2', '1.0'))
->>> iconn.process(doc)
-Traceback (most recent call last):
-...
-IndexerError: Unknown sort type 'unknown' for field 'price2'
-
-
 Make another database which doesn't have any facet fields::
 
 >>> iconn2 = IndexerConnection('foo2')
@@ -176,29 +158,6 @@ Remove the synonyms for the remaining tests:
 
 Now, parse a simple query.
 >>> q = sconn.query_parse('document')
->>> str(q)
-'Xapian::Query((Zdocument:(pos=1) AND_MAYBE document:(pos=1)))'
->>> results = sconn.search(q, 0, 30)
->>> [result.id for result in results]
-['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '1a', '1b', '1c', '1d']
-
->>> results = sconn.search(q, 0, 30, sortby="price")
->>> prev_price = results[0].data['price']
->>> for price in (result.data['price'] for result in results):
-...     assert(price >= prev_price)
-...     prev_price = price
->>> [int(result.id, 16) for result in results]
-[0, 70, 140, 1, 71, 141, 2, 72, 142, 3, 73, 143, 4, 74, 144, 5, 75, 145, 6, 76, 146, 7, 77, 147, 8, 78, 148, 9, 79, 149]
->>> [result.data['price'] for result in results]
-[['0.000000'], ['0.000000'], ['0.000000'], ['0.142857'], ['0.142857'], ['0.142857'], ['0.285714'], ['0.285714'], ['0.285714'], ['0.428571'], ['0.428571'], ['0.428571'], ['0.571429'], ['0.571429'], ['0.571429'], ['0.714286'], ['0.714286'], ['0.714286'], ['0.857143'], ['0.857143'], ['0.857143'], ['1.000000'], ['1.000000'], ['1.000000'], ['1.142857'], ['1.142857'], ['1.142857'], ['1.285714'], ['1.285714'], ['1.285714']]
-
->>> results = sconn.search(q, 0, 30, sortby="-price")
->>> prev_price = results[0].data['price']
->>> for price in (result.data['price'] for result in results):
-...     assert(price <= prev_price)
-...     prev_price = price
->>> [int(result.id, 16) for result in results]
-[69, 139, 68, 138, 67, 137, 66, 136, 65, 135, 64, 134, 63, 133, 62, 132, 61, 131, 60, 130, 59, 129, 199, 58, 128, 198, 57, 127, 197, 56]
 
 
 >>> results = sconn.search(q, 0, 30, sortby="date")
@@ -445,23 +404,6 @@ Do a similarity search
 >>> q2 = sconn.query_similar(ids, simterms=5, allow='text')
 >>> str(q2)
 'Xapian::Query()'
-
-Try a search with various weight cutoff restrictions:
->>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date")
->>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
-[('7', 55, 326), ('8', 27, 163)]
->>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date", percentcutoff=30)
->>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
-[('7', 55, 326)]
->>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date", weightcutoff=20)
->>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
-[('7', 55, 326)]
->>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date", percentcutoff=56)
->>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
-[]
->>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date", weightcutoff=33)
->>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
-[]
 
 Do a similarity search with an ID which isn't in the database:
 >>> q2 = sconn.query_similar('foo', simterms=5)
