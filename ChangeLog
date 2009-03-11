@@ -1,3 +1,9 @@
+Wed Mar 11 15:20:44 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/queries.rst: Update with value of
+	  get_max_possible_weight() returned by new xapian tarballs; these
+	  provide tighter bounds.
+
 Wed Mar 11 15:20:12 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Avoid using deprecated form of

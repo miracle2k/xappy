@@ -121,7 +121,7 @@ to quickly calculate a upper bound on the weight, which gives some
 idea of the range of values returned by a query::
 
  >>> print "%.2f" % query.get_max_possible_weight()
- 1.62
+ 0.93
 
 Since the reason for calculating the weight is often to normalise the
 weights returned by a query, there is a special method which does
