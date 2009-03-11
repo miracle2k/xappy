@@ -200,7 +200,7 @@ class TestPercent(TestCase):
 
         results = sconn.search(q, 0, 5, sortby="date")
         self.assertEqual(self._summarise_results(results),
-                         [('7', 55, 326), ('8', 27, 163)])
+                         [('7', 58, 326), ('8', 29, 163)])
 
         try:
             results = sconn.search(q, 0, 5, sortby="date", percentcutoff=30)
@@ -209,11 +209,11 @@ class TestPercent(TestCase):
             had_exc = True
         if not had_exc:
             self.assertEqual(self._summarise_results(results),
-                             [('7', 55, 326)])
+                             [('7', 58, 326)])
 
         results = sconn.search(q, 0, 5, sortby="date", weightcutoff=20)
         self.assertEqual(self._summarise_results(results),
-                         [('7', 55, 326)])
+                         [('7', 58, 326)])
 
         try:
             results = sconn.search(q, 0, 5, sortby="date", percentcutoff=56)
