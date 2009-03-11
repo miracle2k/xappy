@@ -18,11 +18,11 @@
 #  $xappylibdir: a checkout of xappy/trunk.
 
 rev="1.1.0"
-matchspy_branchpoint="12001"
-opsynonym_branchpoint="12001"
-clustering_branchpoint="12001"
-geospatial_branchpoint="12101"
-postingsources_branchpoint="12101"
+matchspy_branchpoint="12153"
+opsynonym_branchpoint="12153"
+clustering_branchpoint="12153"
+geospatial_branchpoint="12153"
+postingsources_branchpoint="12153"
 
 if [ -e "$HOME/xappy" ]; then
 basedir="$HOME/xappy/maketarballs"
