@@ -2737,7 +2737,7 @@ class SearchConnection(object):
                 sorter = xapian.MultiValueSorter()
                 for field in sortby:
                     sorter.add(*self._get_sort_slot_and_dir(field))
-                enq.set_sort_by_key_then_relevance(sorter)
+                enq.set_sort_by_key_then_relevance(sorter, True)
 
         if collapse is not None:
             try:
