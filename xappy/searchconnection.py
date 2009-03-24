@@ -1043,7 +1043,14 @@ class SearchConnection(object):
         # class.  Move it to a shared location.
         assert self._index is not None
 
-        config_str = _log(self._index.get_metadata, '_xappy_config')
+        while True:
+            try:
+                config_str = _log(self._index.get_metadata, '_xappy_config')
+                break
+            except _xapian.DatabaseModifiedError, e:
+                # Don't call self.reopen() since that calls _load_config()!
+                self._index.reopen()
+
         if len(config_str) == 0:
             self._field_actions = ActionSet()
             self._field_mappings = _fieldmappings.FieldMappings()
