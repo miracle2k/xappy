@@ -3004,8 +3004,11 @@ class SearchConnection(object):
             raise _errors.IndexerError("SearchConnection has been closed")
         if not hasattr(self._index, 'get_metadata'):
             raise _errors.IndexerError("Version of xapian in use does not support metadata")
-        return _log(self._index.get_metadata, key)
-
+        while True:
+            try:
+                return _log(self._index.get_metadata, key)
+            except _xapian.DatabaseModifiedError, e:
+                self.reopen()
 
     def iter_terms_for_field(self, field):
         """Return an iterator over the terms that a field has in the index.
