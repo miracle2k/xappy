@@ -11,7 +11,7 @@ mkdir xapian-extras
 mkdir xapian-extras-bindings
 
 cd xapian-core
-../../xapian-core/configure --prefix=$instdir
+../../xapian-core/configure --prefix=$instdir --program-suffix=
 make
 make install
 
