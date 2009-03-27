@@ -1,3 +1,9 @@
+Fri Mar 27 09:29:29 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add support for new clustering method
+	  for single-valued single fields, reading from a value slot; use
+	  it automatically if index strategy makes this possible.
+
 Fri Mar 27 09:26:34 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/cluster.py: Add test for clustering.

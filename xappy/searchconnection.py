@@ -477,8 +477,23 @@ class SearchResults(object):
         if fields is None:
             clusterer.cluster(self._conn._index, xapclusters, docsim, source, num_clusters)
         else:
-            decider = self._make_expand_decider(fields)
-            clusterer.cluster(self._conn._index, xapclusters, docsim, source, decider, num_clusters)
+            # If there's only one field and it has unique instances stored in a
+            # value, use the value instead of the termlist.
+            slotnum = self._get_singlefield_slot(fields)
+            try:
+                if slotnum is not None:
+                    decider = None
+                    clusterer.cluster(xapclusters, docsim, source, slotnum, num_clusters)
+                else:
+                    decider = self._make_expand_decider(fields)
+                    clusterer.cluster(xapclusters, docsim, source, decider, num_clusters)
+            except TypeError:
+                # backwards compatibility; used to have to supply the index as
+                # first param, and didn't have the slotnum option.
+                if decider is None:
+                    decider = self._make_expand_decider(fields)
+                clusterer.cluster(self._conn._index,
+                                  xapclusters, docsim, source, decider, num_clusters)
 
         newid = 0
         idmap = {}
@@ -513,6 +528,32 @@ class SearchResults(object):
                 nottophits.append(i)
         self._mset_order = tophits
         self._mset_order.extend(nottophits)
+
+    def _get_singlefield_slot(self, fields):
+        """Return the slot number if the specified list of fields contains only
+        one entry, and that entry is single-valued for each document, and
+        stored in a value slot.
+
+        Return None otherwise.
+
+        """
+        prefixes = {}
+        if isinstance(fields, basestring):
+            fields = [fields]
+        if len(fields) != 1:
+            return None
+
+        field = fields[0]
+        try:
+            actions = self._conn._field_actions[field]._actions
+        except KeyError:
+            return None
+
+        for action, kwargslist in actions.iteritems():
+            if action == FieldActions.SORTABLE:
+                return self._conn._field_mappings.get_slot(field, 'collsort')
+            if action == FieldActions.WEIGHT:
+                return self._conn._field_mappings.get_slot(field, 'weight')
 
     def _make_expand_decider(self, fields):
         """Make an expand decider which accepts only terms in the specified
