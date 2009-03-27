@@ -1344,7 +1344,10 @@ class SearchConnection(object):
         return Query.compose(_xapian.Query.OP_OR, queries)
 
     def _get_approx_params(self, field, action):
-        action_params = self._field_actions[field]._actions[action][0]
+        try:
+            action_params = self._field_actions[field]._actions[action][0]
+        except KeyError:
+            return None, None
         ranges = action_params.get('ranges')
         if ranges is None:
             return None, None
@@ -2378,8 +2381,12 @@ class SearchConnection(object):
                 self.conn = conn
                 self.wtsource = wtsource
 
-            def reset(self, xapdb):
+            def init(self, xapdb):
                 self.alldocs = xapdb.postlist('')
+
+            def reset(self, xapdb):
+                # backwards compatibility
+                self.init(xapdb)
 
             def get_termfreq_min(self): return 0
             def get_termfreq_est(self): return self.conn._index.get_doccount()

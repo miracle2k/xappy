@@ -1,3 +1,8 @@
+Fri Mar 27 12:37:10 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Update reset() to init() in posting
+	  source, and handle missing field action in _get_approx_params.
+
 Fri Mar 27 12:31:26 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Add "assume_single_value" parameter to
