@@ -458,7 +458,8 @@ class SearchResults(object):
         self._facetassocs = facetassocs
         self._numeric_ranges_built = {}
 
-    def _cluster(self, num_clusters, maxdocs, fields=None):
+    def _cluster(self, num_clusters, maxdocs, fields=None,
+                 assume_single_value=False):
         """Cluster results based on similarity.
 
         Note: this method is experimental, and will probably disappear or
@@ -475,11 +476,16 @@ class SearchResults(object):
         source = _xapian.MSetDocumentSource(self._mset, maxdocs)
 
         if fields is None:
-            clusterer.cluster(self._conn._index, xapclusters, docsim, source, num_clusters)
+            try:
+                # backwards compatibility; used to have to supply the index as
+                # first param, and didn't have the slotnum option.
+                clusterer.cluster(xapclusters, docsim, source, num_clusters)
+            except TypeError:
+                clusterer.cluster(self._conn._index, xapclusters, docsim, source, num_clusters)
         else:
             # If there's only one field and it has unique instances stored in a
             # value, use the value instead of the termlist.
-            slotnum = self._get_singlefield_slot(fields)
+            slotnum = self._get_singlefield_slot(fields, assume_single_value)
             try:
                 if slotnum is not None:
                     decider = None
@@ -529,7 +535,7 @@ class SearchResults(object):
         self._mset_order = tophits
         self._mset_order.extend(nottophits)
 
-    def _get_singlefield_slot(self, fields):
+    def _get_singlefield_slot(self, fields, assume_single_value):
         """Return the slot number if the specified list of fields contains only
         one entry, and that entry is single-valued for each document, and
         stored in a value slot.
@@ -554,6 +560,9 @@ class SearchResults(object):
                 return self._conn._field_mappings.get_slot(field, 'collsort')
             if action == FieldActions.WEIGHT:
                 return self._conn._field_mappings.get_slot(field, 'weight')
+            if assume_single_value:
+                if action == FieldActions.FACET:
+                    return self._conn._field_mappings.get_slot(field, 'facet')
 
     def _make_expand_decider(self, fields):
         """Make an expand decider which accepts only terms in the specified
@@ -1824,9 +1833,12 @@ class SearchConnection(object):
             query_ranges = ((slot, marshalled_begin, marshalled_end),)
             ranges, range_accel_prefix = \
                 self._get_approx_params(field, FieldActions.FACET)
+            if ranges is None:
+                ranges, range_accel_prefix = \
+                    self._get_approx_params(field, FieldActions.SORT_AND_COLLAPSE)
             if approx:
                 if ranges is None:
-                    errors.SearchError("Cannot do approximate range search on fields with no ranges")
+                    raise errors.SearchError("Cannot do approximate range search on fields with no ranges")
                 result = self._range_accel_query(field, val[0], val[1],
                                                  range_accel_prefix, ranges,
                                                  conservative, query_ranges) * 0
@@ -1836,7 +1848,7 @@ class SearchConnection(object):
             if accelerate and ranges is not None:
                 accel_query = self._range_accel_query(field, val[0], val[1],
                                                       range_accel_prefix,
-                                                      ranges, True,
+                                                      ranges, conservative,
                                                       query_ranges)
             else:
                 accel_query = None
@@ -1847,7 +1859,10 @@ class SearchConnection(object):
                            _conn=self, _ranges=query_ranges)
 
             if accel_query is not None:
-                result = accel_query | result
+                if conservative:
+                    result = accel_query | result
+                else:
+                    result = accel_query & result
 
             result = result * 0
             result._set_serialised(serialised)

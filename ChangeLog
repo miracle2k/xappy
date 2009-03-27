@@ -1,3 +1,11 @@
+Fri Mar 27 12:31:26 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add "assume_single_value" parameter to
+	  _cluster(), to let it know that all fields in use are
+	  single-valued.  Also, add support for doing range acceleration
+	  searches using terms and values where the terms cover the range,
+	  and the values are used to do a second-pass restriction.
+
 Fri Mar 27 10:06:16 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/get_xapian.py: Update with new tarballs.
