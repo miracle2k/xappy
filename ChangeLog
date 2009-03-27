@@ -1,3 +1,10 @@
+Fri Mar 27 12:49:36 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/doctests/indexerconnection_doctest2.txt: Explicitly access
+	  the hit data when trying to trigger DatabaseModifiedError - data
+	  is now read lazily, so the test was failing with the new
+	  tarballs.
+
 Fri Mar 27 12:37:10 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Update reset() to init() in posting

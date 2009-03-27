@@ -375,7 +375,7 @@ become unavailable:
 >>> for i in xrange(100):
 ...     id = iconn.add(doc)
 >>> iconn.flush()
->>> for hit in results4: pass
+>>> for hit in results4: hit.data
 Traceback (most recent call last):
 ...
 DatabaseModifiedError: The revision being read has been discarded - you should call Xapian::Database::reopen() and retry the operation
