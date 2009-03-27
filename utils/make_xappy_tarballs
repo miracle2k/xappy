@@ -18,6 +18,7 @@
 #  $xappylibdir: a checkout of xappy/trunk.
 
 rev="1.1.0"
+trunk_rev="12287"
 matchspy_branchpoint="12287"
 opsynonym_branchpoint="12287"
 clustering_branchpoint="12287"
@@ -37,7 +38,7 @@ mkdir -p ${basedir}
 echo "Updating head"
 mkdir -p ${basedir}/head
 cd ${basedir}/head
-svn co -q svn://svn.xapian.org/xapian/trunk
+svn co -q svn://svn.xapian.org/xapian/trunk -r "$trunk_rev"
 cd trunk
 head_rev=`svn info | grep Revision | cut -f 2 -d ' '`
 
