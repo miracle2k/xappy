@@ -42,11 +42,27 @@ class Highlighter(object):
 
         """
         if stemmer is not None:
-            self.stem = stemmer
+            self._stem = stemmer
         else:
-            self.stem = xapian.Stem(language_code)
+            self._stem = xapian.Stem(language_code)
         self._terms = None
         self._query = None
+        self._stemcache = {}
+
+    def stem(self, word):
+        try:
+            return self._stemcache[word]
+        except KeyError:
+            stem = self._stem(word)
+
+            # Stop the stem cache growing indefinitely - in normal usage,
+            # highlighters aren't very long-lived, so this won't be hit,
+            # anyway.
+            if len(self._stemcache) > 10000:
+                self._stemcache = {}
+
+            self._stemcache[word] = stem
+            return stem
 
     def _split_text(self, text, strip_tags=False):
         """Split some text into words and non-words.

@@ -1,3 +1,12 @@
+Thu Apr 02 17:54:23 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/highlight.py: Add a simple cache for stemming in
+	  highlighters - improves performance noticeably in some cases (I
+	  measured about a 20% improvement in highlighting speed for a
+	  database in which the documents are produce descriptions,
+	  compared to a 50% improvement if I turn stemming in highlighting
+	  off completely).
+
 Thu Apr 02 17:25:33 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/highlight.py: Avoid parsing the query into terms repeatedly
