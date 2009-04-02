@@ -45,6 +45,8 @@ class Highlighter(object):
             self.stem = stemmer
         else:
             self.stem = xapian.Stem(language_code)
+        self._terms = None
+        self._query = None
 
     def _split_text(self, text, strip_tags=False):
         """Split some text into words and non-words.
@@ -97,17 +99,21 @@ class Highlighter(object):
     def _query_to_stemmed_words(self, query):
         """Convert a query to a list of stemmed words.
 
+        Stores the resulting list in self._terms
+
         - `query` is the query to parse: it may be xapian.Query object, or a
           sequence of terms.
 
         """
+        if self._query is query:
+            return
         if isinstance(query, xapian.Query):
-            return [self._strip_prefix(t) for t in query]
+            self._terms = [self._strip_prefix(t) for t in query]
         elif hasattr(query, '_get_xapian_query'):
-            return [self._strip_prefix(t) for t in query._get_xapian_query()]
+            self._terms = [self._strip_prefix(t) for t in query._get_xapian_query()]
         else:
-            return [self.stem(q.lower()) for q in query]
-
+            self._terms = [self.stem(q.lower()) for q in query]
+        self._query = query
 
     def makeSample(self, text, query, maxlen=600, hl=None):
         """Make a contextual summary from the supplied text.
@@ -128,7 +134,7 @@ class Highlighter(object):
         maxlen = int(maxlen)
 
         words = self._split_text(text, True)
-        terms = self._query_to_stemmed_words(query)
+        self._query_to_stemmed_words(query)
 
         # build blocks delimited by puncuation, and count matching words in each block
         # blocks[n] is a block [firstword, endword, charcount, termcount, selected]
@@ -138,7 +144,7 @@ class Highlighter(object):
         while end < len(words):
             blockchars += len(words[end])
             if words[end].isalnum():
-                if self.stem(words[end].lower()) in terms:
+                if self.stem(words[end].lower()) in self._terms:
                     count += 1
                 end += 1
             elif words[end] in ',.;:?!\n':
@@ -188,7 +194,7 @@ class Highlighter(object):
         if hl is None:
             return ''.join(words2)
         else:
-            return self._hl(words2, terms, hl)
+            return self._hl(words2, hl)
 
     def highlight(self, text, query, hl, strip_tags=False):
         """Add highlights (string prefix/postfix) to a string.
@@ -207,20 +213,20 @@ class Highlighter(object):
 
         """
         words = self._split_text(text, strip_tags)
-        terms = self._query_to_stemmed_words(query)
-        return self._hl(words, terms, hl)
+        self._query_to_stemmed_words(query)
+        return self._hl(words, hl)
 
-    def _hl(self, words, terms, hl):
+    def _hl(self, words, hl):
         """Add highlights to a list of words.
 
         `words` is the list of words and non-words to be highlighted..
-        `terms` is the list of stemmed words to look for.
 
         """
         for i, w in enumerate(words):
             # HACK - more forgiving about stemmed terms
             wl = w.lower()
-            if wl in terms or self.stem (wl) in terms:
+            if wl in self._terms or \
+               self.stem(wl) in self._terms:
                 words[i] = ''.join((hl[0], w, hl[1]))
 
         return ''.join(words)
