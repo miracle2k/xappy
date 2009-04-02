@@ -87,6 +87,9 @@ class SearchResult(ProcessedDocument):
         self.percent = msetitem.percent
         self._results = results
 
+        # Fields for which term and value assocs have been calculated.
+        self._tvassocs_fields = None
+
         # termassocs is a map from a term to a list of tuples of (fieldname,
         # offset, weight) of relevant data.
         self._termassocs = None
@@ -141,7 +144,7 @@ class SearchResult(ProcessedDocument):
                     assert False
 
 
-    def _calc_termvalue_assocs(self):
+    def _calc_termvalue_assocs(self, fields):
         """Calculate the term-value associations.
 
         """
@@ -151,7 +154,10 @@ class SearchResult(ProcessedDocument):
 
         # Iterate through the stored content, extracting the set of terms and
         # values which are relevant to each piece.
+        fields = set(fields)
         for field, values in self.data.iteritems():
+            if field not in fields:
+                continue
             unpdoc = UnprocessedDocument()
             for value in values:
                 unpdoc.fields.append(Field(field, value, value))
@@ -210,12 +216,33 @@ class SearchResult(ProcessedDocument):
         with some relevant data will also be returned.
 
         """
+        if isinstance(allow, basestring):
+            allow = (allow, )
+        if isinstance(deny, basestring):
+            deny = (deny, )
+        if allow is not None and len(allow) == 0:
+            allow = None
+        if deny is not None and len(deny) == 0:
+            deny = None
+        if allow is not None and deny is not None:
+            raise _errors.SearchError("Cannot specify both `allow` and `deny` "
+                                      "(got %r and %r)" % (allow, deny))
+        if allow is None:
+            allow = [key for key in self._results._conn._field_actions]
+        if deny is not None:
+            allow = [key for key in allow if key not in deny]
+
+        allow = list(allow)
+        allow.sort()
+
         if query is None:
             query = self._results._query
         conn = self._results._conn
 
-        if self._termassocs is None:
-            self._calc_termvalue_assocs()
+        if self._tvassocs_fields != allow:
+            self._tvassocs_fields = None
+            self._calc_termvalue_assocs(allow)
+            self._tvassocs_fields = allow
 
         fieldscores = {}
         fieldassocs = {}
