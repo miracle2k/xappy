@@ -159,6 +159,19 @@ class RangeAccelSearchTest(TestCase):
         self.assertTrue(3 <= val)
         self.assertTrue(val <= 4.01)
 
+    def two_range(self, field, purpose, q):
+        """Check the result of a range search which should return 2 items.
+
+        """
+        r = [x for x in q.search(0, 10)]
+        self.assertEqual(len(r), 2)
+        val = xapian.sortable_unserialise(r[0].get_value('foo', 'collsort'))
+        self.assertTrue(3 <= val)
+        self.assertTrue(val <= 4)
+        val = xapian.sortable_unserialise(r[1].get_value('foo', 'collsort'))
+        self.assertTrue(4 <= val)
+        self.assertTrue(val <= 5)
+
     def three_range(self, field, purpose, q):
         """Check the result of a range search which should return 3 items.
 
@@ -179,7 +192,8 @@ class RangeAccelSearchTest(TestCase):
         """Check an approximate, conservative, search.
 
         """
-        q = self.sconn.query_range('foo', 3, 4.01, approx=True)
+        q = self.sconn.query_range('foo', 3, 4.01, approx=True,
+                                   conservative=True)
         self.assertEqual(str(q), "Xapian::Query(0 * XA1\xa6\xa8)")
         self.single_range('foo', 'collsort', q)
 
@@ -192,11 +206,21 @@ class RangeAccelSearchTest(TestCase):
         self.assertEqual(str(q), "Xapian::Query(0 * XA1\xa6\xa8)")
         self.single_range('foo', 'collsort', q)
 
+    def test_two_entry_approx_range_non_conservative_sortable(self):
+        """Check an approximate, non-conservative, search returning 2 results.
+
+        """
+        q = self.sconn.query_range('foo', 3, 4.01, approx=True,
+                                   conservative=False)
+        self.assertEqual(str(q), "Xapian::Query(0 * ("
+                         "XA1\xa6\xa8 OR XA1\xa8\xa9))")
+        self.two_range('foo', 'collsort', q)
+
     def test_three_entry_approx_range_non_conservative_sortable(self):
         """Check an approximate, non-conservative, search returning 3 results.
 
         """
-        q = self.sconn.query_range('foo', 3, 4.01, approx=True,
+        q = self.sconn.query_range('foo', 2.99, 4.01, approx=True,
                                    conservative=False)
         self.assertEqual(str(q), "Xapian::Query(0 * (XA1\xa4\xa6 OR " +
                          "XA1\xa6\xa8 OR XA1\xa8\xa9))")
@@ -207,14 +231,29 @@ class RangeAccelSearchTest(TestCase):
 
         """
         q = self.sconn.query_range('foo', 3, 4)
-        self.assertEqual(str(q), "Xapian::Query(0 * (XA1\xa6\xa8 OR " +
-                         "VALUE_RANGE 0 \xa6 \xa8))")
+        self.assertEqual(str(q), "Xapian::Query(0 * XA1\xa6\xa8)")
         self.single_range('foo', 'collsort', q)
 
         q = self.sconn.query_range('foo', 3.01, 3.99)
+        self.assertEqual(str(q), "Xapian::Query(0 * (0 * XA1\xa6\xa8 AND "
+                         "VALUE_RANGE 0 "
+                         "\xa6\x05\x1e\xb8Q\xeb\x85 \xa7\xfa\xe1G\xae\x14{))")
+        self.single_range('foo', 'collsort', q)
+
+    def test_single_exact_range_sortable_accel_cons(self):
+        """Check an exact range search which is accelerated with the
+        conservative option.
+
+        """
+        q = self.sconn.query_range('foo', 3, 4, conservative=True)
+        self.assertEqual(str(q), "Xapian::Query(0 * XA1\xa6\xa8)")
+        self.single_range('foo', 'collsort', q)
+
+        q = self.sconn.query_range('foo', 3.01, 3.99, conservative=True)
         self.assertEqual(str(q), "Xapian::Query(VALUE_RANGE 0 " +
                          "\xa6\x05\x1e\xb8Q\xeb\x85 \xa7\xfa\xe1G\xae\x14{)")
         self.single_range('foo', 'collsort', q)
+
 
     def test_single_exact_range_sortable(self):
         """Check an exact range search which is not accelerated.
@@ -246,13 +285,23 @@ class RangeAccelSearchTest(TestCase):
         self.assertEqual(str(q), "Xapian::Query(0 * XC1\xa6\xa8)")
         self.single_range('bar', 'facet', q)
 
-    def test_three_entry_approx_facet_non_conservative_sortable(self):
-        """Check an approximate, non-conservative, search returning 3 results.
+    def test_two_entry_approx_facet_non_conservative_sortable(self):
+        """Check an approximate, non-conservative, search returning 2 results.
 
         """
         q = self.sconn.query_facet('bar', (3, 4.01), approx=True,
                                    conservative=False)
-        self.assertEqual(str(q), "Xapian::Query(0 * (XC1\xa4\xa6 OR " +
+        self.assertEqual(str(q), "Xapian::Query(0 * ("
+                         "XC1\xa6\xa8 OR XC1\xa8\xa9))")
+        self.two_range('bar', 'facet', q)
+
+    def test_three_entry_approx_facet_non_conservative_sortable(self):
+        """Check an approximate, non-conservative, search returning 3 results.
+
+        """
+        q = self.sconn.query_facet('bar', (2.99, 4.01), approx=True,
+                                   conservative=False)
+        self.assertEqual(str(q), "Xapian::Query(0 * (XC1\xa4\xa6 OR "
                          "XC1\xa6\xa8 OR XC1\xa8\xa9))")
         self.three_range('bar', 'facet', q)
 
@@ -261,8 +310,7 @@ class RangeAccelSearchTest(TestCase):
 
         """
         q = self.sconn.query_facet('bar', (3, 4))
-        self.assertEqual(str(q), "Xapian::Query(0 * (XC1\xa6\xa8 OR " +
-                         "VALUE_RANGE 1 \xa6 \xa8))")
+        self.assertEqual(str(q), "Xapian::Query(0 * XC1\xa6\xa8)")
         self.single_range('bar', 'facet', q)
 
         q = self.sconn.query_facet('bar', (3.01, 3.99))

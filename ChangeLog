@@ -1,3 +1,8 @@
+Tue Apr 07 10:02:31 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/range_accel.py,xappy/unittests/range_speed.py:
+	  Update to test the new range acceleration implementation.
+
 Tue Apr 07 10:00:47 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Improvements to the range
