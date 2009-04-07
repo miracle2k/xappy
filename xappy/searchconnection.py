@@ -1329,13 +1329,127 @@ class SearchConnection(object):
             raise _errors.SearchError("SearchConnection has been closed")
         return primary.adjust(secondary)
 
+    _RANGE_EXACT = 0 # A query exactly matching the range.
+    _RANGE_SUBSET = 1 # A query matching only a subset of the range.
+    _RANGE_SUPERSET = 2 # A query matching a superset of the range.
+    _RANGE_NONE = 3 # A query matching a none of the range.
+
+    def _build_range_query(self, prefix, ranges, query_ranges):
+        """Build a range query by converting each range into a term, and ORing
+        them together.
+
+        """
+        queries = []
+        for r in ranges:
+            term = convert_range_to_term(prefix, r[0], r[1])
+            queries.append(Query(_xapian.Query(term), _conn=self,
+                                 _ranges=query_ranges))
+        return Query.compose(_xapian.Query.OP_OR, queries)
+
+    def _build_range_query_cons(self, prefix, begin, end, ranges, query_ranges):
+        """Build an approximate range query for the given range which matches
+        a maximal subset of the range.
+
+        """
+        # Make test_fn to check if fully in range
+        if begin is not None and end is not None:
+            test_fn = lambda r: begin <= r[0] and r[1] <= end
+        elif begin is not None:
+            test_fn = (lambda r: begin <= r[0])
+        else:
+            assert end is not None
+            test_fn = (lambda r: r[1] <= end)
+        valid_ranges = filter(test_fn, ranges)
+        if len(valid_ranges) == 0:
+            return Query(_conn=self, _ranges=query_ranges) * 0, \
+                   self._RANGE_NONE
+
+        q = self._build_range_query(prefix, valid_ranges, query_ranges) * 0
+
+        min_r = min(r[0] for r in valid_ranges)
+        max_r = max(r[1] for r in valid_ranges)
+        if min_r == begin and max_r == end:
+            return q, self._RANGE_EXACT
+
+        return q, self._RANGE_SUBSET
+
+    def _build_range_query_noncons(self, prefix, begin, end, ranges, query_ranges):
+        """Build an approximate range query for the given range which matches
+        a minimal superset of the range.
+
+        Note that this is a difficult problem to solve in general, and the
+        current algorithm will often not generate the best possible set of
+        terms, if there are overlapping ranges stored.
+
+        """
+        if begin is None or end is None:
+            # Currently, don't support openended ranges here.
+            return Query(_conn=self, _ranges=query_ranges), self._RANGE_NONE
+
+        ranges = list(ranges)
+        ranges.sort(key=lambda r: (r[0], -r[1]))
+
+        curr_top = None
+        chosen_ranges = []
+        for r in ranges:
+            if end <= r[0] or begin >= r[1]:
+                continue
+            if curr_top is None:
+                chosen_ranges.append(r)
+                if begin < r[0]:
+                    # Don't have full coverage.
+                    return Query(_conn=self, _ranges=query_ranges), self._RANGE_NONE
+                curr_top = r[1]
+            elif curr_top <= r[1]:
+                if curr_top < r[0]:
+                    # Don't have full coverage.
+                    return Query(_conn=self, _ranges=query_ranges), self._RANGE_NONE
+                chosen_ranges.append(r)
+                curr_top = r[1]
+
+            if curr_top >= end:
+                break
+
+        if len(chosen_ranges) == 0:
+            return Query(_conn=self, _ranges=query_ranges), self._RANGE_NONE
+
+        q = self._build_range_query(prefix, chosen_ranges, query_ranges)
+        if chosen_ranges[0][0] == begin and chosen_ranges[-1][1] == end:
+            return q, self._RANGE_EXACT
+        return q, self._RANGE_SUPERSET
+
     def _range_accel_query(self, field, begin, end, prefix, ranges,
                            conservative, query_ranges):
         """Construct a range acceleration query.
 
-        Returns a query consisting of all range terms that fall within 'begin'
-        and 'end'.  If 'conservative', ranges must fall completely within
-        'begin' and 'end', otherwise they may merely overlap.
+        Returns a 2-tuple containing:
+
+         - a query consisting of a set of range terms approximating the range
+           'begin' to 'end'.
+         - One of _RANGE_EXACT, _RANGE_SUBSET, _RANGE_SUPERSET and _RANGE_NONE
+           to indicate whether the returned query matches the range exactly,
+           matches a (strict) subset of the range, or matches a (strict)
+           superset of the range.
+
+        If possible, an exact range will always be returned, with _RANGE_EXACT.
+
+        Otherwise, if 'conservative' is False, an attempt to build a query
+        which completely covers the specified range is performed.  If this
+        succeeds, this query will be returned, with _RANGE_SUPERSET.
+
+        If 'conservative' is True, or the attempt to cover the range fails, an
+        attempt to build a query which matches as much as possible of the
+        range, but is fully contained within the range, is performed, with
+        _RANGE_SUBSET.
+
+        If all these attempts fail (ie, the only query possible matching a
+        subset of the range is the empty query), an empty query will be
+        returned, together with _RANGE_NONE.
+
+        `query_ranges` is a description of the slot number, start and end of
+        the range search.  This is stored in a hidden attribute of the
+        generated query, and used in relevant_data() to check if a document
+        matches the range.
 
         """
         if begin is not None:
@@ -1343,32 +1457,23 @@ class SearchConnection(object):
         if end is not None:
             end = float(end)
 
-        if begin is not None and end is not None:
-            if conservative:
-                test_fn = lambda r: begin <= r[0] and r[1] <= end
-            else:
-                test_fn = lambda r: begin <= r[1] and r[0] <= end
-        elif begin is not None:
-            if conservative:
-                test_fn = (lambda r: begin <= r[0])
-            else:
-                test_fn = (lambda r: begin <= r[1])
-        elif end is not None:
-            if conservative:
-                test_fn = (lambda r: r[1] <= end)
-            else:
-                test_fn = (lambda r: r[0] <= end)
+        if begin is None and end is None:
+            # No range restriction - return a match-all query, with
+            # RANGE_EXACT.
+            return Query(_log(_xapian.Query, ''), _conn=self,
+                         _serialised=self._make_parent_func_repr("query_all"),
+                         _ranges=query_ranges) * 0, self._RANGE_EXACT
+
+        if conservative:
+            return self._build_range_query_cons(prefix, begin, end,
+                                                ranges, query_ranges)
         else:
-            return self.query_none()
-
-        valid_ranges = filter(test_fn, ranges)
-
-        queries = []
-        for r in valid_ranges:
-            term = convert_range_to_term(prefix, r[0], r[1])
-            queries.append(Query(_xapian.Query(term), _conn=self,
-                                 _ranges=query_ranges))
-        return Query.compose(_xapian.Query.OP_OR, queries)
+            q, q_type = self._build_range_query_noncons(prefix, begin, end,
+                                                        ranges, query_ranges)
+            if q_type == self._RANGE_NONE:
+                return self._build_range_query_cons(prefix, begin, end,
+                                                    ranges, query_ranges)
+            return q * 0, q_type
 
     def _get_approx_params(self, field, action):
         try:
@@ -1410,7 +1515,7 @@ class SearchConnection(object):
             del frame
 
     def query_range(self, field, begin, end, approx=False,
-                    conservative=True, accelerate=True):
+                    conservative=False, accelerate=True):
         """Create a query for a range search.
 
         This creates a query which matches only those documents which have a
@@ -1433,11 +1538,12 @@ class SearchConnection(object):
         defined.  It is an error to set 'approx' to true if no 'ranges' were
         specified at indexing time.
 
-        The 'conservative' parameter is used only if approx is True - if True,
-        the approximation will only return items which are within the range
-        (but may fail to return other items which are within the range).  If
-        False, the approximation will always include all items which are within
-        the range, but may also return others which are outside the range.
+        The 'conservative' parameter controls what kind of approximation is
+        attempted - if True, the approximation will only return items which are
+        within the range (but may fail to return other items which are within
+        the range).  If False, the approximation will always include all items
+        which are within the range, but may also return others which are
+        outside the range.
 
         The 'accelerate' parameter is used only if approx is False.  If true,
         the resulting query will be an exact range search, but will attempt to
@@ -1488,12 +1594,6 @@ class SearchConnection(object):
         # that this query is searching for.
         query_ranges = ((slot, marshalled_begin, marshalled_end),)
 
-        if accelerate and ranges is not None:
-            accel_query = self._range_accel_query(field, begin, end,
-                                                  range_accel_prefix, ranges,
-                                                  True, query_ranges)
-        else:
-            accel_query = None
 
         if approx:
             if ranges is None:
@@ -1504,11 +1604,22 @@ class SearchConnection(object):
             # so we multiply the result of this query by 0, to let Xapian know
             # that it never returns a weight other than 0.  This allows Xapian
             # to apply boolean-specific optimisations.
-            result = self._range_accel_query(field, begin, end,
-                                             range_accel_prefix, ranges,
-                                             conservative, query_ranges) * 0
-            result._set_serialised(serialised)
-            return result
+            accel_query, accel_type = \
+                self._range_accel_query(field, begin, end, range_accel_prefix,
+                                        ranges, conservative, query_ranges)
+            accel_query._set_serialised(serialised)
+            return accel_query
+
+        if accelerate and ranges is not None:
+            accel_query, accel_type = \
+                self._range_accel_query(field, begin, end, range_accel_prefix,
+                                        ranges, conservative, query_ranges)
+        else:
+            accel_type = self._RANGE_NONE
+
+        if accel_type == self._RANGE_EXACT:
+            accel_query._set_serialised(serialised)
+            return accel_query
 
         if marshalled_begin is None:
             result = Query(_log(_xapian.Query,
@@ -1525,10 +1636,15 @@ class SearchConnection(object):
                                 _xapian.Query.OP_VALUE_RANGE, slot,
                                 marshalled_begin, marshalled_end),
                            _conn=self, _ranges=query_ranges)
-        if accel_query is not None:
+
+        if accel_type == self._RANGE_SUBSET:
             result = accel_query | result
-        result = result * 0
+        if accel_type == self._RANGE_SUPERSET:
+            result = accel_query & result
+
         # As before - multiply result weights by 0 to help Xapian optimise.
+        result = result * 0
+
         result._set_serialised(serialised)
         return result
 
@@ -1869,30 +1985,35 @@ class SearchConnection(object):
             if approx:
                 if ranges is None:
                     raise errors.SearchError("Cannot do approximate range search on fields with no ranges")
-                result = self._range_accel_query(field, val[0], val[1],
-                                                 range_accel_prefix, ranges,
-                                                 conservative, query_ranges) * 0
-                result._set_serialised(serialised)
-                return result
+                accel_query, accel_type = \
+                    self._range_accel_query(field, val[0], val[1],
+                                            range_accel_prefix, ranges,
+                                            conservative, query_ranges)
+                accel_query._set_serialised(serialised)
+                return accel_query
 
             if accelerate and ranges is not None:
-                accel_query = self._range_accel_query(field, val[0], val[1],
-                                                      range_accel_prefix,
-                                                      ranges, conservative,
-                                                      query_ranges)
+                accel_query, accel_type = \
+                    self._range_accel_query(field, val[0], val[1],
+                                            range_accel_prefix,
+                                            ranges, conservative,
+                                            query_ranges)
             else:
-                accel_query = None
+                accel_type = self._RANGE_NONE
+
+            if accel_type == self._RANGE_EXACT:
+                accel_query._set_serialised(serialised)
+                return accel_query
 
             result = Query(_log(_xapian.Query,
                                 _xapian.Query.OP_VALUE_RANGE, slot,
                                 marshalled_begin, marshalled_end),
                            _conn=self, _ranges=query_ranges)
 
-            if accel_query is not None:
-                if conservative:
-                    result = accel_query | result
-                else:
-                    result = accel_query & result
+            if accel_type == self._RANGE_SUBSET:
+                result = accel_query | result
+            if accel_type == self._RANGE_SUPERSET:
+                result = accel_query & result
 
             result = result * 0
             result._set_serialised(serialised)

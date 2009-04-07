@@ -1,3 +1,11 @@
+Tue Apr 07 10:00:47 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Improvements to the range
+	  acceleration; use a superset of terms covering the range if
+	  possible, and AND this with the range restriction.  Also, if the
+	  terms cover the range exactly, don't bother with the VALUE_RANGE
+	  part.
+
 Thu Apr 02 17:54:23 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/highlight.py: Add a simple cache for stemming in
