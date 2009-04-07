@@ -1,3 +1,9 @@
+Tue Apr 07 10:13:59 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Use ranges from FACET action in
+	  query_range(), if they're not available from the
+	  SORT_AND_COLLAPSE action.
+
 Tue Apr 07 10:02:31 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/range_accel.py,xappy/unittests/range_speed.py:

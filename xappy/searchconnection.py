@@ -1555,6 +1555,9 @@ class SearchConnection(object):
 
         ranges, range_accel_prefix = \
             self._get_approx_params(field, FieldActions.SORT_AND_COLLAPSE)
+        if ranges is None:
+            ranges, range_accel_prefix = \
+                self._get_approx_params(field, FieldActions.FACET)
 
         serialised = self._make_parent_func_repr("query_range")
         try:
