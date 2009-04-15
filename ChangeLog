@@ -1,3 +1,8 @@
+Wed Apr 15 10:02:00 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/highlight.py: Add internal function to highlighter to count
+	  the number of words.
+
 Tue Apr 07 10:13:59 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Use ranges from FACET action in

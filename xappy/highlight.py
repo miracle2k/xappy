@@ -232,6 +232,21 @@ class Highlighter(object):
         self._query_to_stemmed_words(query)
         return self._hl(words, hl)
 
+    def _count_words(self, text):
+        """Count the number of words in the text which are in the query.
+
+        Ignores prefixes on terms in the query.
+
+        """
+        words = self._split_text(text, False)
+        count = 0
+        for i, w in enumerate(words):
+            wl = w.lower()
+            if wl in self._terms or \
+               self.stem(wl) in self._terms:
+                count += 1
+        return count
+
     def _hl(self, words, hl):
         """Add highlights to a list of words.
 
