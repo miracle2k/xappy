@@ -1400,15 +1400,22 @@ class SearchConnection(object):
                     # Don't have full coverage.
                     return Query(_conn=self, _ranges=query_ranges), self._RANGE_NONE
                 curr_top = r[1]
-            elif curr_top <= r[1]:
+                continue
+
+            if r[0] <= begin and chosen_ranges[0][0] <= begin:
+                # Restart, with a tighter starting point (we know it's tighter,
+                # because the starting points are in sorted ascending order).
+                chosen_ranges = [r]
+                curr_top = r[1]
+                continue
+
+            if curr_top <= r[1]:
                 if curr_top < r[0]:
                     # Don't have full coverage.
                     return Query(_conn=self, _ranges=query_ranges), self._RANGE_NONE
                 chosen_ranges.append(r)
                 curr_top = r[1]
-
-            if curr_top >= end:
-                break
+                continue
 
         if len(chosen_ranges) == 0:
             return Query(_conn=self, _ranges=query_ranges), self._RANGE_NONE

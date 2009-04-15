@@ -1,3 +1,8 @@
+Wed Apr 15 10:12:35 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Improve calculation of range terms to
+	  use to use a tighter bound when it can.
+
 Wed Apr 15 10:02:00 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/highlight.py: Add internal function to highlighter to count
