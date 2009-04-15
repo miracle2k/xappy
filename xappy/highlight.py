@@ -240,7 +240,7 @@ class Highlighter(object):
         """
         words = self._split_text(text, False)
         count = 0
-        for i, w in enumerate(words):
+        for w in words:
             wl = w.lower()
             if wl in self._terms or \
                self.stem(wl) in self._terms:

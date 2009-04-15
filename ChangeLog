@@ -1,3 +1,8 @@
+Wed Apr 15 13:06:41 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/highlight.py: Remove unneccessary use of enumerate - thanks
+	  to Shane Evans for spotting it.
+
 Wed Apr 15 10:12:35 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Improve calculation of range terms to
