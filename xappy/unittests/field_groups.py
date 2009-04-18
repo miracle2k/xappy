@@ -198,23 +198,49 @@ class TestFieldGroups(TestCase):
                          })
 
 
-        self.assertEqual(results[0].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=False),
                          (('a', ('Africa America',)),
                           ('b', ('Andes America',))))
-        self.assertEqual(results[0].relevant_data(groupnumbers=True),
+        self.assertEqual(results[0].relevant_data(groupnumbers=True,
+                                                  simple=False),
+                         (
+                          ('a', (('Africa America', None),)),
+                          ('b', (('Andes America', 0),)),
+                         ))
+        self.assertEqual(results[0].relevant_data(simple=True),
+                         (('a', ('Africa America',)),
+                          ('b', ('Andes America',))))
+        self.assertEqual(results[0].relevant_data(groupnumbers=True,
+                                                  simple=True),
                          (
                           ('a', (('Africa America', None),)),
                           ('b', (('Andes America', 0),)),
                          ))
 
         results = (q1 | q2 | q8).search(0, 10)
-        self.assertEqual(results[0].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=False),
                          (('a', ('Africa America',)),
                           ('b', ('Andes America',)),
                           ('c', ('Arctic America',)),
                          ))
 
-        self.assertEqual(results[0].relevant_data(groupnumbers=True),
+        results = (q1 | q2 | q8).search(0, 10)
+        self.assertEqual(results[0].relevant_data(simple=True),
+                         (('a', ('Africa America',)),
+                          ('b', ('Andes America',)),
+                          ('c', ('Arctic America',)),
+                         ))
+
+        self.assertEqual(results[0].relevant_data(groupnumbers=True,
+                                                  simple=False),
+                         (
+                          ('a', (('Africa America', None),)),
+                          ('b', (('Andes America', 0),)),
+                          ('c', (('Arctic America', 0),)),
+                         ))
+
+        self.assertEqual(results[0].relevant_data(groupnumbers=True,
+                                                  simple=True),
                          (
                           ('a', (('Africa America', None),)),
                           ('b', (('Andes America', 0),)),

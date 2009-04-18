@@ -123,74 +123,118 @@ class TestFieldAssociations(TestCase):
 
         # Check that the relevant data is appropriate.  For the second result,
         # the associated data should be returned.
-        self.assertEqual(results[0].relevant_data(), (('a', ('Africa America',)),))
-        self.assertEqual(results[1].relevant_data(), (('a', ('Brown Bible',)),))
+        self.assertEqual(results[0].relevant_data(simple=False), (('a', ('Africa America',)),))
+        self.assertEqual(results[0].relevant_data(simple=True), (('a', ('Africa America',)),))
+        self.assertEqual(results[1].relevant_data(simple=False), (('a', ('Brown Bible',)),))
+        self.assertEqual(results[1].relevant_data(simple=True), ())
 
         # Check a query which returns two items
         results = (q1 | q2).search(0, 10)
-        self.assertEqual(results[0].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=False),
                          (('a', ('Africa America',)),
                           ('b', ('Andes America',))))
-        self.assertEqual(results[1].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=True),
+                         (('a', ('Africa America',)),
+                          ('b', ('Andes America',))))
+        self.assertEqual(results[1].relevant_data(simple=False),
                          (('a', ('Brown Bible',)),
                           ('b', ('Bath Bible',))))
+        self.assertEqual(results[1].relevant_data(simple=True),
+                         ())
 
         results = q3.search(0, 10)
-        self.assertEqual(results[0].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=False),
                          (('e', ('1.0',)),))
-        self.assertEqual(results[1].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=True),
+                         (('e', ('1.0',)),))
+        self.assertEqual(results[1].relevant_data(simple=False),
+                         (('e', ('Sortable one',)),))
+        self.assertEqual(results[1].relevant_data(simple=True),
                          (('e', ('Sortable one',)),))
 
         results2 = q4.search(0, 10)
-        self.assertEqual(results[0].relevant_data(), results2[0].relevant_data())
-        self.assertEqual(results[1].relevant_data(), results2[1].relevant_data())
+        self.assertEqual(results[0].relevant_data(simple=False), results2[0].relevant_data(simple=False))
+        self.assertEqual(results[0].relevant_data(simple=True), results2[0].relevant_data(simple=True))
+        self.assertEqual(results[1].relevant_data(simple=False), results2[1].relevant_data(simple=False))
+        self.assertEqual(results[1].relevant_data(simple=True), results2[1].relevant_data(simple=True))
 
         results2 = q5.search(0, 10)
-        self.assertEqual(results[0].relevant_data(), results2[0].relevant_data())
-        self.assertEqual(results[1].relevant_data(), results2[1].relevant_data())
+        self.assertEqual(results[0].relevant_data(simple=False), results2[0].relevant_data(simple=False))
+        self.assertEqual(results[0].relevant_data(simple=True), results2[0].relevant_data(simple=True))
+        self.assertEqual(results[1].relevant_data(simple=False), results2[1].relevant_data(simple=False))
+        self.assertEqual(results[1].relevant_data(simple=True), results2[1].relevant_data(simple=True))
 
         results2 = q6.search(0, 10)
-        self.assertEqual(results[0].relevant_data(), results2[0].relevant_data())
-        self.assertEqual(results[1].relevant_data(), results2[1].relevant_data())
+        self.assertEqual(results[0].relevant_data(simple=False), results2[0].relevant_data(simple=False))
+        self.assertEqual(results[0].relevant_data(simple=True), results2[0].relevant_data(simple=True))
+        self.assertEqual(results[1].relevant_data(simple=False), results2[1].relevant_data(simple=False))
+        self.assertEqual(results[1].relevant_data(simple=True), results2[1].relevant_data(simple=True))
 
         results = (q1 | q3).search(0, 10)
-        self.assertEqual(results[0].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=False),
                          (('a', ('Africa America',)),
                           ('e', ('1.0',)),
                          ))
-        self.assertEqual(results[1].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=True),
+                         (('a', ('Africa America',)),
+                          ('e', ('1.0',)),
+                         ))
+        self.assertEqual(results[1].relevant_data(simple=False),
                          (('a', ('Brown Bible',)),
                           ('e', ('Sortable one',)),
                          ))
+        self.assertEqual(results[1].relevant_data(simple=True),
+                         (
+                          ('e', ('Sortable one',)),
+                         ))
+
 
         results = q7.search(0, 10)
-        self.assertEqual(results[0].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=False),
                          (('h', ('1.0',)),))
-        self.assertEqual(results[1].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=True),
+                         (('h', ('1.0',)),))
+        self.assertEqual(results[1].relevant_data(simple=False),
+                         (('h', ('Facet one',)),))
+        self.assertEqual(results[1].relevant_data(simple=True),
                          (('h', ('Facet one',)),))
 
         results = q8.search(0, 10)
         self.assertEqual(len(results), 3)
-        self.assertEqual(results[0].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=False),
                          (('c', ('Arctic America',)),))
-        self.assertEqual(results[1].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=True),
+                         (('c', ('Arctic America',)),))
+        self.assertEqual(results[1].relevant_data(simple=False),
                          (('c', ('Baptist Bible', 'Arctic America', 'Lesser Baptist',)),))
-        self.assertEqual(results[2].relevant_data(),
+        self.assertEqual(results[1].relevant_data(simple=True),
+                         (('c', ('Arctic America', )),))
+        self.assertEqual(results[2].relevant_data(simple=False),
                          (('c', ('Lesser Baptist', 'Baptist Bible', 'Arctic America',)),))
+        self.assertEqual(results[2].relevant_data(simple=True),
+                         (('c', ('Arctic America',)),))
 
         results = q9.search(0, 10)
         self.assertEqual(len(results), 1)
-        self.assertEqual(results[0].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=False),
+                         (('c', ('Baptist Bible',)),))
+        self.assertEqual(results[0].relevant_data(simple=True),
                          (('c', ('Baptist Bible',)),))
 
         results = (q8 | q9).search(0, 10)
         self.assertEqual(len(results), 3)
-        self.assertEqual(results[0].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=False),
                          (('c', ('Arctic America',)),))
-        self.assertEqual(results[1].relevant_data(),
+        self.assertEqual(results[0].relevant_data(simple=True),
+                         (('c', ('Arctic America',)),))
+        self.assertEqual(results[1].relevant_data(simple=False),
                          (('c', ('Baptist Bible', 'Arctic America', 'Lesser Baptist',)),))
-        self.assertEqual(results[2].relevant_data(),
+        self.assertEqual(results[1].relevant_data(simple=True),
+                         (('c', ('Baptist Bible', 'Arctic America',)),))
+        self.assertEqual(results[2].relevant_data(simple=False),
                          (('c', ('Baptist Bible', 'Lesser Baptist', 'Arctic America',)),))
+        self.assertEqual(results[2].relevant_data(simple=True),
+                         (('c', ('Baptist Bible', 'Arctic America',)),))
 
 
 

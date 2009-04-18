@@ -232,20 +232,19 @@ class Highlighter(object):
         self._query_to_stemmed_words(query)
         return self._hl(words, hl)
 
-    def _count_words(self, text):
-        """Count the number of words in the text which are in the query.
-
-        Ignores prefixes on terms in the query.
+    def _score_text(self, text, prefix, callback):
+        """Calculate a score for the text, assuming it was indexed with the
+        given prefix.  `callback` is a callable which returns a weight for a
+        term.
 
         """
         words = self._split_text(text, False)
-        count = 0
+        score = 0
         for w in words:
             wl = w.lower()
-            if wl in self._terms or \
-               self.stem(wl) in self._terms:
-                count += 1
-        return count
+            score += callback(prefix + wl)
+            score += callback(prefix + self.stem(wl))
+        return score
 
     def _hl(self, words, hl):
         """Add highlights to a list of words.

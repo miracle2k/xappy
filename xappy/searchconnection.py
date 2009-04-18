@@ -117,11 +117,13 @@ class SearchResult(ProcessedDocument):
                         pass
         return 'none'
 
-    def _add_termvalue_assocs(self, assocs):
+    def _add_termvalue_assocs(self, assocs, fields=None):
         """Add the associations found in assocs to those in self.
 
         """
         for fieldname, tvoffsetlist in assocs.iteritems():
+            if fields is not None and fieldname not in fields:
+                continue
             for (tv, offset), weight in tvoffsetlist.iteritems():
                 if tv[0] == 'T':
                     term = tv[1:]
@@ -142,7 +144,6 @@ class SearchResult(ProcessedDocument):
                     item.append((value, (fieldname, offset, weight)))
                 else:
                     assert False
-
 
     def _calc_termvalue_assocs(self, fields):
         """Calculate the term-value associations.
@@ -172,10 +173,153 @@ class SearchResult(ProcessedDocument):
             self._add_termvalue_assocs(pdoc._get_assocs())
 
         # Merge in the terms and values from the stored field associations.
-        self._add_termvalue_assocs(self._get_assocs())
+        self._add_termvalue_assocs(self._get_assocs(), set(fields))
+
+
+    def _relevant_data_simple(self, allow, query, groupnumbers):
+        """Calculate the relevant data using a simple (faster but less
+        accurate) algorithm.
+
+        """
+        # For each field, calculate a list of the prefixes under which terms
+        # in that field are stored.
+        allowset = set(allow)
+        prefixes_ft = {}
+        prefixes_exact = {}
+        slots = {}
+        for field in allow:
+            p = []
+            actions = self._results._conn._field_actions[field]._actions
+            is_ft = None
+            for action, kwargslist in actions.iteritems():
+                if action == FieldActions.INDEX_FREETEXT:
+                    is_ft = True
+                    for kwargs in kwargslist:
+                        if kwargs.get('search_by_default', True):
+                            p.append('')
+                        if kwargs.get('allow_field_specific', True):
+                            p.append(self._fieldmappings.get_prefix(field))
+                if action == FieldActions.INDEX_EXACT:
+                    is_ft = False
+                    for kwargs in kwargslist:
+                        p.append(self._fieldmappings.get_prefix(field))
+                if action == FieldActions.FACET:
+                    for kwargs in kwargslist:
+                        if kwargs.get('type') == 'float':
+                            try:
+                                slots[self._fieldmappings.get_slot(field, 'facet')] = field
+                            except KeyError: pass
+                if action == FieldActions.SORT_AND_COLLAPSE:
+                    for kwargs in kwargslist:
+                        if kwargs.get('type') == 'float':
+                            try:
+                                slots[self._fieldmappings.get_slot(field, 'collsort')] = field
+                            except KeyError: pass
+            if is_ft is True:
+                prefixes_ft[field] = p
+            elif is_ft is False:
+                prefixes_exact[field] = p
+
+        # For each term in the query, get the weight, and store it in a
+        # dictionary.
+        queryweights = {}
+        for term in query._get_terms():
+            try:
+                queryweights[term] = self._results._mset.get_termweight(term)
+            except errors.XapianError:
+                pass
+
+        # Build relevant_items, a dictionary keyed by (field, offset) pairs,
+        # with values being the weights for the text at that offset in the
+        # field.
+        # Also build field_scores, a dictionary counting the sum of the score
+        # for each field.
+        relevant_items = {}
+        field_scores = {}
+        for field, values in self.data.iteritems():
+            if field not in allowset:
+                continue
+            hl = _highlight.Highlighter(language_code=self._get_language(field))
+            for i, value in enumerate(values):
+                score = 0
+                for prefix in prefixes_ft.get(field, ()):
+                    score += hl._score_text(value, prefix, lambda term:
+                                            queryweights.get(term, 0))
+                for prefix in prefixes_exact.get(field, ()):
+                    term = prefix
+                    if len(value) > 0:
+                        chval = ord(value[0])
+                        if chval >= ord('A') and chval <= ord('Z'):
+                            term += ':'
+                    term += value
+                    if term in queryweights:
+                        score += 1
+                if score > 0:
+                    relevant_items.setdefault(field, []).append((-score, i))
+                    field_scores[field] = field_scores.get(field, 0) + score
+
+        # Iterate through the ranges in the query, checking them.
+        for slot, begin, end in query._get_ranges():
+            field = slots.get(slot)
+            if field is None:
+                continue
+            value = self._doc.get_value(slot)
+            in_range = False
+            if begin is None:
+                if end is None:
+                    in_range = True
+                elif value <= end:
+                    in_range = True
+            elif begin <= value:
+                if end is None:
+                    in_range = True
+                elif value <= end:
+                    in_range = True
+            if in_range:
+                relevant_items.setdefault(field, []).append((-1, 0))
+                field_scores[field] = field_scores.get(field, 0) + 1
+
+        # Build a list of the fields which match the query, counting the number
+        # of clauses they match.
+        scoreditems = [(-score, field)
+                       for field, score in field_scores.iteritems()]
+        scoreditems.sort()
+
+        if groupnumbers:
+            # First, build a dict from (field, offset) to group number
+            if self._grouplu is None:
+                self._grouplu = self._calc_group_lookup()
+
+            # keyed by fieldname, values are sets of offsets for that field
+            relevant_offsets = {}
+
+            for score, field in scoreditems:
+                for weight, offset in relevant_items[field]:
+                    relevant_offsets.setdefault(field, {})[offset] = weight, None
+                    groupnums = self._grouplu.get((field, offset), None)
+                    if groupnums is not None:
+                        for gn in groupnums:
+                            for groupfield, groupoffset in self._get_groups()[gn]:
+                                relevant_offsets.setdefault(groupfield, {})[groupoffset] = weight, gn
+
+            result = []
+            for score, field in scoreditems:
+                fielddata = [(-weight, self.data[field][offset], groupnum) for offset, (weight, groupnum) in relevant_offsets[field].iteritems()]
+                del relevant_offsets[field]
+                fielddata.sort()
+                result.append((field, tuple((data, groupnum) for weight, data, groupnum in fielddata)))
+        else:
+            # Return the relevant data for each field.
+            result = []
+            for score, field in scoreditems:
+                fielddata = relevant_items[field]
+                fielddata.sort()
+                result.append((field, tuple(self.data[field][offset]
+                                            for weight, offset in fielddata)))
+        return tuple(result)
 
     def relevant_data(self, allow=None, deny=None, query=None,
-                      groupnumbers=False):
+                      groupnumbers=False, simple=True):
         """Return field data which was relevant for this result.
 
         This will return a tuple of fields which have data stored for them
@@ -239,6 +383,9 @@ class SearchResult(ProcessedDocument):
             query = self._results._query
         conn = self._results._conn
 
+        if simple:
+            return self._relevant_data_simple(allow, query, groupnumbers)
+
         if self._tvassocs_fields != allow:
             self._tvassocs_fields = None
             self._calc_termvalue_assocs(allow)
@@ -286,8 +433,6 @@ class SearchResult(ProcessedDocument):
         result = []
 
         if groupnumbers:
-            # Look for any data items which are in a group, and add the other
-            # members of the group, if found.
             # First, build a dict from (field, offset) to group number
             if self._grouplu is None:
                 self._grouplu = self._calc_group_lookup()
