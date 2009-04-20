@@ -1,3 +1,11 @@
+Mon Apr 20 12:54:07 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fieldactions.py,xappy/unittests/field_associations.py: Add
+	  "link_associations" parameter to STORE_CONTENT.  Defaults to
+	  True, but if False this stops associated field data being stored
+	  as an extra item in the document contents.  Use this if you don't
+	  want to use relevant_data() with simple=False.
+
 Wed Apr 15 13:06:41 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/highlight.py: Remove unneccessary use of enumerate - thanks

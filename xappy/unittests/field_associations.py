@@ -28,6 +28,8 @@ class TestFieldAssociations(TestCase):
         iconn.add_field_action('g', xappy.FieldActions.STORE_CONTENT)
         iconn.add_field_action('h', xappy.FieldActions.STORE_CONTENT)
         iconn.add_field_action('i', xappy.FieldActions.STORE_CONTENT)
+        iconn.add_field_action('j', xappy.FieldActions.STORE_CONTENT,
+                               link_associations=False)
 
         iconn.add_field_action('a', xappy.FieldActions.INDEX_FREETEXT)
         iconn.add_field_action('b', xappy.FieldActions.INDEX_FREETEXT)
@@ -39,6 +41,7 @@ class TestFieldAssociations(TestCase):
         iconn.add_field_action('h', xappy.FieldActions.FACET, type="float")
         iconn.add_field_action('i', xappy.FieldActions.INDEX_FREETEXT,
                                allow_field_specific=False)
+        iconn.add_field_action('j', xappy.FieldActions.INDEX_FREETEXT)
 
         doc = xappy.UnprocessedDocument()
         doc.extend((('a', 'Africa America'),
@@ -49,6 +52,7 @@ class TestFieldAssociations(TestCase):
                     ('f', 'Ave'),
                     ('g', 'Atlantic'),
                     ('h', '1.0'),
+                    ('j', 'Africa America'),
                    ))
         iconn.add(doc)
 
@@ -63,6 +67,7 @@ class TestFieldAssociations(TestCase):
                     ('f', 'Ave', 'Blvd'),
                     ('g', 'Atlantic', 'British'),
                     ('h', '1.0', 'Facet one'),
+                    ('j', 'Africa America', 'Brown Bible'),
                    ))
         iconn.add(doc)
 
@@ -112,6 +117,7 @@ class TestFieldAssociations(TestCase):
         q7 = self.sconn.query_facet('h', (0.0, 2.0))
         q8 = self.sconn.query_field('c', 'Arctic America')
         q9 = self.sconn.query_field('c', 'Baptist Bible')
+        q10 = self.sconn.query_field('j', 'america')
 
         # Check an internal detail
         results = q1.search(0, 10)
@@ -126,6 +132,24 @@ class TestFieldAssociations(TestCase):
         self.assertEqual(results[0].relevant_data(simple=False), (('a', ('Africa America',)),))
         self.assertEqual(results[0].relevant_data(simple=True), (('a', ('Africa America',)),))
         self.assertEqual(results[1].relevant_data(simple=False), (('a', ('Brown Bible',)),))
+        self.assertEqual(results[1].relevant_data(simple=True), ())
+
+        # Check an internal detail - there shouldn't be any associations for
+        # the j field.
+        results = q10.search(0, 10)
+        self.assertEqual(results[0]._get_assocs(), {})
+        self.assertNotEqual(results[1]._get_assocs(), {})
+        self.assertEqual(results[1]._get_assocs().get('j'), None)
+
+        # Check that grouped_data is the same as data when there's no group.
+        self.assertEqual(results[0].data, results[0].grouped_data[0])
+        self.assertEqual(results[1].data, results[1].grouped_data[0])
+
+        # Check that the relevant data is appropriate.  For the second result,
+        # the associated data should be returned.
+        self.assertEqual(results[0].relevant_data(simple=False), ())
+        self.assertEqual(results[0].relevant_data(simple=True), (('j', ('Africa America',)),))
+        self.assertEqual(results[1].relevant_data(simple=False), ())
         self.assertEqual(results[1].relevant_data(simple=True), ())
 
         # Check a query which returns two items

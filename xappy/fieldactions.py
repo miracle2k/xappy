@@ -32,8 +32,14 @@ except ImportError:
     pass
 import parsedate
 
-def _act_store_content(fieldname, doc, field, context):
+def _act_store_content(fieldname, doc, field, context, link_associations=True):
     """Perform the STORE_CONTENT action.
+
+    If link_associations is True, and the field has an associated value, store
+    information linking the associated value to the terms which are indexed.
+    This allows SearchResult.relevant_data() to return items which are relevant
+    based on the terms which are indexed, rather than on the associated value
+    which is stored.
 
     """
     try:
@@ -54,10 +60,10 @@ def _act_store_content(fieldname, doc, field, context):
         fielddata.append(toappend)
 
     # Store the index of the data.
-    if field.assoc is None:
-        context.currfield_assoc = None
-    else:
+    if link_associations and field.assoc is not None:
         context.currfield_assoc = idx
+    else:
+        context.currfield_assoc = None
 
     # Add the index of the data to the field group.
     if context.currfield_group is not None:
@@ -671,7 +677,7 @@ class FieldActions(object):
                 info[2](self._fieldname, doc, field, context, **kwargs)
 
     _action_info = {
-        STORE_CONTENT: ('STORE_CONTENT', (), _act_store_content, {}, ),
+        STORE_CONTENT: ('STORE_CONTENT', ('link_associations', ), _act_store_content, {}, ),
         INDEX_EXACT: ('INDEX_EXACT', (), _act_index_exact, {'prefix': True}, ),
         INDEX_FREETEXT: ('INDEX_FREETEXT', ('weight', 'language', 'stop', 'spell', 'nopos', 'allow_field_specific', 'search_by_default', ),
             _act_index_freetext, {'prefix': True, }, ),
