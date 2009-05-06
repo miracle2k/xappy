@@ -1,3 +1,8 @@
+Wed May 06 11:11:48 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Fix serialisation of query_difference
+	  queries, and add an optional "weight" parameter to query_all().
+
 Mon Apr 20 12:54:07 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/fieldactions.py,xappy/unittests/field_associations.py: Add

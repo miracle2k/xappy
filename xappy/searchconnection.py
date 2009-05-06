@@ -1880,6 +1880,7 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
+        serialised = self._make_parent_func_repr("query_difference")
 
         actions_map = {'collsort': FieldActions.SORT_AND_COLLAPSE,
                        'facet': FieldActions.FACET}
@@ -1893,8 +1894,10 @@ class SearchConnection(object):
                                    "on fields with no ranges")
             if isinstance(difference_func, basestring):
                 difference_func = eval('lambda x, y: ' + difference_func)
-            return self._difference_accel_query(ranges, range_accel_prefix,
-                                                val, difference_func, num)
+            result = self._difference_accel_query(ranges, range_accel_prefix,
+                                                  val, difference_func, num)
+            result._set_serialised(serialised)
+            return result
         else:
             # not approx
             # NOTE - very slow: needs to be implemented in C++.
@@ -1911,7 +1914,9 @@ class SearchConnection(object):
                     difference = difference_func(val, doc_val)
                     return 1.0 / (abs(difference) + 1.0)
 
-            return self.query_external_weight(DifferenceWeight())
+            result = self.query_external_weight(DifferenceWeight())
+            result._set_serialised(serialised)
+            return result
 
     @staticmethod
     def calc_distance(location1, location2):
@@ -2725,12 +2730,25 @@ class SearchConnection(object):
         return Query(_log(_xapian.Query, postingsource),
                      _refs=[postingsource], _conn=self, _serialised=serialised)
 
-    def query_all(self):
+    def query_all(self, weight=None):
         """A query which matches all the documents in the database.
 
+        Such a query will normally return a weight of 0 for each document.
+        However, it can be made to return a specific, fixed, weight by passing
+        in a `weight` parameter.
+
         """
-        return Query(_log(_xapian.Query, ''), _conn=self,
-                     _serialised = self._make_parent_func_repr("query_all"))
+        serialised = self._make_parent_func_repr("query_all")
+        all_query = Query(_log(_xapian.Query, ''), _conn=self,
+                          _serialised = serialised)
+        if weight is not None and weight > 0:
+            postingsource = _xapian.FixedWeightPostingSource(weight)
+            fixedwt_query = Query(_log(_xapian.Query, postingsource),
+                           _refs=[postingsource], _conn=self)
+            result = fixedwt_query.filter(all_query)
+            result._set_serialised(serialised)
+            return result
+        return all_query
 
     def query_none(self):
         """A query which matches no documents in the database.
