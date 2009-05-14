@@ -1,3 +1,8 @@
+Thu May 14 19:18:52 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/datastructures.py: Fallback to importing sha instead of
+	  hashlib, for python 2.4 compatibility.
+
 Mon May 11 10:49:56 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/get_xapian.py,utils/make_xappy_tarballs: New branchpoint and

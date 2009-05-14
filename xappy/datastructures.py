@@ -20,7 +20,11 @@ r"""datastructures.py: Datastructures for search engine core.
 """
 __docformat__ = "restructuredtext en"
 
-import hashlib
+try:
+    # hashlib is only in 2.5 onwards
+    from hashlib import sha1 as hashlib_sha1
+except ImportError:
+    from sha import sha as hashlib_sha1
 import errors
 from replaylog import log
 from fields import Field, FieldGroup
@@ -381,7 +385,7 @@ class ProcessedDocument(object):
 
         """
         self.prepare()
-        sha1 = hashlib.sha1()
+        sha1 = hashlib_sha1()
         if hasattr(self._doc, 'serialise'):
             sha1.update(self._doc.serialise())
         else:
