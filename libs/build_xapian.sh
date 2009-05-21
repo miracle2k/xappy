@@ -4,12 +4,12 @@ PYTHON="${PYTHON=python}"
 instdir="`pwd`/install/usr"
 pythonver=`$PYTHON -c 'import sys;print sys.version[:3]'`
 
-mkdir build
+[ ! -d build ] && mkdir build
 cd build
-mkdir xapian-core
-mkdir xapian-bindings
-mkdir xapian-extras
-mkdir xapian-extras-bindings
+[ ! -d xapian-core ] && mkdir xapian-core
+[ ! -d xapian-bindings ] && mkdir xapian-bindings
+[ ! -d xapian-extras ] && mkdir xapian-extras
+[ ! -d xapian-extras-bindings ] && mkdir xapian-extras-bindings
 
 cd xapian-core
 ../../xapian-core/configure --prefix=$instdir
