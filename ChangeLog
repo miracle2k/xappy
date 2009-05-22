@@ -1,3 +1,11 @@
+Fri May 22 13:16:30 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py,xappy/unittests/diversity.py: Add
+	  support for "collapse_max" parameter to search, to allow more
+	  than 1 hit to be returned in each collapse category.  Also, add a
+	  new "reorder_by_collapse" to reorder the results to acheive
+	  maximum diversity based on the hits returned.
+
 Thu May 21 06:39:33 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/build_xapian.sh,libs/get_xapian.py: Update xapian packages.

@@ -688,6 +688,105 @@ class SearchResults(object):
             clusters[clusterid].append(item.rank)
         return clusters
 
+    def _reorder_by_collapse(self, 
+                             highest_possible_percentage = 50.0
+                            ):
+        """Reorder the result by the values in the slot used to collapse on.
+
+        `highest_possible_percentage` is a tuning variable - we need to get an
+        estimate of the probability that a particular hit satisfies the query.
+        We use the relevance score for this estimate, but this requires us to
+        pick a value for the top hit.  This variable specifies that percentage.
+
+        """
+
+        if self.startrank != 0:
+            raise _errors.SearchError("startrank must be zero to reorder by collapse")
+        if not hasattr(self, "collapse_max"):
+            raise _errors.SearchError("A collapse must have been performed on the search in order to use _reorder_by_collapse")
+
+        if self.collapse_max == 1:
+            # No reordering to do - we're already fully diverse according to
+            # the values in the slot.
+            return
+
+        if self.endrank <= 1:
+            # No reordering to do - 0 or 1 items.
+            return
+
+        topweight = self._mset.get_hit(0).weight
+        toppct = self._mset.get_hit(0).percent
+        if topweight == 0 or toppct == 0:
+            # No weights, so no reordering to do.
+            # FIXME - perhaps we should pick items from each bin in turn until
+            # the bins run out?  Not sure this is useful in any real situation,
+            # though.
+            return
+
+        maxweight = topweight * 100.0 * 100.0 / highest_possible_percentage / float(toppct)
+
+        # utility of each category; initially, this is the probability that the
+        # category is relevant.
+        utilities = {}
+        pqc_sum = 0.0
+
+        # key is the collapse key, value is a list of (rank, weight) tuples,
+        # in that collapse bin.
+        collapse_bins = {}
+
+        # Fill collapse_bins.
+        for i in xrange(self.endrank):
+            hit = self._mset.get_hit(i)
+            category = hit.collapse_key
+            try:
+                l = collapse_bins[category]
+            except KeyError:
+                l = []
+                collapse_bins[category] = l
+                utilities[category] = hit.weight
+                pqc_sum += hit.weight
+            l.append((i, hit.weight / maxweight))
+
+        # Nomalise the probabilities for each query category, so they add up to
+        # 1.
+        utilities = dict((k, v / pqc_sum)
+                         for (k, v)
+                         in utilities.iteritems())
+
+        new_order = []
+        while len(collapse_bins) != 0:
+            # The potential next hits are the ones at the top of each
+            # collapse_bin.
+
+            # Calculate scores for the potential next hits.  These are the top
+            # weighted hits in each category.
+            # FIXME - we only actually need to recalculate "potentials" for the
+            # category which has changed since the last iteration through the
+            # main loop.
+            potentials = {}
+            for category, l in collapse_bins.iteritems():
+                wt = l[0][1] # weight of the top item
+                score = wt * utilities[category] # current utility of the category
+                potentials[category] = (l[0][0], score, wt)
+
+            # Pick the next category to use, by finding the maximum score
+            # (breaking ties by choosing the highest ranked one in the original
+            # order).
+            next_cat, (next_i, next_score, next_wt) = max(potentials.iteritems(), key=lambda x: (x[1][1], -x[1][0]))
+
+            # Update the utility of the chosen category
+            utilities[next_cat] *= (1.0 - next_wt)
+            
+            # Move the newly picked item from collapse_bins to new_order
+            new_order.append(next_i)
+            l = collapse_bins[next_cat]
+            if len(l) <= 1:
+                del collapse_bins[next_cat]
+            else:
+                collapse_bins[next_cat] = l[1:]
+
+        self._mset_order = new_order
+
     def _reorder_by_clusters(self, clusters):
         """Reorder the mset based on some clusters.
 
@@ -3019,7 +3118,7 @@ class SearchConnection(object):
                gettags=None,
                getfacets=None, allowfacets=None, denyfacets=None, usesubfacets=None,
                percentcutoff=None, weightcutoff=None,
-               query_type=None, weight_params=None):
+               query_type=None, weight_params=None, collapse_max=1):
         """Perform a search, for documents matching a query.
 
         - `query` is the query to perform.
@@ -3045,8 +3144,10 @@ class SearchConnection(object):
           key, and use subsequent fields only when all the earlier fields have
           the same value in each document.
         - `collapse` is the name of a field to collapse the result documents
-          on.  If this is specified, there will be at most one result in the
-          result set for each value of the field.
+          on.  If this is specified, there will be at most `collapse_max`
+          results in the result set for each value of the field.
+        - `collapse_max` is the maximum number of items to allow in each
+          collapse category.
         - `gettags` is the name of a field to count tag occurrences in, or a
           list of fields to do so.
         - `getfacets` is a boolean - if True, the matching documents will be
@@ -3132,10 +3233,14 @@ class SearchConnection(object):
 
         if collapse is not None:
             try:
-                slotnum = self._field_mappings.get_slot(collapse, 'collsort')
+                collapse_slotnum = self._field_mappings.get_slot(collapse, 'collsort')
             except KeyError:
                 raise _errors.SearchError("Field %r was not indexed for collapsing" % collapse)
-            enq.set_collapse_key(slotnum)
+            if collapse_max == 1:
+                # Backwards compatibility - only this form existed before 1.1.0
+                enq.set_collapse_key(collapse_slotnum)
+            else:
+                enq.set_collapse_key(collapse_slotnum, collapse_max)
 
         maxitems = max(endrank - startrank, 0)
         # Always check for at least one more result, so we can report whether
@@ -3264,10 +3369,16 @@ class SearchConnection(object):
         if usesubfacets:
             facet_hierarchy = self._facet_hierarchy
 
-        return SearchResults(self, enq, query, mset, self._field_mappings,
-                             tagspy, gettags, facetspy, facetfields,
-                             facet_hierarchy,
-                             self._facet_query_table.get(query_type))
+        res = SearchResults(self, enq, query, mset, self._field_mappings,
+                            tagspy, gettags, facetspy, facetfields,
+                            facet_hierarchy,
+                            self._facet_query_table.get(query_type))
+
+        if collapse is not None:
+            res.collapse_slotnum = collapse_slotnum
+            res.collapse_max = collapse_max
+
+        return res
 
     def iterids(self):
         """Get an iterator which returns all the ids in the database.
