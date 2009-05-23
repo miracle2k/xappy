@@ -743,9 +743,12 @@ class SearchResults(object):
             except KeyError:
                 l = []
                 collapse_bins[category] = l
-                utilities[category] = hit.weight
-                pqc_sum += hit.weight
+                if i < 100:
+                    utilities[category] = hit.weight
+                    pqc_sum += hit.weight
             l.append((i, hit.weight / maxweight))
+
+        pqc_sum /= 0.99 # Leave 1% probability for other categories
 
         # Nomalise the probabilities for each query category, so they add up to
         # 1.
@@ -766,7 +769,7 @@ class SearchResults(object):
             potentials = {}
             for category, l in collapse_bins.iteritems():
                 wt = l[0][1] # weight of the top item
-                score = wt * utilities[category] # current utility of the category
+                score = wt * utilities.get(category, 0.01) # current utility of the category
                 potentials[category] = (l[0][0], score, wt)
 
             # Pick the next category to use, by finding the maximum score
@@ -775,7 +778,7 @@ class SearchResults(object):
             next_cat, (next_i, next_score, next_wt) = max(potentials.iteritems(), key=lambda x: (x[1][1], -x[1][0]))
 
             # Update the utility of the chosen category
-            utilities[next_cat] *= (1.0 - next_wt)
+            utilities[next_cat] = (1.0 - next_wt) * utilities.get(next_cat, 0.01)
             
             # Move the newly picked item from collapse_bins to new_order
             new_order.append(next_i)
