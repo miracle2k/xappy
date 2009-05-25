@@ -3451,7 +3451,7 @@ class SearchConnection(object):
                     try:
                         postlist.next()
                         raise _errors.IndexerError("Multiple documents "
-                                                   "found with same unique ID")
+                                                   "found with same unique ID: %r" % docid)
                     except StopIteration:
                         # Only one instance of the unique ID found, as it
                         # should be.

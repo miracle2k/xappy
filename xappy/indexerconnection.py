@@ -691,7 +691,7 @@ class IndexerConnection(object):
         try:
             postlist.next()
             raise errors.IndexerError("Multiple documents " #pragma: no cover
-                                       "found with same unique ID")
+                                       "found with same unique ID: %r"% id)
         except StopIteration:
             # Only one instance of the unique ID found, as it should be.
             pass
