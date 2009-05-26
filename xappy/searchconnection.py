@@ -756,21 +756,18 @@ class SearchResults(object):
                          for (k, v)
                          in utilities.iteritems())
 
+        # Calculate scores for the potential next hits.  These are the top
+        # weighted hits in each category.
+        potentials = {}
+        for category, l in collapse_bins.iteritems():
+            wt = l[0][1] # weight of the top item
+            score = wt * utilities.get(category, 0.01) # current utility of the category
+            potentials[category] = (l[0][0], score, wt)
+
         new_order = []
         while len(collapse_bins) != 0:
             # The potential next hits are the ones at the top of each
             # collapse_bin.
-
-            # Calculate scores for the potential next hits.  These are the top
-            # weighted hits in each category.
-            # FIXME - we only actually need to recalculate "potentials" for the
-            # category which has changed since the last iteration through the
-            # main loop.
-            potentials = {}
-            for category, l in collapse_bins.iteritems():
-                wt = l[0][1] # weight of the top item
-                score = wt * utilities.get(category, 0.01) # current utility of the category
-                potentials[category] = (l[0][0], score, wt)
 
             # Pick the next category to use, by finding the maximum score
             # (breaking ties by choosing the highest ranked one in the original
@@ -785,8 +782,12 @@ class SearchResults(object):
             l = collapse_bins[next_cat]
             if len(l) <= 1:
                 del collapse_bins[next_cat]
+                del potentials[next_cat]
             else:
                 collapse_bins[next_cat] = l[1:]
+                wt = l[1][1] # weight of the top item
+                potentials[next_cat] = (l[1][0],
+                                        wt * utilities.get(next_cat, 0.01), wt)
 
         self._mset_order = new_order
 
