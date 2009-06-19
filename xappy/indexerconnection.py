@@ -790,17 +790,19 @@ class PrefixedTermIter(object):
     """Iterate through all the terms with a given prefix.
 
     """
-    def __init__(self, prefix, termiter):
+    def __init__(self, prefix, termiter, trimlen=None):
         """Initialise the prefixed term iterator.
 
         - `prefix` is the prefix to return terms for.
         - `termiter` is a xapian TermIterator, which should be at its start.
-
+        - `trimlen` is the length to trim from the term prefix. If not supplied, 
+           Xappy will trim off the entire prefix (and any : separator if present). 
         """
         self._started = False
         self._prefix = prefix
         self._prefixlen = len(prefix)
         self._termiter = termiter
+        self._trimlen = trimlen
 
     def __iter__(self):
         return self
@@ -823,6 +825,10 @@ class PrefixedTermIter(object):
                 term = self._termiter.next().term
         if len(term) < self._prefixlen or term[:self._prefixlen] != self._prefix:
             raise StopIteration
+
+        if self._trimlen:
+            return term[self._trimlen:]
+            
         if self._prefixlen > 1 and \
            len(term) > self._prefixlen and \
            term[self._prefixlen] == ':':

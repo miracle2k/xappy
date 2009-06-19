@@ -3516,7 +3516,7 @@ class SearchConnection(object):
             except _xapian.DatabaseModifiedError, e:
                 self.reopen()
 
-    def iter_terms_for_field(self, field):
+    def iter_terms_for_field(self, field, starts_with=''):
         """Return an iterator over the terms that a field has in the index.
 
         Values are returned in sorted order (sorted by lexicographical binary
@@ -3526,7 +3526,11 @@ class SearchConnection(object):
         if self._index is None:
             raise _errors.IndexerError("SearchConnection has been closed")
         prefix = self._field_mappings.get_prefix(field)
-        return PrefixedTermIter(prefix, self._index.allterms(prefix))
+        if starts_with[:1].isupper() or starts_with[:1] == ':':
+            prefix += ':'
+        trimlen = len(prefix)
+        prefix += starts_with
+        return PrefixedTermIter(prefix, self._index.allterms(prefix), trimlen)
 
     def query_valuemap(self, field, weightmap, default_weight=None):
         """Return a query consisting of a value map posting source.
