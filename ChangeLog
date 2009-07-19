@@ -1,9 +1,16 @@
+Sun Jul 19 10:23:05 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py,xappy/searchconnection.py: Apply
+	  trimming of the terms in PrefixedTermIterator after removing the
+	  prefix, instead of before.  Allows the special handling for
+	  colons to work correctly.
+
 Fri Jun 19 11:14:51 BST 2009  Tom Mortimer <tom@flax.co.uk>
 
-    * xappy/indexerconnection.py: Allow PrefixedTermIter to take an 
-      explicit trim length (for removing prefix).
-    * xappy/searchconnection.py: Added optional starts_with parameter
-      to iter_terms_for_field().
+	* xappy/indexerconnection.py: Allow PrefixedTermIter to take an
+	  explicit trim length (for removing prefix).
+	* xappy/searchconnection.py: Added optional starts_with parameter
+	  to iter_terms_for_field().
 
 Tue May 26 07:54:48 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 

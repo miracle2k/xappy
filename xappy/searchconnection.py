@@ -3526,10 +3526,7 @@ class SearchConnection(object):
         if self._index is None:
             raise _errors.IndexerError("SearchConnection has been closed")
         prefix = self._field_mappings.get_prefix(field)
-        if starts_with[:1].isupper() or starts_with[:1] == ':':
-            prefix += ':'
-        trimlen = len(prefix)
-        prefix += starts_with
+        trimlen = len(starts_with)
         return PrefixedTermIter(prefix, self._index.allterms(prefix), trimlen)
 
     def query_valuemap(self, field, weightmap, default_weight=None):
