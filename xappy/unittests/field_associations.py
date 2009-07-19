@@ -24,7 +24,6 @@ class TestFieldAssociations(TestCase):
         iconn.add_field_action('c', xappy.FieldActions.STORE_CONTENT)
         iconn.add_field_action('d', xappy.FieldActions.STORE_CONTENT)
         iconn.add_field_action('e', xappy.FieldActions.STORE_CONTENT)
-        iconn.add_field_action('f', xappy.FieldActions.STORE_CONTENT)
         iconn.add_field_action('g', xappy.FieldActions.STORE_CONTENT)
         iconn.add_field_action('h', xappy.FieldActions.STORE_CONTENT)
         iconn.add_field_action('i', xappy.FieldActions.STORE_CONTENT)
@@ -36,7 +35,6 @@ class TestFieldAssociations(TestCase):
         iconn.add_field_action('c', xappy.FieldActions.INDEX_EXACT)
         iconn.add_field_action('d', xappy.FieldActions.SORTABLE, type="string")
         iconn.add_field_action('e', xappy.FieldActions.SORTABLE, type="float")
-        iconn.add_field_action('f', xappy.FieldActions.TAG)
         iconn.add_field_action('g', xappy.FieldActions.FACET, type="string")
         iconn.add_field_action('h', xappy.FieldActions.FACET, type="float")
         iconn.add_field_action('i', xappy.FieldActions.INDEX_FREETEXT,
@@ -49,7 +47,6 @@ class TestFieldAssociations(TestCase):
                     ('c', 'Arctic America'),
                     ('d', 'Australia'),
                     ('e', '1.0'),
-                    ('f', 'Ave'),
                     ('g', 'Atlantic'),
                     ('h', '1.0'),
                     ('j', 'Africa America'),
@@ -64,7 +61,6 @@ class TestFieldAssociations(TestCase):
                     ('c', 'Arctic America'),
                     ('d', 'Australia', 'Braille'),
                     ('e', '1.0', 'Sortable one'),
-                    ('f', 'Ave', 'Blvd'),
                     ('g', 'Atlantic', 'British'),
                     ('h', '1.0', 'Facet one'),
                     ('j', 'Africa America', 'Brown Bible'),

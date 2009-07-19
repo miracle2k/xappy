@@ -42,8 +42,6 @@ Open a connection for indexing:
 >>> iconn.add_field_action('facet7', FieldActions.FACET)
 >>> iconn.add_field_action('facet8', FieldActions.FACET, type='float')
 
->>> iconn.add_field_action('tag', FieldActions.TAG)
-
 # Add this, for a regression test.
 >>> iconn.add_field_action('facet9', FieldActions.FACET, type='float')
 >>> iconn.add_field_action('facet9', FieldActions.SORTABLE)
@@ -80,9 +78,6 @@ Add a set of documents, which dates and prices, to test sorting:
 ...     doc.fields.append(Field('facet8', '2001'))
 ...     doc.fields.append(Field('facet8', '%d' % (i % 2)))
 ...     doc.fields.append(Field('facet9', '%d' % (i // 5)))
-...     doc.fields.append(Field('tag', '%d' % (i % 5)))
-...     doc.fields.append(Field('tag', '%d' % (i % 9)))
-...     doc.fields.append(Field('tag', '%d' % (i // 5)))
 ...     id = iconn.add(doc)
 ...     id = iconn2.add(doc)
 
@@ -178,13 +173,11 @@ Now, parse a simple query.
 
 
 
-Get a list of the facets and tags relevant for the search
+Get a list of the facets relevant for the search
 >>> results2 = sconn.search(sconn.query_all(), 0, 30, checkatleast=200,
-...                         sortby="-date", gettags=('tag'), getfacets=True)
+...                         sortby="-date", getfacets=True)
 >>> [int(result.id, 16) for result in results2]
 [191, 179, 167, 155, 143, 131, 119, 107, 95, 83, 71, 59, 47, 35, 23, 11, 190, 178, 166, 154, 142, 130, 118, 106, 94, 82, 70, 58, 46, 34]
->>> results2.get_top_tags('tag', 8)
-[('0', 62), ('1', 62), ('3', 61), ('2', 60), ('4', 60), ('5', 27), ('7', 27), ('6', 26)]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=10)]
 [('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('facet9', 4), ('price', 4), ('facet8', 2), ('facet3', 17), ('category', 20), ('facet5', 40)]

@@ -57,8 +57,6 @@ class TestPercent(TestCase):
         iconn.add_field_action('facet7', xappy.FieldActions.FACET)
         iconn.add_field_action('facet8', xappy.FieldActions.FACET, type='float')
 
-        iconn.add_field_action('tag', xappy.FieldActions.TAG) 
-
         iconn.add_field_action('facet9', xappy.FieldActions.FACET, type='float')
         iconn.add_field_action('facet9', xappy.FieldActions.SORTABLE)
 
@@ -119,9 +117,6 @@ class TestPercent(TestCase):
             doc.append('facet8', '2001')
             doc.append('facet8', '%d' % (i % 2))
             doc.append('facet9', '%d' % (i // 5))
-            doc.append('tag', '%d' % (i % 5))
-            doc.append('tag', '%d' % (i % 9))
-            doc.append('tag', '%d' % (i // 5))
             iconn.add(doc)
         iconn.flush()
 

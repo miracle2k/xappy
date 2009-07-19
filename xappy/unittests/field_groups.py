@@ -35,7 +35,6 @@ class TestFieldGroups(TestCase):
         iconn.add_field_action('c', xappy.FieldActions.INDEX_EXACT)
         iconn.add_field_action('d', xappy.FieldActions.SORTABLE, type="string")
         iconn.add_field_action('e', xappy.FieldActions.SORTABLE, type="float")
-        iconn.add_field_action('f', xappy.FieldActions.TAG)
         iconn.add_field_action('g', xappy.FieldActions.FACET, type="string")
         iconn.add_field_action('h', xappy.FieldActions.FACET, type="float")
         iconn.add_field_action('i', xappy.FieldActions.INDEX_FREETEXT)

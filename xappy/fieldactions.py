@@ -109,15 +109,6 @@ def _act_index_exact(fieldname, doc, field, context):
         add_field_assoc(doc, fieldname, context.currfield_assoc,
                         term=field.value, weight=field.weight)
 
-def _act_tag(fieldname, doc, field, context):
-    """Perform the TAG action.
-
-    """
-    doc.add_term(fieldname, field.value.lower(), 0)
-    if context.currfield_assoc is not None:
-        add_field_assoc(doc, fieldname, context.currfield_assoc,
-                        term=field.value.lower(), weight=field.weight)
-
 def convert_range_to_term(prefix, begin, end):
     begin = log(xapian.sortable_serialise, begin)
     end = log(xapian.sortable_serialise, end)
@@ -445,12 +436,6 @@ class FieldActions(object):
       "collapse" result sets, such that only the highest result with each value
       of the field will be returned.
 
-    - `TAG`: the field contains tags; these are strings, which will be matched
-      in a case insensitive way, but otherwise must be exact matches.  Tag
-      fields can be searched for by making an explict query (ie, using
-      query_field(), but not with query_parse()).  A list of the most frequent
-      tags in a result set can also be accessed easily.
-
     - `FACET`: the field represents a classification facet; these are strings
       which will be matched exactly, but a list of all the facets present in
       the result set can also be accessed easily - in addition, a suitable
@@ -482,7 +467,6 @@ class FieldActions(object):
     INDEX_FREETEXT = 3
     SORTABLE = 4
     COLLAPSE = 5
-    TAG = 6
     FACET = 7
     WEIGHT = 8
     GEOLOCATION = 9
@@ -495,8 +479,6 @@ class FieldActions(object):
 
     _unsupported_actions = []
 
-    if 'tags' in _checkxapian.missing_features:
-        _unsupported_actions.append(TAG)
     if 'facets' in _checkxapian.missing_features:
         _unsupported_actions.append(FACET)
     if 'valueweight' in _checkxapian.missing_features:
@@ -521,7 +503,6 @@ class FieldActions(object):
                           FieldActions.INDEX_FREETEXT,
                           FieldActions.SORTABLE,
                           FieldActions.COLLAPSE,
-                          FieldActions.TAG,
                           FieldActions.FACET,
                           FieldActions.WEIGHT,
                           FieldActions.GEOLOCATION,
@@ -683,7 +664,6 @@ class FieldActions(object):
             _act_index_freetext, {'prefix': True, }, ),
         SORTABLE: ('SORTABLE', ('type', 'ranges'), None, {'slot': 'collsort',}, ),
         COLLAPSE: ('COLLAPSE', (), None, {'slot': 'collsort',}, ),
-        TAG: ('TAG', (), _act_tag, {'prefix': True,}, ),
         FACET: ('FACET', ('type', 'ranges'), _act_facet, {'prefix': True, 'slot': 'facet',}, ),
         WEIGHT: ('WEIGHT', (), _act_weight, {'slot': 'weight',}, ),
         GEOLOCATION: ('GEOLOCATION', (), _act_geolocation, {'slot': 'loc'}, ),

@@ -38,8 +38,6 @@ if versions < min_xapian_version:
         Xapian Python bindings installed, but need at least version %d.%d.%d - got %s
         """.strip() % tuple(list(min_xapian_version) + [xapian.version_string()]))
 
-if not hasattr(xapian, 'TermCountMatchSpy'):
-    missing_features['tags'] = 1
 if not hasattr(xapian, 'CategorySelectMatchSpy'):
     missing_features['facets'] = 1
 if not hasattr(xapian, 'ValueWeightPostingSource'):

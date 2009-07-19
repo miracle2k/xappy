@@ -188,12 +188,6 @@ the result of a search, we need to set the ``STORE_CONTENT`` action::
   >>> conn.add_field_action('title', xappy.FieldActions.STORE_CONTENT)
   >>> conn.add_field_action('category', xappy.FieldActions.STORE_CONTENT)
 
-If we want to use the contents of a field as "tags", which can be counted at
-search time (possibly, in order to build a tag-cloud, or other such
-visualisation), we need to set the ``TAG`` action::
-
-  >>> conn.add_field_action('tag', xappy.FieldActions.TAG)
-
 
 Xappy also supports "faceted browsing": this means attaching "facets" to
 documents, where a facet is a value representing one aspect of information
@@ -247,9 +241,6 @@ the ``fields`` member::
   >>> doc.fields.append(xappy.Field("text", "We can create another paragraph of text.  "
   ...                               "We can have as many of these as we like.  The next bit"))
   >>> doc.fields.append(xappy.Field("category", "Test documents"))
-  >>> doc.fields.append(xappy.Field("tag", "Tag1"))
-  >>> doc.fields.append(xappy.Field("tag", "Test document"))
-  >>> doc.fields.append(xappy.Field("tag", "Test document"))
   >>> doc.fields.append(xappy.Field("price", "20.56"))
 
 We can add the document directly to the database: if we do this, the connection
@@ -468,36 +459,17 @@ method, to filter the results of an existing query::
 .. Note:: The implementation of sorting and range filtering for floating point values uses terms which typically contain non-printable characters.  Don't panic if you call ``print`` on a query generated with ``query_range()`` and odd control-characters are displayed; it's probably normal.)
 
 
-To get a list of the tags which are contained in the result set, we have to
-specify the gettags parameter to the search() method::
-
-  >>> results = conn.search(q, 0, 10, gettags='tag')
-  >>> results.get_top_tags('tag', 10)
-  [('tag1', 1), ('test document', 1)]
-
-.. Note:: When the result set is being generated, various optimisations are performed to avoid wasting time looking at documents which can't possibly get into the portion of the result set which has been requested.  These are normally desirable optimisations because they can speed up searches considerably, but if information about the tags in the result set as a whole is desired, the optimisations can cause inaccurate values to be returned.  Therefore, it is possible to force the search engine to look at at least a minimum number of results, by setting the "checkatleast" parameter of the search() method.  As a special case, a value of -1 forces all matches to be examined, regardless of database size: this should be used with care, because it can result in slow searches.
-
-To search for only those documents containing a given tag, we can use the
-query_field() method::
-
-  >>> results = conn.search(conn.query_field('tag', 'tag1'), 0, 10)
-  >>> results.matches_estimated, results.estimate_is_exact
-  (1, True)
-  >>> results.get_hit(0).highlight('text')[0]
-  "This is a paragraph of text.  It's quite short."
-
-
 To get a list of facets which are relevant to the result set, we have to
 specify the getfacets parameter to the search() method.  We can also specify
 the allowfacets or denyfacets parameters to control the set of facets which are
 considered for display (this may be useful to reduce work if we've already
-restricted to a particular facet value, for example).  Note that as with the
-gettags option, it may be advisable to specify a reasonably high value for the
-"checkatleast" parameter::
+restricted to a particular facet value, for example)::
 
   >>> results = conn.search(q, 0, 10, checkatleast=1000, getfacets=True)
   >>> results.get_suggested_facets()
   [('category', [('bible', 1), ('test documents', 1)]), ('price', [((12.199999999999999, 12.199999999999999), 1), ((20.559999999999999, 20.559999999999999), 1)])]
+
+.. Note:: When the result set is being generated, various optimisations are performed to avoid wasting time looking at documents which can't possibly get into the portion of the result set which has been requested.  These are normally desirable optimisations because they can speed up searches considerably, but if information about the facets in the result set as a whole is desired, the optimisations can cause inaccurate values to be returned.  Therefore, it is possible to force the search engine to look at at least a minimum number of results, by setting the "checkatleast" parameter of the search() method.  As a special case, a value of -1 forces all matches to be examined, regardless of database size: this should be used with care, because it can result in slow searches.
 
 Note that the values for the suggested facets contain the string for facets of
 type "string", but contain a pair of numbers for facets of type "float" - these

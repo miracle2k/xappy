@@ -610,8 +610,8 @@ class SearchResults(object):
     """A set of results of a search.
 
     """
-    def __init__(self, conn, enq, query, mset, fieldmappings, tagspy,
-                 tagfields, facetspy, facetfields, facethierarchy,
+    def __init__(self, conn, enq, query, mset, fieldmappings,
+                 facetspy, facetfields, facethierarchy,
                  facetassocs):
         self._conn = conn
         self._enq = enq
@@ -619,11 +619,6 @@ class SearchResults(object):
         self._mset = mset
         self._mset_order = None
         self._fieldmappings = fieldmappings
-        self._tagspy = tagspy
-        if tagfields is None:
-            self._tagfields = None
-        else:
-            self._tagfields = set(tagfields)
         self._facetspy = facetspy
         self._facetfields = facetfields
         self._facethierarchy = facethierarchy
@@ -858,7 +853,6 @@ class SearchResults(object):
                     prefixes[prefix] = None
                     prefixes['Z' + prefix] = None
                 if action in (FieldActions.INDEX_EXACT,
-                              FieldActions.TAG,
                               FieldActions.FACET,):
                     prefix = self._conn._field_mappings.get_prefix(field)
                     prefixes[prefix] = None
@@ -1081,34 +1075,6 @@ class SearchResults(object):
 
         """
         return len(self._mset)
-
-    def get_top_tags(self, field, maxtags):
-        """Get the most frequent tags in a given field.
-
-         - `field` - the field to get tags for.  This must have been specified
-           in the "gettags" argument of the search() call.
-         - `maxtags` - the maximum number of tags to return.
-
-        Returns a sequence of 2-item tuples, in which the first item in the
-        tuple is the tag, and the second is the frequency of the tag in the
-        matches seen (as an integer).
-
-        """
-        if 'tags' in _checkxapian.missing_features:
-            raise errors.SearchError("Tags unsupported with this release of xapian")
-        if self._tagspy is None or field not in self._tagfields:
-            raise _errors.SearchError("Field %r was not specified for getting tags" % field)
-        prefix = self._conn._field_mappings.get_prefix(field)
-        items = self._tagspy.get_top_terms(prefix, maxtags)
-        # Workaround an old bug in tagspy: used to accept terms from different
-        # prefixes, if the start of the prefix was right.
-        okitems = []
-        for item in items:
-            firstchar = item[0]
-            if firstchar >= 'A' and firstchar <= 'Z':
-                continue
-            okitems.append(item)
-        return okitems
 
     def get_suggested_facets(self, maxfacets=5, desired_num_of_categories=7,
                              required_facets=None):
@@ -2483,9 +2449,9 @@ class SearchConnection(object):
     def query_field(self, field, value=None, default_op=OP_AND):
         """A query for a single field.
 
-        If field is an exact field, a tag field, or a facet, the resulting
-        query will return only those documents which have the exact value
-        supplied in the `value` parameter in the field.
+        If field is an exact field or a facet, the resulting query will return
+        only those documents which have the exact value supplied in the `value`
+        parameter in the field.
 
         If field is a freetext field, the resulting query will return documents
         with field contents relevant to the text supplied in the `value`
@@ -2505,7 +2471,6 @@ class SearchConnection(object):
         # need to check on field type, and stem / split as appropriate
         for action, kwargslist in actions.iteritems():
             if action in (FieldActions.INDEX_EXACT,
-                          FieldActions.TAG,
                           FieldActions.FACET,):
                 if value is None:
                     raise _errors.SearchError("Supplied value must not be None")
@@ -2514,7 +2479,7 @@ class SearchConnection(object):
                     chval = ord(value[0])
                     if chval >= ord('A') and chval <= ord('Z'):
                         prefix = prefix + ':'
-                # WDF of INDEX_EXACT, TAG or FACET terms is always 0, so the
+                # WDF of INDEX_EXACT or FACET terms is always 0, so the
                 # weight of such terms is also always zero.  However, Xapian
                 # doesn't know this, so can't take advantage of the fact when
                 # performing its optimisations.  We multiply the weight by 0 to
@@ -3119,7 +3084,6 @@ class SearchConnection(object):
 
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
-               gettags=None,
                getfacets=None, allowfacets=None, denyfacets=None, usesubfacets=None,
                percentcutoff=None, weightcutoff=None,
                query_type=None, weight_params=None, collapse_max=1):
@@ -3152,8 +3116,6 @@ class SearchConnection(object):
           results in the result set for each value of the field.
         - `collapse_max` is the maximum number of items to allow in each
           collapse category.
-        - `gettags` is the name of a field to count tag occurrences in, or a
-          list of fields to do so.
         - `getfacets` is a boolean - if True, the matching documents will be
           examined to build up a list of the facet values contained in them.
         - `allowfacets` is a list of the fieldnames of facets to consider.
@@ -3192,9 +3154,6 @@ class SearchConnection(object):
                usesubfacets is not None or \
                query_type is not None:
                 raise errors.SearchError("Facets unsupported with this release of xapian")
-        if 'tags' in _checkxapian.missing_features:
-            if gettags is not None:
-                raise errors.SearchError("Tags unsupported with this release of xapian")
         if checkatleast == -1:
             checkatleast = self._index.get_doccount()
 
@@ -3253,21 +3212,6 @@ class SearchConnection(object):
 
         # Build the matchspy.
         matchspies = []
-
-        # First, add a matchspy for any gettags fields
-        if isinstance(gettags, basestring):
-            if len(gettags) != 0:
-                gettags = [gettags]
-        tagspy = None
-        if gettags is not None and len(gettags) != 0:
-            tagspy = _log(_xapian.TermCountMatchSpy)
-            for field in gettags:
-                try:
-                    prefix = self._field_mappings.get_prefix(field)
-                    tagspy.add_prefix(prefix)
-                except KeyError:
-                    raise _errors.SearchError("Field %r was not indexed for tagging" % field)
-            matchspies.append(tagspy)
 
         # add a matchspy for facet selection here.
         facetspy = None
@@ -3374,7 +3318,7 @@ class SearchConnection(object):
             facet_hierarchy = self._facet_hierarchy
 
         res = SearchResults(self, enq, query, mset, self._field_mappings,
-                            tagspy, gettags, facetspy, facetfields,
+                            facetspy, facetfields,
                             facet_hierarchy,
                             self._facet_query_table.get(query_type))
 
