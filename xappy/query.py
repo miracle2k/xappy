@@ -22,7 +22,6 @@ __docformat__ = "restructuredtext en"
 
 import _checkxapian
 import xapian
-from replaylog import log
 
 class Query(object):
     """A query.
@@ -52,7 +51,7 @@ class Query(object):
             _ranges = [tuple(range) for range in _ranges]
 
         if query is None:
-            query = log(xapian.Query)
+            query = xapian.Query()
             if _serialised is None:
                 _serialised = 'xappy.Query()'
 
@@ -138,7 +137,7 @@ class Query(object):
                 result.__merge_params(q)
             else:
                 raise TypeError("queries must contain a list of xapian.Query or xappy.Query objects")
-        result.__query = log(xapian.Query, operator, xapqs)
+        result.__query = xapian.Query(operator, xapqs)
         if serialisedqs is not None:
             serialisedqs = ', '.join(serialisedqs)
             if serialisedqs != '':
@@ -157,9 +156,8 @@ class Query(object):
         if self.__serialised is not None:
             result.__serialised = "%s * %.65g" % (self.__serialised, multiplier)
         try:
-            result.__query = log(xapian.Query,
-                                 xapian.Query.OP_SCALE_WEIGHT,
-                                 self.__query, multiplier)
+            result.__query = xapian.Query(xapian.Query.OP_SCALE_WEIGHT,
+                                          self.__query, multiplier)
         except TypeError:
             return NotImplemented
         return result
@@ -237,7 +235,7 @@ class Query(object):
         else:
             raise TypeError("other must be a xapian.Query or xappy.Query object")
 
-        result.__query = log(xapian.Query, operator, self.__query, oquery)
+        result.__query = xapian.Query(operator, self.__query, oquery)
 
         return result
 

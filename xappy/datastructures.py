@@ -26,7 +26,6 @@ try:
 except ImportError:
     from sha import sha as hashlib_sha1
 import errors
-from replaylog import log
 from fields import Field, FieldGroup
 import xapian
 import cPickle
@@ -143,7 +142,7 @@ class ProcessedDocument(object):
 
         """
         if xapdoc is None:
-            self._doc = log(xapian.Document)
+            self._doc = xapian.Document()
         else:
             self._doc = xapdoc
         self._fieldmappings = fieldmappings

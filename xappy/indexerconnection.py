@@ -29,7 +29,6 @@ import errors
 from fieldactions import ActionContext, FieldActions, ActionSet
 import fieldmappings
 import memutils
-from replaylog import log
 
 def _allocate_id(index, next_docid):
     """Allocate a new ID.
@@ -74,13 +73,13 @@ class IndexerConnection(object):
             dbtype = 'flint'
         try:
             if dbtype == 'flint':
-                self._index = log(xapian.flint_open, indexpath, xapian.DB_CREATE_OR_OPEN)
+                self._index = xapian.flint_open(indexpath, xapian.DB_CREATE_OR_OPEN)
             elif dbtype == 'chert':
-                self._index = log(xapian.chert_open, indexpath, xapian.DB_CREATE_OR_OPEN)
+                self._index = xapian.chert_open(indexpath, xapian.DB_CREATE_OR_OPEN)
             else:
                 raise xapian.InvalidArgumentError("Database type '%s' not known" % dbtype)
         except xapian.DatabaseOpeningError:
-            self._index = log(xapian.WritableDatabase, indexpath, xapian.DB_OPEN)
+            self._index = xapian.WritableDatabase(indexpath, xapian.DB_OPEN)
         self._indexpath = indexpath
 
         # Read existing actions.
@@ -167,7 +166,7 @@ class IndexerConnection(object):
                                      self._facet_query_table,
                                      self._next_docid,
                                     ), 2)
-        log(self._index.set_metadata, '_xappy_config', config_str)
+        self._index.set_metadata('_xappy_config', config_str)
 
         self._config_modified = False
 
@@ -177,7 +176,7 @@ class IndexerConnection(object):
         """
         assert self._index is not None
 
-        config_str = log(self._index.get_metadata, '_xappy_config')
+        config_str = self._index.get_metadata('_xappy_config')
         if len(config_str) == 0:
             return
 
@@ -572,7 +571,7 @@ class IndexerConnection(object):
             raise errors.IndexerError("IndexerConnection has been closed")
         if not hasattr(self._index, 'set_metadata'):
             raise errors.IndexerError("Version of xapian in use does not support metadata")
-        log(self._index.set_metadata, key, value)
+        self._index.set_metadata(key, value)
 
     def get_metadata(self, key):
         """Get an item of metadata stored in the connection.
@@ -586,7 +585,7 @@ class IndexerConnection(object):
             raise errors.IndexerError("IndexerConnection has been closed")
         if not hasattr(self._index, 'get_metadata'):
             raise errors.IndexerError("Version of xapian in use does not support metadata")
-        return log(self._index.get_metadata, key)
+        return self._index.get_metadata(key)
 
     def delete(self, id):
         """Delete a document from the search engine index.

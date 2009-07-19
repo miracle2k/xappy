@@ -24,7 +24,6 @@ import _checkxapian
 import errors
 import fields
 import marshall
-from replaylog import log
 import xapian
 try:
     import xapian.imgseek
@@ -110,8 +109,8 @@ def _act_index_exact(fieldname, doc, field, context):
                         term=field.value, weight=field.weight)
 
 def convert_range_to_term(prefix, begin, end):
-    begin = log(xapian.sortable_serialise, begin)
-    end = log(xapian.sortable_serialise, end)
+    begin = xapian.sortable_serialise(begin)
+    end = xapian.sortable_serialise(end)
     return prefix + "%d" % len(begin) + begin + end
 
 def _add_range_terms_for_value(doc, value, ranges, prefix):
@@ -138,8 +137,8 @@ def _act_facet(fieldname, doc, field, context, type=None, ranges=None, _range_ac
         if context.currfield_assoc is not None:
             add_field_assoc(doc, fieldname, context.currfield_assoc,
                             term=value, weight=field.weight)
-        serialiser = log(xapian.StringListSerialiser,
-                          doc.get_value(fieldname, 'facet'))
+        serialiser = xapian.StringListSerialiser(
+            doc.get_value(fieldname, 'facet'))
         serialiser.append(value)
         doc.add_value(fieldname, serialiser.get(), 'facet')
     else:
@@ -159,7 +158,7 @@ def _act_weight(fieldname, doc, field, context, type=None):
 
     """
     value = float(field.value)
-    value = log(xapian.sortable_serialise, value)
+    value = xapian.sortable_serialise(value)
     doc.add_value(fieldname, value, 'weight')
 
 def _act_geolocation(fieldname, doc, field, context):
@@ -219,15 +218,15 @@ def _act_index_freetext(fieldname, doc, field, context, weight=1,
     """Perform the INDEX_FREETEXT action.
 
     """
-    termgen = log(xapian.TermGenerator)
+    termgen = xapian.TermGenerator()
     if language is not None:
-        termgen.set_stemmer(log(xapian.Stem, language))
+        termgen.set_stemmer(xapian.Stem(language))
 
     if stop is not None:
-        stopper = log(xapian.SimpleStopper)
+        stopper = xapian.SimpleStopper()
         for term in stop:
-            stopper.add (term)
-        termgen.set_stopper (stopper)
+            stopper.add(term)
+        termgen.set_stopper(stopper)
 
     if spell and not context.readonly:
         termgen.set_database(context.index)

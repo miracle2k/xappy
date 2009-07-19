@@ -34,4 +34,3 @@ from fields import Field, FieldGroup
 from indexerconnection import IndexerConnection
 from query import Query
 from searchconnection import SearchConnection, ExternalWeightSource
-from replaylog import set_replay_path

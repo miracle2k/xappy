@@ -40,7 +40,6 @@ import errors as _errors
 from indexerconnection import IndexerConnection, PrefixedTermIter, \
          DocumentIter, SynonymIter, _allocate_id
 import re as _re
-from replaylog import log as _log
 from query import Query
 
 def add_to_dict_of_dicts(d, key, item, value):
@@ -1195,11 +1194,11 @@ class SearchResults(object):
                 # python tuple of two numbers.
                 for value, frequency in values.iteritems():
                     if len(value) <= 9:
-                        value1 = _log(_xapian.sortable_unserialise, value)
+                        value1 = _xapian.sortable_unserialise(value)
                         value2 = value1
                     else:
-                        value1 = _log(_xapian.sortable_unserialise, value[:9])
-                        value2 = _log(_xapian.sortable_unserialise, value[9:])
+                        value1 = _xapian.sortable_unserialise(value[:9])
+                        value2 = _xapian.sortable_unserialise(value[9:])
                     newvalues.append(((value1, value2), frequency))
             else:
                 for value, frequency in values.iteritems():
@@ -1270,7 +1269,7 @@ class SearchConnection(object):
         """
         self._indexpath = indexpath
         self._close_handlers = []
-        self._index = _log(_xapian.Database, indexpath)
+        self._index = _xapian.Database(indexpath)
         try:
             # Read the actions.
             self._load_config()
@@ -1336,7 +1335,7 @@ class SearchConnection(object):
 
         while True:
             try:
-                config_str = _log(self._index.get_metadata, '_xappy_config')
+                config_str = self._index.get_metadata('_xappy_config')
                 break
             except _xapian.DatabaseModifiedError, e:
                 # Don't call self.reopen() since that calls _load_config()!
@@ -1681,7 +1680,7 @@ class SearchConnection(object):
         if begin is None and end is None:
             # No range restriction - return a match-all query, with
             # RANGE_EXACT.
-            return Query(_log(_xapian.Query, ''), _conn=self,
+            return Query(_xapian.Query(''), _conn=self,
                          _serialised=self._make_parent_func_repr("query_all"),
                          _ranges=query_ranges) * 0, self._RANGE_EXACT
 
@@ -1785,7 +1784,7 @@ class SearchConnection(object):
             slot = self._field_mappings.get_slot(field, 'collsort')
         except KeyError:
             # Return a "match nothing" query
-            return Query(_log(_xapian.Query), _conn=self,
+            return Query(_xapian.Query(), _conn=self,
                          _serialised=serialised)
 
         if begin is None and end is None:
@@ -1795,9 +1794,7 @@ class SearchConnection(object):
             # FIXME - this can probably be done more efficiently when streamed
             # values are stored in the database, but I don't think Xapian
             # exposes a useful interface for this currently.
-            return Query(_log(_xapian.Query,
-                              _xapian.Query.OP_VALUE_GE, slot,
-                              '\x00'),
+            return Query(_xapian.Query(_xapian.Query.OP_VALUE_GE, slot, '\x00'),
                          _conn=self, _serialised=serialised,
                          _ranges=((slot, None, None),))
 
@@ -1846,19 +1843,16 @@ class SearchConnection(object):
             return accel_query
 
         if marshalled_begin is None:
-            result = Query(_log(_xapian.Query,
-                                _xapian.Query.OP_VALUE_LE, slot,
-                                marshalled_end),
+            result = Query(_xapian.Query(_xapian.Query.OP_VALUE_LE, slot,
+                                         marshalled_end),
                            _conn=self, _ranges=query_ranges)
         elif marshalled_end is None:
-            result = Query(_log(_xapian.Query,
-                                _xapian.Query.OP_VALUE_GE, slot,
-                                marshalled_begin),
+            result = Query(_xapian.Query(_xapian.Query.OP_VALUE_GE, slot,
+                                         marshalled_begin),
                            _conn=self, _ranges=query_ranges)
         else:
-            result = Query(_log(_xapian.Query,
-                                _xapian.Query.OP_VALUE_RANGE, slot,
-                                marshalled_begin, marshalled_end),
+            result = Query(_xapian.Query(_xapian.Query.OP_VALUE_RANGE, slot,
+                                         marshalled_begin, marshalled_end),
                            _conn=self, _ranges=query_ranges)
 
         if accel_type == self._RANGE_SUBSET:
@@ -1897,7 +1891,7 @@ class SearchConnection(object):
         def make_query(scale, low_val, hi_val):
             term = convert_range_to_term(prefix, low_val, hi_val)
             postingsource = _xapian.FixedWeightPostingSource(scale)
-            fixedwt_query = Query(_log(_xapian.Query, postingsource),
+            fixedwt_query = Query(_xapian.Query(postingsource),
                            _refs=[postingsource], _conn=self)
             return fixedwt_query.filter(Query(_xapian.Query(term), _conn = self))
 
@@ -2054,14 +2048,14 @@ class SearchConnection(object):
             slot = self._field_mappings.get_slot(field, 'loc')
         except KeyError:
             # Return a "match nothing" query
-            return Query(_log(_xapian.Query), _conn=self,
+            return Query(_xapian.Query(), _conn=self,
                          _serialised=serialised)
 
         # Make the posting source
         postingsource = _xapian.LatLongDistancePostingSource(
             slot, coords, metric, max_range, k1, k2)
 
-        result = Query(_log(_xapian.Query, postingsource),
+        result = Query(_xapian.Query(postingsource),
                        _refs=[postingsource, coords, metric],
                        _conn=self)
         result._set_serialised(serialised)
@@ -2126,11 +2120,11 @@ class SearchConnection(object):
         try:
             slot = self._field_mappings.get_slot(field, 'imgseek')
         except KeyError:
-            return Query(_log(_xapian.Query), _conn=self,
+            return Query(_xapian.Query(), _conn=self,
                          _serialised=serialised)
 
         ps = xapian.imgseek.ImgSigSimilarityPostingSource(sigs, slot)
-        result = Query(_log(_xapian.Query, ps),
+        result = Query(_xapian.Query(ps),
                        _refs=[ps],
                        _conn=self)
         return result
@@ -2195,7 +2189,7 @@ class SearchConnection(object):
             try:
                 slot = self._field_mappings.get_slot(field, 'facet')
             except KeyError:
-                return Query(_log(_xapian.Query), _conn=self,
+                return Query(_xapian.Query(), _conn=self,
                              _serialised=serialised)
 
             # FIXME - check that sorttype == self._get_sort_type(field)
@@ -2234,9 +2228,8 @@ class SearchConnection(object):
                 accel_query._set_serialised(serialised)
                 return accel_query
 
-            result = Query(_log(_xapian.Query,
-                                _xapian.Query.OP_VALUE_RANGE, slot,
-                                marshalled_begin, marshalled_end),
+            result = Query(_xapian.Query(_xapian.Query.OP_VALUE_RANGE, slot,
+                                         marshalled_begin, marshalled_end),
                            _conn=self, _ranges=query_ranges)
 
             if accel_type == self._RANGE_SUBSET:
@@ -2250,7 +2243,7 @@ class SearchConnection(object):
         else:
             assert(facettype == 'string' or facettype is None)
             prefix = self._field_mappings.get_prefix(field)
-            result = Query(_log(_xapian.Query, prefix + val.lower()), _conn=self) * 0
+            result = Query(_xapian.Query(prefix + val.lower()), _conn=self) * 0
             result._set_serialised(serialised)
             return result
 
@@ -2287,7 +2280,7 @@ class SearchConnection(object):
             raise _errors.SearchError("Cannot specify both `default_allow` and `default_deny` "
                                       "(got %r and %r)" % (default_allow, default_deny))
 
-        qp = _log(_xapian.QueryParser)
+        qp = _xapian.QueryParser()
         qp.set_database(self._index)
         qp.set_default_op(default_op)
 
@@ -2316,7 +2309,7 @@ class SearchConnection(object):
                     for kwargs in kwargslist:
                         try:
                             lang = kwargs['language']
-                            my_stemmer = _log(_xapian.Stem, lang)
+                            my_stemmer = _xapian.Stem(lang)
                             qp.my_stemmer = my_stemmer
                             qp.set_stemmer(my_stemmer)
                             qp.set_stemming_strategy(qp.STEM_SOME)
@@ -2385,7 +2378,7 @@ class SearchConnection(object):
                                                self._qp_flags_base,
                                                prefix)
 
-        return Query(_log(_xapian.Query, _xapian.Query.OP_AND_MAYBE, q1, q2),
+        return Query(_xapian.Query(_xapian.Query.OP_AND_MAYBE, q1, q2),
                      _conn=self)
 
     def query_parse(self, string, allow=None, deny=None, default_op=OP_AND,
@@ -2486,19 +2479,19 @@ class SearchConnection(object):
                 # make Xapian know that the weight is always zero.  This means
                 # that Xapian won't bother to ask the query for weights, and
                 # can optimise in various ways.
-                result = Query(_log(_xapian.Query, prefix + value), _conn=self) * 0
+                result = Query(_xapian.Query(prefix + value), _conn=self) * 0
                 result._set_serialised(serialised)
                 return result
             if action == FieldActions.INDEX_FREETEXT:
                 if value is None:
                     raise _errors.SearchError("Supplied value must not be None")
-                qp = _log(_xapian.QueryParser)
+                qp = _xapian.QueryParser()
                 qp.set_default_op(default_op)
                 prefix = self._field_mappings.get_prefix(field)
                 for kwargs in kwargslist:
                     try:
                         lang = kwargs['language']
-                        qp.set_stemmer(_log(_xapian.Stem, lang))
+                        qp.set_stemmer(_xapian.Stem(lang))
                         qp.set_stemming_strategy(qp.STEM_SOME)
                     except KeyError:
                         pass
@@ -2510,7 +2503,7 @@ class SearchConnection(object):
                     raise _errors.SearchError("Value supplied for a WEIGHT field must be None")
                 slot = self._field_mappings.get_slot(field, 'weight')
                 postingsource = _xapian.ValueWeightPostingSource(slot)
-                result = Query(_log(_xapian.Query, postingsource),
+                result = Query(_xapian.Query(postingsource),
                                _refs=[postingsource], _conn=self)
                 result._set_serialised(serialised)
                 return result
@@ -2559,7 +2552,7 @@ class SearchConnection(object):
 
         # Use the "elite set" operator, which chooses the terms with the
         # highest query weight to use.
-        q = _log(_xapian.Query, _xapian.Query.OP_ELITE_SET, xapterms, numterms)
+        q = _xapian.Query(_xapian.Query.OP_ELITE_SET, xapterms, numterms)
         return Query(q, _conn=self, _serialised=serialised)
 
     def significant_terms(self, ids, maxterms=10, allow=None, deny=None):
@@ -2701,7 +2694,7 @@ class SearchConnection(object):
         """
         # Set idquery to be a query which returns the documents listed in
         # "ids".
-        idquery = _log(_xapian.Query, _xapian.Query.OP_OR, ['Q' + id for id in ids])
+        idquery = _xapian.Query(_xapian.Query.OP_OR, ['Q' + id for id in ids])
 
         if tempdb is not None:
             combined_db = xapian.Database()
@@ -2709,9 +2702,9 @@ class SearchConnection(object):
             combined_db.add_database(tempdb)
         else:
             combined_db = self._index
-        enq = _log(_xapian.Enquire, combined_db)
+        enq = _xapian.Enquire(combined_db)
         enq.set_query(idquery)
-        rset = _log(_xapian.RSet)
+        rset = _xapian.RSet()
         for id in ids:
             # Note: might be more efficient to make a single postlist and
             # use skip_to() on it.  Note that this will require "ids" to be in
@@ -2723,7 +2716,7 @@ class SearchConnection(object):
             except StopIteration:
                 pass
 
-        expanddecider = _log(self._ExpandDecider, prefixes)
+        expanddecider = self._ExpandDecider(prefixes)
         # The USE_EXACT_TERMFREQ gets the term frequencies from the combined
         # database, not from the database which the relevant document is found
         # in.  This has a performance penalty, but this should be minimal in
@@ -2795,7 +2788,7 @@ class SearchConnection(object):
                 return self.wtsource.get_weight(doc)
 
         postingsource = ExternalWeightPostingSource(self, source)
-        return Query(_log(_xapian.Query, postingsource),
+        return Query(_xapian.Query(postingsource),
                      _refs=[postingsource], _conn=self, _serialised=serialised)
 
     def query_all(self, weight=None):
@@ -2807,11 +2800,11 @@ class SearchConnection(object):
 
         """
         serialised = self._make_parent_func_repr("query_all")
-        all_query = Query(_log(_xapian.Query, ''), _conn=self,
+        all_query = Query(_xapian.Query(''), _conn=self,
                           _serialised = serialised)
         if weight is not None and weight > 0:
             postingsource = _xapian.FixedWeightPostingSource(weight)
-            fixedwt_query = Query(_log(_xapian.Query, postingsource),
+            fixedwt_query = Query(_xapian.Query(postingsource),
                            _refs=[postingsource], _conn=self)
             result = fixedwt_query.filter(all_query)
             result._set_serialised(serialised)
@@ -2844,7 +2837,7 @@ class SearchConnection(object):
         else:
             terms = ['Q' + docid for docid in docid]
 
-        return Query(_log(_xapian.Query, _xapian.Query.OP_OR, terms),
+        return Query(_xapian.Query(_xapian.Query.OP_OR, terms),
                      _conn=self,
                      _serialised = self._make_parent_func_repr("query_id"))
 
@@ -3033,7 +3026,7 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
-        enq = _log(_xapian.Enquire, self._index)
+        enq = _xapian.Enquire(self._index)
 
         if isinstance(query, xapian.Query):
             enq.set_query(query)
@@ -3157,7 +3150,7 @@ class SearchConnection(object):
         if checkatleast == -1:
             checkatleast = self._index.get_doccount()
 
-        enq = _log(_xapian.Enquire, self._index)
+        enq = _xapian.Enquire(self._index)
         if isinstance(query, xapian.Query):
             enq.set_query(query)
         else:
@@ -3173,7 +3166,7 @@ class SearchConnection(object):
                     slot = self._field_mappings.get_slot(sortby.fieldname, 'loc')
                 except KeyError:
                     # Return a "match nothing" query
-                    return Query(_log(_xapian.Query), _conn=self,
+                    return Query(_xapian.Query(), _conn=self,
                                  _serialised=serialised)
 
                 # Get the coords
@@ -3257,7 +3250,7 @@ class SearchConnection(object):
                             continue
                         slot = self._field_mappings.get_slot(field, 'facet')
                         if facetspy is None:
-                            facetspy = _log(_xapian.CategorySelectMatchSpy)
+                            facetspy = _xapian.CategorySelectMatchSpy()
                         facettype = None
                         for kwargs in kwargslist:
                             facettype = kwargs.get('type', None)
@@ -3285,7 +3278,7 @@ class SearchConnection(object):
         elif len(matchspies) == 1:
             matchspy = matchspies[0]
         else:
-            matchspy = _log(_xapian.MultipleMatchDecider)
+            matchspy = _xapian.MultipleMatchDecider()
             for spy in matchspies:
                 matchspy.append(spy)
 
@@ -3456,7 +3449,7 @@ class SearchConnection(object):
             raise _errors.IndexerError("Version of xapian in use does not support metadata")
         while True:
             try:
-                return _log(self._index.get_metadata, key)
+                return self._index.get_metadata(key)
             except _xapian.DatabaseModifiedError, e:
                 self.reopen()
 
@@ -3496,7 +3489,7 @@ class SearchConnection(object):
                 raise ValueError("weights in weightmap must be >= 0")
             ps.add_mapping(k, v)
 
-        return Query(_log(_xapian.Query, ps),
+        return Query(_xapian.Query(ps),
                      _refs=[ps], _conn=self,
                      _serialised=serialised)
 
