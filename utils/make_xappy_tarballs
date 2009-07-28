@@ -18,11 +18,10 @@
 #  $xappylibdir: a checkout of xappy/trunk.
 
 rev="1.1.0"
-trunk_rev="13032"
+trunk_rev="13195"
 matchspy_branchpoint="13030"
 clustering_branchpoint="12664"
 geospatial_branchpoint="12771"
-postingsources_branchpoint="13030"
 
 if [ -e "$HOME/xappy" ]; then
 basedir="$HOME/xappy/maketarballs"
@@ -72,16 +71,6 @@ svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'" \
   >$basedir/geospatial_changes_${geospatial_branchpoint}_${geospatial_rev}.patch
 fi
 
-echo " ... postingsources"
-postingsources_rev=`svn info svn://svn.xapian.org/xapian/branches/postingsources | grep "Last Changed Rev" | cut -f 4 -d ' '`
-if [ ! -e $basedir/postingsources_changes_${postingsources_branchpoint}_${postingsources_rev}.patch ] ; then
-svn diff --diff-cmd diff -x "-Nur --ignore-matching-lines='\$Author'" \
-	"svn://svn.xapian.org/xapian/trunk@$postingsources_branchpoint" \
-	"svn://svn.xapian.org/xapian/branches/postingsources" \
-| filterdiff -x '*/ChangeLog' -x '*/NEWS' -x '*/docs/index.html' -x 'search-xapian*' \
-  >$basedir/postingsources_changes_${postingsources_branchpoint}_${postingsources_rev}.patch
-fi
-
 echo "Exporting clean tree"
 rm -rf $basedir/head/trunk_export
 svn export $basedir/head/trunk $basedir/head/trunk_export
@@ -97,8 +86,6 @@ echo "Applying patches from clustering branch"
 patch -p0 < $basedir/clustering_changes_${clustering_branchpoint}_${clustering_rev}.patch
 echo "Applying patches from geospatial branch"
 patch -p0 < $basedir/geospatial_changes_${geospatial_branchpoint}_${geospatial_rev}.patch
-echo "Applying patches from postingsources branch"
-patch -p0 < $basedir/postingsources_changes_${postingsources_branchpoint}_${postingsources_rev}.patch
 
 # Make tarballs
 echo "Building tarballs"
