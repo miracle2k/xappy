@@ -1,3 +1,8 @@
+Tue Aug 04 21:39:23 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update revision numbers, and add
+	  coloursim branch.
+
 Tue Jul 28 17:16:32 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: remove postingsources branch - now
