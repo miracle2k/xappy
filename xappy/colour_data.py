@@ -379,9 +379,11 @@ rgb_data = {
 }
 
 common_spread_default = 0.1
-colour_spreads = collections.defaultdict(
-    float,
-    ( (cname, common_spread_default) for cname in (
-        "Red", "Green", "Blue",
-        "Yellow", "Black", "White"
-        )))
+colour_spreads = {
+    "Red": common_spread_default,
+    "Green": common_spread_default,
+    "Blue": common_spread_default,
+    "Yellow": common_spread_default,
+    "Black": common_spread_default,
+    "White": common_spread_default,
+}
