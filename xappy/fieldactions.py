@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2007 Lemur Consulting Ltd
+# Copyright (C) 2007, 2008, 2009 Lemur Consulting Ltd
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@ r"""fieldactions.py: Definitions and implementations of field actions.
 
 """
 __docformat__ = "restructuredtext en"
+
+import collections
 
 import _checkxapian
 import errors
@@ -193,7 +195,7 @@ def _get_imgterms(conn, fieldname):
         imgterms = xapian.imgseek.ImgTerms(prefix, buckets)
         conn._imgterms_cache[fieldname] = imgterms
     return imgterms
-    
+
 def _act_imgseek(fieldname, doc, field, context, terms=True, buckets=None):
     """ Perform the IMGSEEK action.
 
@@ -353,6 +355,11 @@ def _act_sort_and_collapse(fieldname, doc, field, context, type=None, ranges=Non
     doc.add_value(fieldname, marshalled_value, 'collsort')
     _range_accel_act(doc, field.value, ranges, _range_accel_prefix)
 
+def _act_colour(fieldname, doc, field, context):
+    for val in field.value:
+        colterm, freq = val
+        doc.add_term(fieldname, colterm, wdfinc=freq + xapian.ColourWeight.trigger)
+
 class ActionContext(object):
     """The context in which an action is performed.
 
@@ -458,6 +465,19 @@ class FieldActions(object):
       supplied must be a url that references the image data. The image
       must be a JPEG or a format supported by the QImageIO
       class. <http://doc.trolltech.com/3.3/qimageio.html>
+
+    - `COLOUR`: Index colours for colour searching. Values supplied
+      must be an iterable of (colourterm, frequency) pairs, indicating
+      the occurence of the colour represented by colourterm. The
+      colourterm itself has no inherent meaning to xappy, but see the
+      documentation relating to colour search for some utililty
+      functions to help with generating useful colourterms from RGB
+      colour data.
+
+      Internally the frequencies in a field for a given document are
+      normalised so that they sum to (approximately) 1000, so that
+      weights across different documents can be meaningfully compared.
+
     """
 
     # See the class docstring for the meanings of the following constants.
@@ -470,6 +490,7 @@ class FieldActions(object):
     WEIGHT = 8
     GEOLOCATION = 9
     IMGSEEK = 10
+    COLOUR = 11
 
     # Sorting and collapsing store the data in a value, but the format depends
     # on the sort type.  Easiest way to implement is to treat them as the same
@@ -506,6 +527,7 @@ class FieldActions(object):
                           FieldActions.WEIGHT,
                           FieldActions.GEOLOCATION,
                           FieldActions.IMGSEEK,
+                          FieldActions.COLOUR,
                          ):
             raise errors.IndexerError("Unknown field action: %r" % action)
 
@@ -657,6 +679,7 @@ class FieldActions(object):
                 info[2](self._fieldname, doc, field, context, **kwargs)
 
     _action_info = {
+        COLOUR: ('COLOUR', ('step_count',), _act_colour, {'prefix': True}, ),
         STORE_CONTENT: ('STORE_CONTENT', ('link_associations', ), _act_store_content, {}, ),
         INDEX_EXACT: ('INDEX_EXACT', (), _act_index_exact, {'prefix': True}, ),
         INDEX_FREETEXT: ('INDEX_FREETEXT', ('weight', 'language', 'stop', 'spell', 'nopos', 'allow_field_specific', 'search_by_default', ),
@@ -695,7 +718,37 @@ class ActionSet(object):
     def __iter__(self):
         return iter(self.actions)
 
+
+    def normalise_colour_frequencies(self, fields):
+        """Modify all the colour frequencies specified for a field with the
+        COLOUR action so that they sum to 1000.
+
+        """
+        colour_vals = collections.defaultdict(int)
+
+        # loop once to find the total frequency for each colour field
+        for field in fields:
+            try:
+                actions = self.actions[field.name]
+            except KeyError:
+                continue
+            if FieldActions.COLOUR in actions._actions:
+                for val in field.value:
+                    col, freq = val
+                    colour_vals[field.name] += freq
+
+        # loop again to scale each frequency so that they sum to 1000
+        for field in fields:
+            if field.name in colour_vals:
+                newval = []
+                for val in field.value:
+                    col, freq = val
+                    proportion = float(freq)/ float(colour_vals[field.name])
+                    newval.append((col, int(proportion * xapian.ColourWeight.colour_sum)))
+                field.value = newval
+
     def perform(self, result, document, context, store_only=False):
+        self.normalise_colour_frequencies(document.fields)
         for field_or_group in document.fields:
             if isinstance(field_or_group, fields.FieldGroup):
                 context.currfield_group = []

@@ -1,3 +1,9 @@
+Wed Aug 05 00:18:25 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* AUTHORS,docs/image.rst,xappy/colour.py,xappy/fieldactions.py,
+	  xappy/searchconnection.py,xappy/unittests/colour.py: Merge in
+	  changes from colour branch.
+
 Tue Aug 04 21:39:23 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: Update revision numbers, and add

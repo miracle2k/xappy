@@ -52,3 +52,8 @@ or at your option, any later version. (see /usr/share/common-licenses/GPL).
 
 "testdata/query_sourcewords.txt" also contains a copy of the text of John
 Milton's "Paradise Lost", taken from Project Gutenberg.
+
+"xappy/colour_data.txt" contains a list of RGB values corresponding to various
+english colour names.  This data is taken from wikipedia, and is licensed under
+the Creative Commons Attribution-ShareAlike 3.0 license.  See
+http://en.wikipedia.org/wiki/List_of_colors

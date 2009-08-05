@@ -14,9 +14,22 @@ Note the following points:
   - The process of extracting image information is lossy so that
     recall cannot be perfect.
 
+  - Images are all scaled to the same size (currently 128x128 pixels)
+    before analysis. The scaling process can lose detail (when scaling
+    down) or blur images (when scaling up).
+
   - It is a somewhat subjective question as to how similar two images
     are. (I have discovered that opinions on this can be quite
     markedly different!)
+
+  - The similarity algorithm has no notion of the absolute size of
+    objects depicted in an image, or the kind of thing represented;
+    whereas subjective assesments are influenced by this sort of
+    thing. For example if we recognize an image as being of a big
+    building, then we will tend to favour other images of big
+    buildings over images of other categories of objects, or small
+    objects; even if the actual shapes and colours in the image do not
+    warrant this.
 
   - Colour forms part of similarity algorithm. For example it might be
     that a blue square and a red square of the same dimensions are

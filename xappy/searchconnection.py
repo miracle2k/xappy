@@ -2990,7 +2990,10 @@ class SearchConnection(object):
             min_normlen = weight_params.get('min_normlen', 0.5)
             if min_normlen < 0:
                 raise ValueError("min_normlen must be >= 0")
-            wt = xapian.BM25Weight(k1, k2, k3, b, min_normlen)
+            try:
+                wt = xapian.ColourWeight(k1, k2, k3, b, min_normlen)
+            except AttributeError:
+                wt = xapian.BM25Weight(k1, k2, k3, b, min_normlen)
             enq.set_weighting_scheme(wt)
             enq._wt = wt # Ensure that wt isn't dereferenced too soon.
 
