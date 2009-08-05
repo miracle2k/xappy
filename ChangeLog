@@ -1,3 +1,8 @@
+Wed Aug 05 01:29:36 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/colour.py: Uncomment needed imports (which I'm not
+	  currently sure how to satisfy).
+
 Wed Aug 05 01:28:51 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/colour.py: Various updates and fixes.

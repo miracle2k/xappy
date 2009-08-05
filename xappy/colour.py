@@ -51,9 +51,9 @@ import itertools
 import math
 
 # Third-party modules
-#import colour_data
-#import colormath
-#import colormath.color_objects
+import colour_data
+import colormath
+import colormath.color_objects
 import numpy
 import scipy.cluster
 import scipy.ndimage
