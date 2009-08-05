@@ -33,6 +33,10 @@ Prerequisites
   Python installations will already have docutils included, but you may
   need to install it specifically in some cases.
 
+- The python colormath library, if you want to use the colour similarity
+  code.  Get this from "easy_install colormath", or download a tarball from
+  http://pypi.python.org/pypi/colormath/
+
 Building
 --------
 

@@ -1,3 +1,7 @@
+Wed Aug 05 05:50:57 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* README: Mention where to get colormath from.
+
 Wed Aug 05 05:40:39 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/colour_data.py: Fix not to use defaultdict.
