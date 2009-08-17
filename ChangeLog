@@ -1,3 +1,8 @@
+Mon Aug 17 23:44:38 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* AUTHORS: Update license of majority of code to MIT (but note that
+	  it's still effectively GPL for now).
+
 Mon Aug 17 18:13:02 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs,xappy/_checkxapian.py,
