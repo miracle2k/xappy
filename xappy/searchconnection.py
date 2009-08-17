@@ -610,7 +610,7 @@ class SearchResults(object):
 
     """
     def __init__(self, conn, enq, query, mset, fieldmappings,
-                 facetspy, facetfields, facethierarchy,
+                 facetspies, facetfields, facethierarchy,
                  facetassocs):
         self._conn = conn
         self._enq = enq
@@ -618,11 +618,11 @@ class SearchResults(object):
         self._mset = mset
         self._mset_order = None
         self._fieldmappings = fieldmappings
-        self._facetspy = facetspy
+        self._facetspies = facetspies
         self._facetfields = facetfields
         self._facethierarchy = facethierarchy
         self._facetassocs = facetassocs
-        self._numeric_ranges_built = {}
+        self._facetvalues = {}
 
     def _cluster(self, num_clusters, maxdocs, fields=None,
                  assume_single_value=False):
@@ -1122,7 +1122,7 @@ class SearchResults(object):
         """
         if 'facets' in _checkxapian.missing_features:
             raise errors.SearchError("Facets unsupported with this release of xapian")
-        if self._facetspy is None:
+        if self._facetspies is None:
             raise _errors.SearchError("Facet selection wasn't enabled when the search was run")
         if isinstance(required_facets, basestring):
             required_facets = [required_facets]
@@ -1135,12 +1135,23 @@ class SearchResults(object):
                 if type is not None: break
             if type is None: type = 'string'
 
-            if type == 'float':
-                if field not in self._numeric_ranges_built:
-                    self._facetspy.build_numeric_ranges(slot, desired_num_of_categories)
-                    self._numeric_ranges_built[field] = None
+            if field not in self._facetvalues:
+                facetspy = self._facetspies.get(slot)
+                if facetspy is None:
+                    self._facetvalues[field] = []
+                else:
+                    if type == 'float':
+                        self._facetvalues[field] = _xapian.NumericRanges(facetspy.get_values(), desired_num_of_categories)
+                    else:
+                        self._facetvalues[field] = facetspy
+
             facettypes[field] = type
-            score = self._facetspy.score_categorisation(slot, desired_num_of_categories)
+            if isinstance(self._facetvalues[field], _xapian.NumericRanges):
+                score = _xapian.score_evenness(self._facetvalues[field].get_ranges(),
+                                               self._facetvalues[field].get_values_seen(),
+                                               desired_num_of_categories)
+            else:
+                score = _xapian.score_evenness(self._facetvalues[field], desired_num_of_categories)
             scores.append((score, field, slot))
 
         # Sort on whether facet is top-level ahead of score (use subfacets first),
@@ -1174,10 +1185,11 @@ class SearchResults(object):
                 continue
 
             # Get the values
-            values = self._facetspy.get_values_as_dict(slot)
-            if field in self._numeric_ranges_built:
-                if '' in values:
-                    del values['']
+            values = self._facetvalues[field]
+            if isinstance(values, _xapian.MatchSpy):
+                values = values.get_values_as_dict()
+            elif isinstance(values, _xapian.NumericRanges):
+                values = values.get_ranges_as_dict()
 
             # Required facets must occur at least once, other facets must occur
             # at least twice.
@@ -1192,13 +1204,7 @@ class SearchResults(object):
             if facettypes[field] == 'float':
                 # Convert numbers to python numbers, and number ranges to a
                 # python tuple of two numbers.
-                for value, frequency in values.iteritems():
-                    if len(value) <= 9:
-                        value1 = _xapian.sortable_unserialise(value)
-                        value2 = value1
-                    else:
-                        value1 = _xapian.sortable_unserialise(value[:9])
-                        value2 = _xapian.sortable_unserialise(value[9:])
+                for (value1, value2), frequency in values.iteritems():
                     newvalues.append(((value1, value2), frequency))
             else:
                 for value, frequency in values.iteritems():
@@ -2991,7 +2997,7 @@ class SearchConnection(object):
             if min_normlen < 0:
                 raise ValueError("min_normlen must be >= 0")
             try:
-                wt = xapian.ColourWeight(k1, k2, k3, b, min_normlen)
+                wt = xapian.ColourWeight_(k1, k2, k3, b, min_normlen)
             except AttributeError:
                 wt = xapian.BM25Weight(k1, k2, k3, b, min_normlen)
             enq.set_weighting_scheme(wt)
@@ -3206,13 +3212,15 @@ class SearchConnection(object):
         # there are more matches.
         checkatleast = max(checkatleast, endrank + 1)
 
-        # Build the matchspy.
-        matchspies = []
-
         # add a matchspy for facet selection here.
-        facetspy = None
+        facetspies = None
         facetfields = []
         if getfacets:
+            # Set facetspies to {}, even if no facet fields are found, to
+            # distinguish from no facet calculation being performed.  (This
+            # will prevent an error being thrown when the list of suggested
+            # facets is requested - instead, an empty list will be returned.)
+            facetspies = {}
             if allowfacets is not None and denyfacets is not None:
                 raise _errors.SearchError("Cannot specify both `allowfacets` and `denyfacets`")
             if allowfacets is None:
@@ -3252,38 +3260,18 @@ class SearchConnection(object):
                         if self._facet_query_never(field, query_type):
                             continue
                         slot = self._field_mappings.get_slot(field, 'facet')
-                        if facetspy is None:
-                            facetspy = _xapian.CategorySelectMatchSpy()
                         facettype = None
                         for kwargs in kwargslist:
                             facettype = kwargs.get('type', None)
                             if facettype is not None:
                                 break
                         if facettype is None or facettype == 'string':
-                            facetspy.add_slot(slot, True)
+                            facetspy = _xapian.MultiValueCountMatchSpy(slot)
                         else:
-                            facetspy.add_slot(slot)
+                            facetspy = _xapian.ValueCountMatchSpy(slot)
+                        enq.add_matchspy(facetspy)
+                        facetspies[slot] = facetspy
                         facetfields.append((field, slot, kwargslist))
-
-            if facetspy is None:
-                # Set facetspy to False, to distinguish from no facet
-                # calculation being performed.  (This will prevent an
-                # error being thrown when the list of suggested facets is
-                # requested - instead, an empty list will be returned.)
-                facetspy = False
-            else:
-                matchspies.append(facetspy)
-
-
-        # Finally, build a single matchspy to pass to get_mset().
-        if len(matchspies) == 0:
-            matchspy = None
-        elif len(matchspies) == 1:
-            matchspy = matchspies[0]
-        else:
-            matchspy = _xapian.MultipleMatchDecider()
-            for spy in matchspies:
-                matchspy.append(spy)
 
         enq.set_docid_order(enq.DONT_CARE)
 
@@ -3301,11 +3289,7 @@ class SearchConnection(object):
         # Repeat the search until we don't get a DatabaseModifiedError
         while True:
             try:
-                if matchspy is None:
-                    mset = enq.get_mset(startrank, maxitems, checkatleast)
-                else:
-                    mset = enq.get_mset(startrank, maxitems, checkatleast,
-                                        None, None, matchspy)
+                mset = enq.get_mset(startrank, maxitems, checkatleast)
                 break
             except _xapian.DatabaseModifiedError, e:
                 self.reopen()
@@ -3314,7 +3298,7 @@ class SearchConnection(object):
             facet_hierarchy = self._facet_hierarchy
 
         res = SearchResults(self, enq, query, mset, self._field_mappings,
-                            facetspy, facetfields,
+                            facetspies, facetfields,
                             facet_hierarchy,
                             self._facet_query_table.get(query_type))
 

@@ -1,3 +1,9 @@
+Mon Aug 17 18:13:02 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs,xappy/_checkxapian.py,
+	  xappy/searchconnection.py,xappy/unittests/general1.py: Update for
+	  new facet support interface in xapian (now in trunk).
+
 Fri Aug 14 09:58:37 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: Update version numbers of
