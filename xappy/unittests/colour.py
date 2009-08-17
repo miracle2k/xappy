@@ -66,7 +66,7 @@ class ColourIndexingTestCase(TestCase):
         doc = xappy.UnprocessedDocument()
         for col, freq, spread in colourdata:
             colourterm = xappy.colour.rgb2term(col, 50)
-            doc.fields.append(xappy.Field('colour', [(colourterm, freq)]))
+            doc.fields.append(xappy.Field('colour', colourterm, weight=freq))
         self.iconn.add(doc)
 
     def test_normalisation(self):
@@ -74,7 +74,7 @@ class ColourIndexingTestCase(TestCase):
         doc = xappy.UnprocessedDocument()
         for col, freq, spread in colourdata:
             colourterm =  xappy.colour.rgb2term(col, 50)
-            doc.fields.append(xappy.Field('colour', [(colourterm, freq)]))
+            doc.fields.append(xappy.Field('colour', colourterm, weight=freq))
         did = self.iconn.add(doc)
         doc = self.iconn.get_document(did)
         prefix = doc._fieldmappings.get_prefix('colour')
@@ -136,7 +136,7 @@ class ColourSearchTestCase(TestCase):
         for col, freq, spread in colourdata:
             doc = xappy.UnprocessedDocument()
             colourterm = xappy.colour.rgb2term(col, 50)
-            doc.fields.append(xappy.Field('colour', [(colourterm, freq)]))
+            doc.fields.append(xappy.Field('colour', colourterm, weight=freq))
             self.iconn.add(doc)
         self.iconn.close()
         self.sconn = xappy.SearchConnection(self.dbpath)

@@ -356,9 +356,8 @@ def _act_sort_and_collapse(fieldname, doc, field, context, type=None, ranges=Non
     _range_accel_act(doc, field.value, ranges, _range_accel_prefix)
 
 def _act_colour(fieldname, doc, field, context):
-    for val in field.value:
-        colterm, freq = val
-        doc.add_term(fieldname, colterm, wdfinc=freq + xapian.ColourWeight.trigger)
+    doc.add_term(fieldname, field.value, 
+                 wdfinc=field.weight + xapian.ColourWeight.trigger)
 
 class ActionContext(object):
     """The context in which an action is performed.
@@ -719,57 +718,40 @@ class ActionSet(object):
         return iter(self.actions)
 
 
-    def normalise_colour_frequencies(self, docfields):
-        """Modify all the colour frequencies specified for a field with the
+    def normalise_colour_frequencies(self, fields_or_groups):
+        """Modify all the weights specified for a field with the
         COLOUR action so that they sum to 1000.
 
         """
         colour_vals = {}
+        
+        def get_fields(field_or_group):
+            if isinstance(field_or_group, fields.FieldGroup):
+                return field_or_group.fields
+            else:
+                return [field_or_group]
 
         # loop once to find the total frequency for each colour field
-        for field_or_group in docfields:
-            if isinstance(field_or_group, fields.FieldGroup):
-                for field in field_or_group.fields:
-                    try:
-                        actions = self.actions[field.name]
-                    except KeyError:
-                        continue
-                    if FieldActions.COLOUR in actions._actions:
-                        for val in field.value:
-                            col, freq = val
-                            colour_vals[field.name] = \
-                                colour_vals.get(field.name, 0) + freq
-                continue
-            try:
-                actions = self.actions[field_or_group.name]
-            except KeyError:
-                continue
-            if FieldActions.COLOUR in actions._actions:
-                for val in field_or_group.value:
-                    col, freq = val
-                    colour_vals[field_or_group.name] = \
-                        colour_vals.get(field_or_group.name, 0) + freq
+        for field_or_group in fields_or_groups:
+            fs = get_fields(field_or_group)
+            for field in fs:
+                try:
+                    actions = self.actions[field.name]
+                except KeyError:
+                    continue
+                if FieldActions.COLOUR in actions._actions:
+                    colour_vals[field.name] = \
+                        colour_vals.get(field.name, 0) + field.weight
 
         # loop again to scale each frequency so that they sum to 1000
-        for field_or_group in docfields:
-            if isinstance(field_or_group, fields.FieldGroup):
-                for field in field_or_group.fields:
-                    if field.name in colour_vals:
-                        newval = []
-                        for val in field.value:
-                            col, freq = val
-                            proportion = float(freq)/ float(colour_vals[field.name])
-                            newval.append((col, int(proportion * xapian.ColourWeight.colour_sum)))
-                        field.value = newval
-                continue
-
-            if field_or_group.name in colour_vals:
-                newval = []
-                for val in field_or_group.value:
-                    col, freq = val
-                    proportion = float(freq)/ float(colour_vals[field_or_group.name])
-                    newval.append((col, int(proportion * xapian.ColourWeight.colour_sum)))
-                field_or_group.value = newval
+        for field_or_group in fields_or_groups:
+            fs = get_fields(field_or_group)
+            for field in fs:
+                if field.name in colour_vals:
+                    proportion = ( float(field.weight) /
+                                   float(colour_vals[field.name]))
+                    field.weight = int(proportion * 
+                                       xapian.ColourWeight.colour_sum)
 
     def perform(self, result, document, context, store_only=False):
         self.normalise_colour_frequencies(document.fields)

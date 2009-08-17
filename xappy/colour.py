@@ -64,7 +64,7 @@ from query import Query
 
 def _compute_range_limits(dim=256):
     """Compute the range of possible Lab coordinates.
-    
+
     This finds the extremes of the Lab coordinates by iterating over all
     possible rgb colours (assuming `dim` steps in each of the rgb axes).
 
@@ -87,7 +87,7 @@ def _compute_range_limits(dim=256):
                 max_a = max(max_a, lab.lab_a)
                 max_b = max(max_b, lab.lab_b)
 
-    return (min_l, max_l), (min_a, max_a), (min_b, max_b)    
+    return (min_l, max_l), (min_a, max_a), (min_b, max_b)
 
 # The possible ranges of Lab values.  This can be recalculated if necessary
 # using the _compute_range_limits() function - the following hardcoded values
@@ -109,6 +109,13 @@ def cartesian_distance(c1, c2):
 
 max_distance = cartesian_distance([x[0] for x in lab_ranges],
                                   [x[1] for x in lab_ranges])
+
+def compute_steps(count):
+    """ Compute the size of a single bucket for the given `count`.
+
+    """
+    return ( (float(r[1]) - float(r[0])) / float(count) for
+             r in lab_ranges)
 
 step_size_cache = {}
 def step_sizes(step_count):
@@ -178,7 +185,7 @@ def encode_bucket(bucket_indices, step_count):
     ordering of their coordinates.
 
     """
-    
+
     l, a, b = bucket_indices
     position = (l +
                 step_count * a +
@@ -225,7 +232,7 @@ def cluster_coords(coords, coord_fun=None, distance_factor=0.05):
     within the specified distance of each other.
 
     """
-    
+
     distance = distance_factor * max_distance
     coord_list = list(coords)
     if coord_fun is None:
@@ -236,7 +243,7 @@ def cluster_coords(coords, coord_fun=None, distance_factor=0.05):
         yield coord_list
     else:
         coord_array = numpy.array(source)
-    
+
         clusters = scipy.cluster.hierarchy.fclusterdata(
             coord_array, distance, criterion='distance')
 
@@ -316,7 +323,7 @@ def query_colour(sconn, field, colour_freqs, step_count, clustering=False):
     consisting of 3 data. These being (in order) a sequence
     consisting rgb colour coordinates, each in the range 0-255; a
     frequency measure and a precision measure.
-    
+
     If `clustering` is True then individual colours will be grouped
     together into clusters, and the total frequency for the
     cluster used to weight terms for its consituent colours.
@@ -335,16 +342,16 @@ def query_colour(sconn, field, colour_freqs, step_count, clustering=False):
     means that only one term will be generated. (It is not
     possible to exclude a colour completely with this mechanism -
     simply omit it from `colour_freqs` to achieve this.)
-    
+
     """
 
     if clustering:
         clusters = cluster_coords(
             colour_freqs, coord_fun=operator.itemgetter(0))
-        
+
     else:
         clusters = [colour_freqs]
-    
+
 
     return query_from_clusters(sconn, field, clusters, step_count,
                                averaging=clustering)
@@ -393,17 +400,19 @@ def text_weights(text, step_count,
     off according to distance from the colours found. The number of
     terms added depends on the spread for the colour given by
     colour_spreads.  This is a dictionary mapping colour names to a
-    figure on the range 0->1.  A spread of 0 means that only the
-    actual colour mentioned will be included; a spread of 1 means the
-    whole colour space will be included. Higher values are unlikely to
-    be desirable.
+    integer figures in the range 0->1000.  A spread of 0 means that
+    only the actual colour mentioned will be included; a spread of 1
+    means the whole colour space will be included. Higher values are
+    unlikely to be desirable.
 
     """
     weights = collections.defaultdict(float)
-    for colour_name, rgb in rgb_data:
+    for colour_name, rgb in rgb_data.iteritems():
         count = text.count(colour_name)
         spread = colour_spreads[colour_name]
-        terms_and_weights((rgb, count, spread), step_count, weights)
+        terms_and_weights([(rgb, count, spread)], step_count, weights)
+    for k in weights:
+        weights[k] = int(weights[k] * 1000)
     return weights
 
 
@@ -413,7 +422,7 @@ def facet_palette_query(conn, facets, palette, dimensions, step_count):
       - .weight a weight for the facet.
       - .fieldname = xappy field indexed with FieldActions.COLOUR
          it is assumed that all facets have the same fieldname.
-      
+
     dimensions is the shape of a 2d array for which palette contains the data.
     palette contains strings, each of which represents a triple of rgb data.
 
@@ -421,7 +430,7 @@ def facet_palette_query(conn, facets, palette, dimensions, step_count):
     implied by palette and dimensions.
 
     conn is the SearchConnection to create the query for.
-    
+
     step_count is the granularity of the colour space bucketing (as usual).
 
     A query for the field is constructed by averaging the weights
@@ -434,7 +443,7 @@ def facet_palette_query(conn, facets, palette, dimensions, step_count):
     # the corresponding coordinates come from  the dimensions.
 
     if len(facets) == 0:
-        return xappy.Query()
+        return Query()
 
     fieldname = facets[0].fieldname
     palette_array = numpy.array(palette).reshape(dimensions)
@@ -445,7 +454,7 @@ def facet_palette_query(conn, facets, palette, dimensions, step_count):
         facet_positions[facet_index] = 1
         # accumulate = we may get the same facet value more than once.
         facet_weights[facet_index] += f.weight
-        
+
     structure = numpy.ones((3,3), int)
     labels, count = scipy.ndimage.label(facet_positions)
     #labels now contains the connected regions of the input
@@ -462,5 +471,68 @@ def facet_palette_query(conn, facets, palette, dimensions, step_count):
                               mean_weight, spread)
                              for x in rgbs]
             yield cluster_vals
-
     return query_from_clusters(conn, fieldname, make_clusters(), step_count)
+
+def colour_parse(text,
+                 colour_names=colour_data.colour_names,
+                 rgb_data=colour_data.rgb_data,
+                 colour_spreads=colour_data.colour_spreads
+                 ):
+    """find occurrences of colours in text, return a sequence of
+    (bucket, spread) pairs as well as a modified versions of `text`
+    with the found colours removed.
+
+    colour_names is a list of colour names, sorted in reverse order of
+    length. `text` is repeatedly searched for names from
+    `colour_names`, when a name is found a corresponding (term,
+    spread) pair is generated, and the text modified to exclude the
+    found name.
+
+    colour_names may contain qualified names. e.g. both 'Dark blue'
+    and 'blue' might occur. But in this case the longer variant only
+    will be matched.
+
+    The spread is looked up in the dictionary `colour_spreads` and the
+    `rbg_data` in the dictionary `rbg_data`.
+
+    Case is not significant in the search for colour occurences in
+    text, but the case of members of `colour_names` must exactly match
+    the keys in the dictionaries `rgb_data` and `colour_spreads`.
+
+    """
+    colours_found = []
+    text_remaining = text.lower()
+
+    for name in colour_names:
+        new_text = text_remaining.replace(name.lower(), '')
+        if len(new_text) != len(text_remaining):
+            colours_found.append((rgb_data[name],
+                                 colour_spreads[name]))
+            text_remaining = new_text
+
+    return colours_found, text_remaining
+
+def find_colours(text, step_count, weight = 100):
+    """ Find colours in text, construct a dictionary of mapping terms
+    for the found colours to weight.
+    """
+    cols,_ = colour_parse(text)
+    return dict((rgb2term(c[0], step_count), weight) for c in cols)
+
+def colour_text_query(text, step_count, conn, field,
+                      colour_names=colour_data.colour_names,
+                      rgb_data=colour_data.rgb_data,
+                      colour_spreads=colour_data.colour_spreads):
+    """ Use colour_parse to parse `text`. Then generate a query for
+    conn that will find occurences of the colour names in `text`
+    according to the provided spread data. Return the query and the
+    remaining text.
+
+    """
+
+    colours, text = colour_parse(text,
+                                 colour_names,
+                                 rgb_data,
+                                 colour_spreads)
+    colours = [(col, 1, spread) for (col, spread) in colours]
+    return query_colour(conn, field, colours, step_count), text

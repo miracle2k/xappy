@@ -378,12 +378,15 @@ rgb_data = {
     "Yellow-green"          :  (154,205,50 ),
 }
 
+
+colour_names = list(rgb_data.iterkeys())
+colour_names.sort(key = len, reverse=True)
+
+default_spread = 0.04
 common_spread_default = 0.1
-colour_spreads = {
-    "Red": common_spread_default,
-    "Green": common_spread_default,
-    "Blue": common_spread_default,
-    "Yellow": common_spread_default,
-    "Black": common_spread_default,
-    "White": common_spread_default,
-}
+colour_spreads = collections.defaultdict(
+    lambda : float(default_spread),
+    ( (cname, common_spread_default) for cname in (
+        "Red", "Green", "Blue",
+        "Yellow", "Black", "White"
+        )))
