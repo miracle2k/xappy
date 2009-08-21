@@ -58,10 +58,6 @@ import numpy
 import scipy.cluster
 import scipy.ndimage
 
-# Xapian modules
-import xapian
-from query import Query
-
 def _compute_range_limits(dim=256):
     """Compute the range of possible Lab coordinates.
 
@@ -354,6 +350,8 @@ def query_colour(sconn, field, colour_freqs, step_count, clustering=False):
                                averaging=clustering)
 
 def query_from_clusters(sconn, field, clusters, step_count, averaging=False):
+    import xapian
+    from query import Query
 
     prefix = sconn._field_mappings.get_prefix(field)
 
@@ -440,6 +438,7 @@ def facet_palette_query(conn, facets, palette, dimensions, step_count):
     # the corresponding coordinates come from  the dimensions.
 
     if len(facets) == 0:
+        from query import Query
         return Query()
 
     fieldname = facets[0].fieldname
