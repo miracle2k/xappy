@@ -33,9 +33,11 @@ Prerequisites
   Python installations will already have docutils included, but you may
   need to install it specifically in some cases.
 
-- The python colormath library, if you want to use the colour similarity
-  code.  Get this from "easy_install colormath", or download a tarball from
-  http://pypi.python.org/pypi/colormath/
+- If you want to use the colour similarity code, you will also need:
+
+  - The python colormath library.  Get this from "easy_install colormath",
+    or download a tarball from http://pypi.python.org/pypi/colormath/
+  - Scipy version 0.7 or later, for the image facet clustering code.
 
 Building
 --------

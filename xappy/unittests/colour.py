@@ -148,9 +148,7 @@ class ColourSearchTestCase(TestCase):
         """Ensure that query_colour can be called without generating an error.
 
         """
-        
         xappy.colour.query_colour(self.sconn, 'colour', colourdata, 50)
-        
 
     def test_correct_colour(self):
         """Check that correct document is found when querying for the
@@ -197,7 +195,7 @@ class ColourSearchTestCase(TestCase):
             self.sconn, facets, self.PALETTE_COLOURS,
             self.PALETTE_DIMENSIONS, self.STEP_COUNT)
         qstring = str(q)
-        self.assert_(qstring.count('AND') == 1)
+        self.assertEqual(qstring.count('AND'), 1)
 
 if __name__ == '__main__':
     main()

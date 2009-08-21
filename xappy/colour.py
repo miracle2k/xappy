@@ -163,14 +163,14 @@ def lab2bucket(lab, step_count):
             int((b - lab_ranges[2][0]) / b_step))
 
 def bucket2lab(bucket, step_count):
-    """Return the coordinates of the least point of `bucket`.
+    """Return the coordinates of the centre point of `bucket`.
 
     """
     l_step, a_step, b_step = step_sizes(step_count)
     x, y, z = bucket
-    return (lab_ranges[0][1] + x * l_step,
-            lab_ranges[1][1] + y * a_step,
-            lab_ranges[2][1] + z * b_step)
+    return (lab_ranges[0][0] + (x + 0.5) * l_step,
+            lab_ranges[1][0] + (y + 0.5) * a_step,
+            lab_ranges[2][0] + (z + 0.5) * b_step)
 
 def rgb2bucket(rgb, step_count):
     """Convert some RGB coordinates into the indices of a bucket.
@@ -272,7 +272,7 @@ def average_weights(terms_and_weights):
     are replaced by the average weight amongst them all.
 
     """
-    average =  sum(terms_and_weights.itervalues()) / len(terms_and_weights)
+    average = sum(terms_and_weights.itervalues()) / len(terms_and_weights)
     for t in terms_and_weights.iterkeys():
         terms_and_weights[t] = average
 
@@ -296,7 +296,7 @@ def near_buckets(bucket, distance_factor, step_count):
     origin = colormath.color_objects.LabColor(*bucket2lab(bucket, step_count))
 
     ranges = [(int(max(i - bucket_index_distance, 0)),
-               int(min(i + bucket_index_distance + 1, step_count)))
+               int(min(i + bucket_index_distance, step_count)) + 1)
               for i in bucket]
 
     for x in xrange(*ranges[0]):
@@ -317,11 +317,11 @@ def terms_and_weights(colour_freqs, step_count, weight_dict=None):
     return weight_dict
 
 def query_colour(sconn, field, colour_freqs, step_count, clustering=False):
-    """ Generate a query to find document with similar colours in
+    """ Generate a query to find documents with similar colours in
     `field` to those specified in `colour_freqs`. `colour_freqs`
     should be at iterable whose members are lists or tuples
     consisting of 3 data. These being (in order) a sequence
-    consisting rgb colour coordinates, each in the range 0-255; a
+    consisting of rgb colour coordinates, each in the range 0-255; a
     frequency measure and a precision measure.
 
     If `clustering` is True then individual colours will be grouped
@@ -344,14 +344,11 @@ def query_colour(sconn, field, colour_freqs, step_count, clustering=False):
     simply omit it from `colour_freqs` to achieve this.)
 
     """
-
     if clustering:
         clusters = cluster_coords(
             colour_freqs, coord_fun=operator.itemgetter(0))
-
     else:
         clusters = [colour_freqs]
-
 
     return query_from_clusters(sconn, field, clusters, step_count,
                                averaging=clustering)

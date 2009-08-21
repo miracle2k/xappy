@@ -1,3 +1,9 @@
+Fri Aug 21 06:44:53 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* README: Note that scipy 0.7 or later is needed.
+	* xappy/colour.py,xappy/unittests/colour.py: Fix off-by-one
+	  error for buckets at the top end of the range.
+
 Wed Aug 19 11:06:35 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Apply untested patch for wildcards.
