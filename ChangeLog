@@ -1,3 +1,9 @@
+Fri Aug 21 12:17:29 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/colour.py: Add iter_buckets_rgb() to iterate through all
+	  the buckets.  This can be used to generate a target palette for
+	  quantization.
+
 Fri Aug 21 09:00:41 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/colour.py: Some more utility functions for colour

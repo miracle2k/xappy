@@ -548,3 +548,16 @@ def colour_text_query(text, step_count, conn, field,
                                  colour_spreads)
     colours = [(col, 1, spread) for (col, spread) in colours]
     return query_colour(conn, field, colours, step_count), text
+
+def iter_buckets_rgb(step_count):
+    """Iterate through all the buckets, returning their central RGB value.
+    
+    This returns all the RGB values which would be used for the buckets for a
+    particular value of step_count.
+    
+    """
+    for x in xrange(step_count):
+        for y in xrange(step_count):
+            for z in xrange(step_count):
+                rgb = bucket2rgb((x, y, z), step_count)
+                yield rgb
