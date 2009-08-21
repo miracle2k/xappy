@@ -1,3 +1,9 @@
+Fri Aug 21 09:00:41 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/colour.py: Some more utility functions for colour
+	  conversion, to let us get back from a bucket or from lab coords
+	  to an rgb value for display.
+
 Fri Aug 21 07:46:32 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/get_xapian.py: Update to get new packages.

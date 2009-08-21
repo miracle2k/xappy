@@ -133,6 +133,14 @@ def rgb2lab(rgb):
     rgb = colormath.color_objects.RGBColor(*rgb)
     return rgb.convert_to('lab').get_value_tuple()
 
+def lab2rgb(lab):
+    """Convert an Lab tuple to RGB.
+
+    """
+    lab = colormath.color_objects.LabColor(*lab)
+    return lab.convert_to('rgb').get_value_tuple()
+
+
 def check_in_range(lab):
     """Check that a coordinate is in the acceptable Lab ranges.
 
@@ -154,9 +162,11 @@ def lab2bucket(lab, step_count):
     """
     l, a, b = lab
     l_step, a_step, b_step = step_sizes(step_count)
-    return (int((l - lab_ranges[0][0]) / l_step),
-            int((a - lab_ranges[1][0]) / a_step),
-            int((b - lab_ranges[2][0]) / b_step))
+    def clip(v): return max(0, min(step_count - 1, int(v)))
+    l = clip((l - lab_ranges[0][0]) / l_step)
+    a = clip((a - lab_ranges[1][0]) / a_step)
+    b = clip((b - lab_ranges[2][0]) / b_step)
+    return l, a, b
 
 def bucket2lab(bucket, step_count):
     """Return the coordinates of the centre point of `bucket`.
@@ -173,6 +183,12 @@ def rgb2bucket(rgb, step_count):
 
     """
     return lab2bucket(rgb2lab(rgb), step_count)
+
+def bucket2rgb(bucket, step_count):
+    """Convert the indices of a bucket into RGB coordinates.
+
+    """
+    return lab2rgb(bucket2lab(bucket, step_count))
 
 def encode_bucket(bucket_indices, step_count):
     """Return a hex string identifying the supplied bucket.
