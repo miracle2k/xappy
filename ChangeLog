@@ -1,3 +1,7 @@
+Fri Aug 21 07:46:32 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Update to get new packages.
+
 Fri Aug 21 06:47:58 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/colour.py: import xapian-dependent stuff lazily, to make it
