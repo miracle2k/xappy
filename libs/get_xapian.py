@@ -43,23 +43,23 @@ except ImportError:
 #  - URL to download
 #  - Filename to store downloaded package as
 #  - SHA1 sum of package
-archives = (
+archives = [
     ('Xapian core',
-     'http://xappy.googlecode.com/files/xapian-core-13329.tgz',
+     'http://xappy.googlecode.com/files/xapian-core-13348.tgz',
      'xapian-core.tgz',
-     '7ad09c57ed071e89fd3195c0a648761d0b632632',
+     'ae38b966f1ae7d192217656e16dddfe60516e600',
      '',
     ),
     ('Xapian bindings',
-     'http://xappy.googlecode.com/files/xapian-bindings-13329.tgz',
+     'http://xappy.googlecode.com/files/xapian-bindings-13348.tgz',
      'xapian-bindings.tgz',
-     '719db75164b337b3610b9a1e2a72f540c881eebf',
+     'd62f21952b7f29bf413c72473d1d8094164a1821',
      '',
     ),
     ('Xapian win32 build system',
-     'http://xappy.googlecode.com/files/win32msvc-13329.tgz',
+     'http://xappy.googlecode.com/files/win32msvc-13348.tgz',
      'win32msvc.tgz',
-     '3af1012a97b94d666b0848cbf2db4ca9941cb603',
+     '8a5ad5f6d301426e8d2622d4663440d2419af29d',
      'xapian-core/win32',
     ),
     ('Xapian extras',
@@ -74,7 +74,7 @@ archives = (
      '20806b9c47753fbc5c7c99356ed617fa06f81afb',
      '',
     ),
-)
+]
 
 def get_script_dir():
     """Get the path of the directory containing this script.

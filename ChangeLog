@@ -1,3 +1,8 @@
+Mon Aug 24 12:16:23 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Updated tarballs -
+	  should build for windows.
+
 Fri Aug 21 12:17:29 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/colour.py: Add iter_buckets_rgb() to iterate through all
