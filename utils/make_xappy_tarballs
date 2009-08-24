@@ -18,7 +18,7 @@
 #  $xappylibdir: a checkout of xappy/trunk.
 
 rev="1.1.2"
-trunk_rev="13348"
+trunk_rev="13351"
 matchspy_branchpoint="13348"
 clustering_branchpoint="13348"
 geospatial_branchpoint="13348"

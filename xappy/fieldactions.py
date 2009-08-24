@@ -754,6 +754,8 @@ class ActionSet(object):
                                        xapian.ColourWeight.colour_sum)
 
     def perform(self, result, document, context, store_only=False):
+        if not isinstance(document.fields, list):
+            document.fields = tuple(document.fields)
         self.normalise_colour_frequencies(document.fields)
         for field_or_group in document.fields:
             if isinstance(field_or_group, fields.FieldGroup):
