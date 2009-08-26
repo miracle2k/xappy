@@ -1,3 +1,7 @@
+Wed Aug 26 08:42:59 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: New packages with fixes for windows.
+
 Mon Aug 24 16:02:34 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: Update branchpoint for windows
