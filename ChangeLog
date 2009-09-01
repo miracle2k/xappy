@@ -1,3 +1,8 @@
+Tue Sep 01 13:53:06 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Updated packages with fixed windows build
+	  system (hopefully).
+
 Wed Aug 26 08:42:59 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* libs/get_xapian.py: New packages with fixes for windows.
