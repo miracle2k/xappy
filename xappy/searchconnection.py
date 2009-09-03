@@ -1326,7 +1326,7 @@ class SearchConnection(object):
         Returns a sequence of 2-tuples, (fieldname, searchbydefault)
 
         """
-        for field, actions in self._field_actions.iteritems():
+        for field, actions in self._field_actions.actions.iteritems():
             for action, kwargslist in actions.iteritems():
                 if action == FieldActions.INDEX_FREETEXT:
                     for kwargs in kwargslist:
