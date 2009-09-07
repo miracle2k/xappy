@@ -2359,7 +2359,7 @@ class SearchConnection(object):
         """
         base_flags = self._qp_flags_base
         if allow_wildcards:
-            base_flags |= _qp_flags_wildcard 
+            base_flags |= self._qp_flags_wildcard 
         try:
             q1 = self._query_parse_with_prefix(qp, string,
                                                base_flags |
@@ -2905,7 +2905,7 @@ class SearchConnection(object):
                       self._qp_flags_phrase |
                       self._qp_flags_synonym)
         if allow_wildcards:
-            base_flags |= _qp_flags_wildcard 
+            base_flags |= self._qp_flags_wildcard 
         try:
             qp.parse_query(querystr,
                            base_flags |
