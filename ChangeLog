@@ -1,3 +1,8 @@
+Sun Nov 01 21:07:32 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* test.py: Skip test modules which depend on missing modules,
+	  displaying an appropriate message. 
+
 Sun Nov 01 21:01:54 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* utils/make_xappy_tarballs: Update branchpoint revision numbers.
