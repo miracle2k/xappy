@@ -350,7 +350,7 @@ class IndexerConnection(object):
             document.id = orig_id
         return id
 
-    def replace(self, document, store_only=False):
+    def replace(self, document, store_only=False, xapid=None):
         """Replace a document in the search engine index.
 
         If the document does not have a id set, an exception will be
@@ -363,20 +363,36 @@ class IndexerConnection(object):
         indexed for searching. See process() method for more info about this
         argument.
 
+        If `xapid` is not None, the specified (integer) value will be used as
+        the Xapian document ID to replace.  In this case, the Xappy document ID
+        will be not be checked.
+
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
-        if not hasattr(document, '_doc'):
-            # It's not a processed document.
-            document = self.process(document, store_only)
 
         # Ensure that we have a id
         id = document.id
         if id is None:
-            raise errors.IndexerError("No document ID set for document supplied to replace().")
+            if xapid is None:
+                raise errors.IndexerError("No document ID set for document supplied to replace().")
+            else:
+                id, self._next_docid = _allocate_id(self._index,
+                                                    self._next_docid)
+                self._config_modified = True
+                document.id = id
+
+        # Process the document if we havn't already.
+        if not hasattr(document, '_doc'):
+            # It's not a processed document.
+            document = self.process(document, store_only)
 
         xapdoc = document.prepare()
-        self._index.replace_document('Q' + id, xapdoc)
+
+        if xapid is None:
+            self._index.replace_document('Q' + id, xapdoc)
+        else:
+            self._index.replace_document(int(xapid), xapdoc)
 
         if self._max_mem is not None:
             self._mem_buffered += self._get_bytes_used_by_doc_terms(xapdoc)
@@ -587,16 +603,24 @@ class IndexerConnection(object):
             raise errors.IndexerError("Version of xapian in use does not support metadata")
         return self._index.get_metadata(key)
 
-    def delete(self, id):
+    def delete(self, id=None, xapid=None):
         """Delete a document from the search engine index.
 
         If the id does not already exist in the database, this method
         will have no effect (and will not report an error).
 
+        If `xapid` is not None, the specified (integer) value will be used as
+        the Xapian document ID to replace.  In this case, the Xappy document ID
+        will be not be checked.
+
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
-        self._index.delete_document('Q' + id)
+        if xapid is not None:
+            self._index.delete_document(int(xapid))
+        else:
+            assert id is not None
+            self._index.delete_document('Q' + id)
 
     def flush(self):
         """Apply recent changes to the database.
