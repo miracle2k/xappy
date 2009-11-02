@@ -21,6 +21,7 @@ r"""generic.py: Base cachemanager classes.
 __docformat__ = "restructuredtext en"
 
 import cPickle
+import UserDict
 
 class CacheManager(object):
     """Base class for caches of precalculated results.
@@ -118,14 +119,14 @@ class CacheManager(object):
         """
         raise NotImplementedError
 
-class KeyValueStoreCacheManager(CacheManager):
+class KeyValueStoreCacheManager(CacheManager, UserDict.DictMixin):
     """A manager that stores the cached items in chunks in a key-value store.
 
     Subclasses must implement:
 
-     - get_value()
-     - set_value()
-     - del_value()
+     - __getitem__()
+     - __setitem__()
+     - __delitem__()
      - flush()
      - close()
 
@@ -156,7 +157,7 @@ class KeyValueStoreCacheManager(CacheManager):
         self.chunksize=chunksize
         CacheManager.__init__(self)
 
-    def get_value(self, key):
+    def __getitem__(self, key):
         """Get the value for a given key.
 
         If there is no value for the key, return an empty string.
@@ -166,7 +167,7 @@ class KeyValueStoreCacheManager(CacheManager):
         """
         raise NotImplementedError
 
-    def set_value(self, key, value):
+    def __setitem__(self, key, value):
         """Set the value for a given key.
 
         Replaces any existing value.
@@ -176,10 +177,21 @@ class KeyValueStoreCacheManager(CacheManager):
         """
         raise NotImplementedError
 
-    def del_value(self, key):
+    def __delitem__(self, key):
         """Delete the value for a given key.
 
         If there is no value for the key, do nothing.
+
+        This must be implemented by subclasses.
+
+        """
+        raise NotImplementedError
+
+    def keys(self):
+        """Iterate through all the keys stored.
+
+        The keys can be returned in any order, as long as each is returned
+        exactly once.
 
         This must be implemented by subclasses.
 
@@ -190,29 +202,29 @@ class KeyValueStoreCacheManager(CacheManager):
         # Currently, we don't allow sparse queryids, so we can just return an
         # iterator over the range of values.
         # Key 'I' holds the (encoded) value of the next ID to allocate.
-        v = self.get_value('I')
+        v = self['I']
         if len(v) == 0:
             return iter(())
         return xrange(self.decode_int(v))
 
     def get_queryid(self, query_str):
-        v = self.get_value('Q' + query_str)
+        v = self['Q' + query_str]
         if len(v) == 0:
             return None
         return self.decode_int(v)
 
     def get_or_make_queryid(self, query_str):
-        v = self.get_value('Q' + query_str)
+        v = self['Q' + query_str]
         if len(v) == 0:
             # Get the next ID to use.
-            v = self.get_value('I')
+            v = self['I']
             if len(v) == 0:
                 thisid = 0
             else:
                 thisid = self.decode_int(v)
 
-            self.set_value('Q' + query_str, self.encode_int(thisid))
-            self.set_value('I', self.encode_int(thisid + 1))
+            self['Q' + query_str] = self.encode_int(thisid)
+            self['I'] = self.encode_int(thisid + 1)
             return thisid
         return self.decode_int(v)
 
@@ -233,7 +245,7 @@ class KeyValueStoreCacheManager(CacheManager):
         chunk = startchunk
         startrank_in_chunk = startrank - chunk * self.chunksize
         while endchunk is None or chunk <= endchunk:
-            data = self.get_value(self.make_hit_chunk_key(queryid, chunk))
+            data = self[self.make_hit_chunk_key(queryid, chunk)]
             if len(data) == 0:
                 # Chunk doesn't exist: implies that we're at the end
                 break
@@ -277,17 +289,17 @@ class KeyValueStoreCacheManager(CacheManager):
         while chunk < chunkcount:
             data = self.encode_docids(docids[offset : offset + self.chunksize])
             offset += self.chunksize
-            self.set_value(self.make_hit_chunk_key(queryid, chunk), data)
+            self[self.make_hit_chunk_key(queryid, chunk)] = data
             chunk += 1
 
         # Ensure that there aren't any chunks for further bits of data
         # remaining
         while True:
             key = self.make_hit_chunk_key(queryid, chunk)
-            data = self.get_value(key)
+            data = self[key]
             if len(data) == 0:
                 break
-            self.del_value(key)
+            del self[key]
             chunk += 1
 
     def remove_hits(self, queryid, ranks):

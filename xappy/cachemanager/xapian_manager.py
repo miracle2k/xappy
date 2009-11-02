@@ -38,7 +38,7 @@ class XapianCacheManager(generic.KeyValueStoreCacheManager):
         self.writable = False
         generic.KeyValueStoreCacheManager.__init__(self, chunksize)
 
-    def get_value(self, key):
+    def __getitem__(self, key):
         if self.db is None:
             try:
                 self.db = xapian.Database(self.dbpath)
@@ -50,19 +50,31 @@ class XapianCacheManager(generic.KeyValueStoreCacheManager):
             self.writable = False
         return self.db.get_metadata(key)
 
-    def set_value(self, key, value):
+    def __setitem__(self, key, value):
         if self.db is None or not self.writable:
             self.db = xapian.WritableDatabase(self.dbpath,
                                               xapian.DB_CREATE_OR_OPEN)
             self.writable = True
         self.db.set_metadata(key, value)
 
-    def del_value(self, key):
+    def __delitem__(self, key):
         if self.db is None or not self.writable:
             self.db = xapian.WritableDatabase(self.dbpath,
                                               xapian.DB_CREATE_OR_OPEN)
             self.writable = True
         self.db.set_metadata(key, '')
+
+    def keys(self):
+        if self.db is None:
+            try:
+                self.db = xapian.Database(self.dbpath)
+            except xapian.DatabaseOpeningError: 
+                if not os.path.exists(self.dbpath):
+                    # Not created yet - no values
+                    return iter(())
+                raise
+            self.writable = False
+        return self.db.metadata_keys()
 
     def flush(self):
         if self.db is None or not self.writable:

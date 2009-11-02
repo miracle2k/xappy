@@ -48,6 +48,7 @@ class TestCacheManager(TestCase):
         # Check the behaviour of an empty cache.
         self.assertEqual(list(man.iter_by_docid()), [])
         self.assertEqual(man.get_hits(0), [])
+        self.assertEqual(list(man.keys()), [])
 
         # Datastructures used to check the values returned by the cache:
 
@@ -79,6 +80,7 @@ class TestCacheManager(TestCase):
         self.assertEqual(list(man.iter_queryids()),
                          list(sorted(ids.keys())))
         man = XapianCacheManager(self.dbpath, chunksize=100)
+        self.assertNotEqual(list(man.keys()), [])
 
         for docid, qids in man.iter_by_docid():
             self.assertTrue(qids == queryids[docid - 1])
