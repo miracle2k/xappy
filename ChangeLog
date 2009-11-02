@@ -1,3 +1,12 @@
+Mon Nov 02 17:15:08 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/cachemanager.py,xappy/cachemanager/__init__.py,
+	  xappy/cachemanager/generic.py,xappy/cachemanager/xapian_manager.py:
+	  Refactor cachemanager into a submodule, and separate the
+	  xapian-based cache into a separate file, so we can do a
+	  conditional import of it, handling the caes of Xapian not being
+	  installed more cleanly.
+
 Mon Nov 02 03:28:35 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/searchconnection.py: Pass the xappy.Query to the

@@ -15,23 +15,12 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-r"""cachemanager.py: Caches of results for particular queries.
+r"""generic.py: Base cachemanager classes.
 
 """
 __docformat__ = "restructuredtext en"
 
-import os
-import sys
 import cPickle
-
-import json
-try:
-    # The xapian implementation is optional - if we don't have xapian, don't
-    # expose it, so that an alternative implementation can be defined.
-    import xapian
-except ImportError:
-    pass
-
 
 class CacheManager(object):
     """Base class for caches of precalculated results.
@@ -320,55 +309,3 @@ class KeyValueStoreCacheManager(CacheManager):
             del hits[rank - startrank]
 
         self.set_hits_internal(queryid, hits, startchunk)
-
-if globals().get('xapian') is not None:
-  class XapianCacheManager(KeyValueStoreCacheManager):
-    """A cache manager that stores the cached items in a Xapian database.
-
-    Note: we need to change this if we need to support keys which are longer
-    than 240 characters or so.  We could fix this by using a hashing scheme for
-    the tail of such keys, and add some handling for collisions.
-
-    """
-    def __init__(self, dbpath, chunksize=None):
-        self.dbpath = dbpath
-        self.db = None
-        self.writable = False
-        KeyValueStoreCacheManager.__init__(self, chunksize)
-
-    def get_value(self, key):
-        if self.db is None:
-            try:
-                self.db = xapian.Database(self.dbpath)
-            except xapian.DatabaseOpeningError: 
-                if not os.path.exists(self.dbpath):
-                    # Not created yet - no value.
-                    return ''
-                raise
-            self.writable = False
-        return self.db.get_metadata(key)
-
-    def set_value(self, key, value):
-        if self.db is None or not self.writable:
-            self.db = xapian.WritableDatabase(self.dbpath,
-                                              xapian.DB_CREATE_OR_OPEN)
-            self.writable = True
-        self.db.set_metadata(key, value)
-
-    def del_value(self, key):
-        if self.db is None or not self.writable:
-            self.db = xapian.WritableDatabase(self.dbpath,
-                                              xapian.DB_CREATE_OR_OPEN)
-            self.writable = True
-        self.db.set_metadata(key, '')
-
-    def flush(self):
-        if self.db is None or not self.writable:
-            return
-        self.db.flush()
-
-    def close(self):
-        if self.db is None:
-            return
-        self.db.close()
-        self.db = None
