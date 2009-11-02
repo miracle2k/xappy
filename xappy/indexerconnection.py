@@ -53,6 +53,15 @@ class IndexerConnection(object):
 
     _index = None
 
+    # Slots after this number are used for the cache manager.
+    # FIXME - don't hard-code this - put it in the settings instead?
+    _cache_manager_slot_start = 10000
+
+    # Maximum number of hits ever stored in a cache for a single query.
+    # This is just used to calculate an appropriate value to store for the
+    # weight for this item.
+    _cache_manager_max_hits = 1000000
+
     def __init__(self, indexpath, dbtype=None):
         """Create a new connection to the index.
 
@@ -81,6 +90,9 @@ class IndexerConnection(object):
         except xapian.DatabaseOpeningError:
             self._index = xapian.WritableDatabase(indexpath, xapian.DB_OPEN)
         self._indexpath = indexpath
+
+        # Set no cache manager.
+        self.cache_manager = None
 
         # Read existing actions.
         self._field_actions = ActionSet()
@@ -389,6 +401,15 @@ class IndexerConnection(object):
 
         xapdoc = document.prepare()
 
+        if self.cache_manager is not None:
+            # Copy any cached query items over to the new document.
+            olddoc = self._get_xapdoc(id, xapid)
+            if olddoc is not None:
+                for value in olddoc.values():
+                    if value.num < self._cache_manager_slot_start:
+                        continue
+                    xapdoc.add_value(value.num, value.value)
+
         if xapid is None:
             self._index.replace_document('Q' + id, xapdoc)
         else:
@@ -603,6 +624,39 @@ class IndexerConnection(object):
             raise errors.IndexerError("Version of xapian in use does not support metadata")
         return self._index.get_metadata(key)
 
+    def _get_xapdoc(self, docid=None, xapid=None):
+        """Get the xapian document for a given xappy or xapian docid.
+
+        """
+        if xapid is None:
+            postlist = self._index.postlist('Q' + docid)
+            try:
+                plitem = postlist.next()
+            except StopIteration:
+                return
+            return self._index.get_document(plitem.docid)
+        else:
+            return self._index.get_document(int(xapid))
+
+    def _remove_cached_items(self, docid=None, xapid=None):
+        """Remove from the cache any items for the specified document.
+
+        The document may be specified by xappy docid, or by xapian document id.
+
+        """
+        doc = self._get_xapdoc(docid, xapid)
+        if doc is None:
+            return
+
+        for value in doc.values():
+            if value.num < self._cache_manager_slot_start:
+                continue
+            rank = int(self._cache_manager_max_hits -
+                       xapian.sortable_unserialise(value.value))
+            self.cache_manager.remove_hits(
+                value.num - self._cache_manager_slot_start,
+                (rank,))
+
     def delete(self, id=None, xapid=None):
         """Delete a document from the search engine index.
 
@@ -610,17 +664,55 @@ class IndexerConnection(object):
         will have no effect (and will not report an error).
 
         If `xapid` is not None, the specified (integer) value will be used as
-        the Xapian document ID to replace.  In this case, the Xappy document ID
+        the Xapian document ID to delete.  In this case, the Xappy document ID
         will be not be checked.
 
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
-        if xapid is not None:
-            self._index.delete_document(int(xapid))
-        else:
+
+        # Remove any cached items from the cache.
+        if self.cache_manager is not None:
+            self._remove_cached_items(id, xapid)
+
+        # Now, remove the actual document.
+        if xapid is None:
             assert id is not None
             self._index.delete_document('Q' + id)
+        else:
+            self._index.delete_document(int(xapid))
+
+    def set_cache_manager(self, cache_manager):
+        """Set the cache manager.
+
+        To remove the cache manager, pass None as the cache_manager parameter.
+
+        Once the cache manager has been set, the items held in the cache can be
+        applied to the database using apply_cached_items().
+
+        """
+        self.cache_manager = cache_manager
+
+    def apply_cached_items(self):
+        """Update the index with references to cached items.
+        
+        This reads all the cached items from the cache manager, and applies
+        them to the index.  This allows efficient lookup of the cached ranks
+        when performing a search, and when deleting items from
+
+        """
+        if self._index is None:
+            raise errors.IndexerError("IndexerConnection has been closed")
+        if self.cache_manager is None:
+            raise RuntimeError("Need to set a cache manager before calling "
+                               "apply_cached_items()")
+        for xapid, items in self.cache_manager.iter_by_docid():
+            xapdoc = self._index.get_document(xapid)
+            for queryid, rank in items:
+                xapdoc.add_value(self._cache_manager_slot_start + queryid,
+                    xapian.sortable_serialise(self._cache_manager_max_hits -
+                                              rank))
+            self._index.replace_document(xapid, xapdoc)
 
     def flush(self):
         """Apply recent changes to the database.
@@ -635,6 +727,8 @@ class IndexerConnection(object):
             self._store_config()
         self._index.flush()
         self._mem_buffered = 0
+        if self.cache_manager is not None:
+            self.cache_manager.flush()
 
     def close(self):
         """Close the connection to the database.
@@ -673,6 +767,9 @@ class IndexerConnection(object):
             self._field_actions = None
             self._field_mappings = None
             self._config_modified = False
+
+        if self.cache_manager is not None:
+            self.cache_manager.close()
 
     def get_doccount(self):
         """Count the number of documents in the database.

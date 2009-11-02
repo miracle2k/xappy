@@ -1,3 +1,15 @@
+Mon Nov 02 03:14:55 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/cachemanager.py,xappy/indexerconnection.py,
+	  xappy/searchconnection.py: Initial implementation of pre-cached
+	  searches.  Uses the value slots to hold information about the
+	  ranks assigned by the pre-cached searches, which is relatively
+	  inefficient on flint.
+	* xappy/unittests/cachemanager.py: Test of the cachemanager
+	  implemetnation.
+	* xappy/unittests/cached_searches.py: Test that searches using the
+	  cachemanager work correctly.
+
 Sun Nov 01 21:10:10 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py,xappy/unittests/docids.py: Allow a

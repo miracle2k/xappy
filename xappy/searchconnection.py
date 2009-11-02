@@ -1264,6 +1264,10 @@ class SearchConnection(object):
 
     _index = None
 
+    # Slots after this number are used for the cache manager.
+    # FIXME - don't hard-code this - put it in the settings instead?
+    _cache_manager_slot_start = 10000
+
     def __init__(self, indexpath):
         """Create a new connection to the index for searching.
 
@@ -1274,6 +1278,7 @@ class SearchConnection(object):
         If the database doesn't exist, an exception will be raised.
 
         """
+        self.cache_manager = None
         self._indexpath = indexpath
         self._close_handlers = []
         self._index = _xapian.Database(indexpath)
@@ -1429,6 +1434,9 @@ class SearchConnection(object):
         self._indexpath = None
         self._field_actions = None
         self._field_mappings = None
+
+        if self.cache_manager is not None:
+            self.cache_manager.close()
 
         # Call the close handlers.
         for handler, userdata in self._close_handlers:
@@ -3093,11 +3101,23 @@ class SearchConnection(object):
             self.fieldname = fieldname
             self.centre = centre
 
+    def set_cache_manager(self, cache_manager):
+        """Set the cache manager.
+
+        To remove the cache manager, pass None as the cache_manager parameter.
+
+        Once the cache manager has been set, the cached query results can be
+        used to affect search results.
+
+        """
+        self.cache_manager = cache_manager
+
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
                getfacets=None, allowfacets=None, denyfacets=None, usesubfacets=None,
                percentcutoff=None, weightcutoff=None,
-               query_type=None, weight_params=None, collapse_max=1):
+               query_type=None, weight_params=None, collapse_max=1,
+               cached_query_str=None):
         """Perform a search, for documents matching a query.
 
         - `query` is the query to perform.
@@ -3168,11 +3188,19 @@ class SearchConnection(object):
         if checkatleast == -1:
             checkatleast = self._index.get_doccount()
 
+        if not isinstance(query, xapian.Query):
+            query = query._get_xapian_query()
+        if cached_query_str is not None:
+            queryid = self.cache_manager.get_queryid(cached_query_str)
+            if queryid is not None:
+                ps = xapian.ValueWeightPostingSource(queryid +
+                                                     self._cache_manager_slot_start)
+                query = xapian.Query(xapian.Query.OP_AND_MAYBE, query,
+                                     xapian.Query(ps))
+
         enq = _xapian.Enquire(self._index)
-        if isinstance(query, xapian.Query):
-            enq.set_query(query)
-        else:
-            enq.set_query(query._get_xapian_query())
+
+        enq.set_query(query)
 
         if sortby is not None:
             if isinstance(sortby, basestring):
