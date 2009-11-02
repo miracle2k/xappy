@@ -3189,18 +3189,21 @@ class SearchConnection(object):
             checkatleast = self._index.get_doccount()
 
         if not isinstance(query, xapian.Query):
-            query = query._get_xapian_query()
+            xapq = query._get_xapian_query()
+        else:
+            xapq = query
+
         if cached_query_str is not None:
             queryid = self.cache_manager.get_queryid(cached_query_str)
             if queryid is not None:
                 ps = xapian.ValueWeightPostingSource(queryid +
-                                                     self._cache_manager_slot_start)
-                query = xapian.Query(xapian.Query.OP_AND_MAYBE, query,
-                                     xapian.Query(ps))
+                    self._cache_manager_slot_start)
+                xapq = xapian.Query(xapian.Query.OP_AND_MAYBE, xapq,
+                                    xapian.Query(ps))
 
         enq = _xapian.Enquire(self._index)
 
-        enq.set_query(query)
+        enq.set_query(xapq)
 
         if sortby is not None:
             if isinstance(sortby, basestring):
