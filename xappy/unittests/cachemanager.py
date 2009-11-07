@@ -83,7 +83,7 @@ class TestCacheManager(TestCase):
         self.assertNotEqual(list(man.keys()), [])
 
         for docid, qids in man.iter_by_docid():
-            self.assertTrue(qids == queryids[docid - 1])
+            self.assertTrue(list(qids) == queryids[docid - 1])
 
         # Do an exhastive check that the docids for subslices are right for the
         # first queryid: afterwards, just do a check that the sum of the docids
