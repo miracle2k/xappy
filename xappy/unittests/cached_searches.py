@@ -81,8 +81,8 @@ class TestCachedSearches(TestCase):
         self.assertEqual(results, expected)
 
         # Try a search with a cache.
-        results = sconn.search(query_hello, 0, self.doccount,
-                               cached_query_str='hello')
+        cached_hello = sconn.query_cached(man.get_queryid('hello'))
+        results = sconn.search(query_hello.norm() | cached_hello, 0, self.doccount)
         results = [int(result.id, 16) for result in results]
         expected2 = list(xrange(self.doccount - 1, 0, -10))
         expected2.remove(49)
@@ -90,8 +90,8 @@ class TestCachedSearches(TestCase):
         self.assertEqual(list(sorted(results)), expected)
 
         # Try the same search with a different set of cached results.
-        results = sconn.search(query_hello, 0, self.doccount,
-                               cached_query_str='world')
+        cached_world = sconn.query_cached(man.get_queryid('world'))
+        results = sconn.search(query_hello.norm() | cached_world, 0, self.doccount)
         results = [int(result.id, 16) for result in results]
         world_order.remove(17)
         world_order.remove(50)
@@ -99,11 +99,9 @@ class TestCachedSearches(TestCase):
         self.assertEqual(list(sorted(results)), expected)
 
         # Try another search with a cache.
-        results = sconn.search(query_world, 0, self.doccount,
-                               cached_query_str='world')
+        results = sconn.search(query_world.norm() | cached_world, 0, self.doccount)
         results = [int(result.id, 16) for result in results]
-        self.assertEqual(results, [i - 1 for i in world_order
-                                   if i - 1 > self.doccount / 2])
+        self.assertEqual(results, [i - 1 for i in world_order])
 
 
 if __name__ == '__main__':
