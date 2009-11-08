@@ -3112,12 +3112,28 @@ class SearchConnection(object):
         """
         self.cache_manager = cache_manager
 
+    def query_cached(self, cached_queryid):
+        """Create a query which returns the cached set of results for the given
+        query ID, weighted such that the difference in weight between all cached documents is at
+        least 1.
+
+        This will typically be used by combining it with an existing query with
+        the OR operator, having normalised the existing query to ensure that
+        none of its weights are greater than 1 (so they cannot override the
+        cached weights).
+
+        """
+        serialised = self._make_parent_func_repr("query_cached")
+
+        slot = cached_queryid + self._cache_manager_slot_start
+        ps = xapian.ValueWeightPostingSource(slot)
+        return Query(xapian.Query(ps), _refs=[ps], _conn=self, _serialised=serialised)
+
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
                getfacets=None, allowfacets=None, denyfacets=None, usesubfacets=None,
                percentcutoff=None, weightcutoff=None,
-               query_type=None, weight_params=None, collapse_max=1,
-               cached_query_str=None):
+               query_type=None, weight_params=None, collapse_max=1):
         """Perform a search, for documents matching a query.
 
         - `query` is the query to perform.
@@ -3192,14 +3208,6 @@ class SearchConnection(object):
             xapq = query._get_xapian_query()
         else:
             xapq = query
-
-        if cached_query_str is not None:
-            queryid = self.cache_manager.get_queryid(cached_query_str)
-            if queryid is not None:
-                ps = xapian.ValueWeightPostingSource(queryid +
-                    self._cache_manager_slot_start)
-                xapq = xapian.Query(xapian.Query.OP_AND_MAYBE, xapq,
-                                    xapian.Query(ps))
 
         enq = _xapian.Enquire(self._index)
 
