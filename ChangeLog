@@ -1,3 +1,9 @@
+Sun Nov 08 11:17:11 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/perftest/cachemanager.py,xappy/perftest/harness.py: Add
+	  performance test harness, and a test for the cachemanager
+	  performance.
+
 Sun Nov 08 11:09:09 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/indexerconnection.py: Update to pass the docids as well as
