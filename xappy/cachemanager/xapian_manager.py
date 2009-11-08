@@ -22,6 +22,8 @@ __docformat__ = "restructuredtext en"
 
 import generic
 import os
+import shutil
+import tempfile
 import xapian
 
 class XapianCacheManager(generic.KeyValueStoreCacheManager):
@@ -30,6 +32,10 @@ class XapianCacheManager(generic.KeyValueStoreCacheManager):
     Note: we need to change this if we need to support keys which are longer
     than 240 characters or so.  We could fix this by using a hashing scheme for
     the tail of such keys, and add some handling for collisions.
+
+    This class uses the default implementation of iter_by_docid().  Subclasses
+    provide other implementations of iter_by_docid(), which may be more
+    efficient for some situations.
 
     """
     def __init__(self, dbpath, chunksize=None):
@@ -56,6 +62,7 @@ class XapianCacheManager(generic.KeyValueStoreCacheManager):
                                               xapian.DB_CREATE_OR_OPEN)
             self.writable = True
         self.db.set_metadata(key, value)
+        self.invalidate_iter_by_docid()
 
     def __delitem__(self, key):
         if self.db is None or not self.writable:
@@ -63,6 +70,7 @@ class XapianCacheManager(generic.KeyValueStoreCacheManager):
                                               xapian.DB_CREATE_OR_OPEN)
             self.writable = True
         self.db.set_metadata(key, '')
+        self.invalidate_iter_by_docid()
 
     def keys(self):
         if self.db is None:
@@ -86,3 +94,89 @@ class XapianCacheManager(generic.KeyValueStoreCacheManager):
             return
         self.db.close()
         self.db = None
+
+class XapianSelfInvertingCacheManager(XapianCacheManager):
+    """Cache manager using Xapian both as a key-value store, and as a mechanism
+    for implementing the inversion process required by iter_by_docid.
+
+    """
+    def __init__(self, *args, **kwargs):
+        XapianCacheManager.__init__(self, *args, **kwargs)
+        self.inverted = False
+        self.inverted_db_path = os.path.join(self.dbpath, 'inv')
+
+    def prepare_iter_by_docid(self):
+        """Prepare to iterate by document ID.
+        
+        This makes a Xapian database, in which each document represents a
+        cached query, and is indexed by terms corresponding to the document IDs
+        of the making terms.
+
+        This is used to get the inverse of the queryid->docid list mapping
+        provided to the cache.
+
+        """
+        if self.inverted: return
+
+        if not os.path.exists(self.dbpath):
+            self.inverted = True
+            return
+
+        shutil.rmtree(self.inverted_db_path, ignore_errors=True)
+        invdb = xapian.WritableDatabase(self.inverted_db_path,
+                                        xapian.DB_CREATE_OR_OPEN)
+        try:
+            for qid in self.iter_queryids():
+                doc = xapian.Document()
+                for rank, docid in enumerate(self.get_hits(qid)):
+                    # We store the docid encoded as the term (encoded such that
+                    # it will sort lexicographically into numeric order), and
+                    # the rank as the wdf.
+                    term = '%x' % docid
+                    term = ('%x' % len(term)) + term
+                    doc.add_term(term, rank)
+                newdocid = invdb.add_document(doc)
+
+                assert(newdocid == qid + 1)
+            invdb.flush()
+        finally:
+            invdb.close()
+
+        self.inverted = True
+
+    def invalidate_iter_by_docid(self):
+        if not self.inverted:
+            return
+        shutil.rmtree(self.inverted_db_path, ignore_errors=True)
+        self.inverted = False
+
+    def iter_by_docid(self):
+        """Implementation of iter_by_docid() which uses a temporary Xapian
+        database to perform the inverting of the queryid->docid list mapping,
+        to return the docid->queryid list mapping.
+
+        This uses an on-disk database, so is probably a bit slower than the
+        naive implementation for small cases, but should scale arbitrarily (as
+        well as Xapian does, anyway).
+
+        It would be faster if we could tell Xapian not to perform fsyncs for
+        the temporary database.
+
+        """
+        self.prepare_iter_by_docid()
+
+        if os.path.exists(self.dbpath):
+            invdb = xapian.Database(self.inverted_db_path)
+        else:
+            invdb = xapian.Database()
+
+        try:
+
+            for item in invdb.allterms():
+                docid = int(item.term[1:], 16)
+                items = tuple((item.docid - 1, item.wdf) for item in invdb.postlist(item.term))
+                yield docid, items
+            invdb.close()
+
+        finally:
+            invdb.close()
