@@ -403,7 +403,7 @@ class IndexerConnection(object):
 
         if self.cache_manager is not None:
             # Copy any cached query items over to the new document.
-            olddoc = self._get_xapdoc(id, xapid)
+            olddoc, olddocid = self._get_xapdoc(id, xapid)
             if olddoc is not None:
                 for value in olddoc.values():
                     if value.num < self._cache_manager_slot_start:
@@ -625,7 +625,7 @@ class IndexerConnection(object):
         return self._index.get_metadata(key)
 
     def _get_xapdoc(self, docid=None, xapid=None):
-        """Get the xapian document for a given xappy or xapian docid.
+        """Get the xapian document and docid for a given xappy or xapian docid.
 
         """
         if xapid is None:
@@ -633,10 +633,11 @@ class IndexerConnection(object):
             try:
                 plitem = postlist.next()
             except StopIteration:
-                return
-            return self._index.get_document(plitem.docid)
+                return None, None
+            return self._index.get_document(plitem.docid), plitem.docid
         else:
-            return self._index.get_document(int(xapid))
+            xapid = int(xapid)
+            return self._index.get_document(xapid), xapid
 
     def _remove_cached_items(self, docid=None, xapid=None):
         """Remove from the cache any items for the specified document.
@@ -644,7 +645,7 @@ class IndexerConnection(object):
         The document may be specified by xappy docid, or by xapian document id.
 
         """
-        doc = self._get_xapdoc(docid, xapid)
+        doc, xapid = self._get_xapdoc(docid, xapid)
         if doc is None:
             return
 
@@ -655,7 +656,7 @@ class IndexerConnection(object):
                        xapian.sortable_unserialise(value.value))
             self.cache_manager.remove_hits(
                 value.num - self._cache_manager_slot_start,
-                (rank,))
+                ((rank, xapid),))
 
     def delete(self, id=None, xapid=None):
         """Delete a document from the search engine index.
@@ -706,7 +707,8 @@ class IndexerConnection(object):
         if self.cache_manager is None:
             raise RuntimeError("Need to set a cache manager before calling "
                                "apply_cached_items()")
-        for xapid, items in self.cache_manager.iter_by_docid():
+        myiter = self.cache_manager.iter_by_docid()
+        for xapid, items in myiter:
             xapdoc = self._index.get_document(xapid)
             for queryid, rank in items:
                 xapdoc.add_value(self._cache_manager_slot_start + queryid,
