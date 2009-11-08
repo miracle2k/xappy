@@ -29,6 +29,7 @@ class TestCacheManager(TestCase):
 
     def check_matches(self, man, queryid, items, exhaustive):
         cacheditems = man.get_hits(queryid)
+        self.assertEqual(len(cacheditems), len(items))
         self.assertEqual(cacheditems, items)
 
         if exhaustive:
@@ -100,6 +101,7 @@ class TestCacheManager(TestCase):
             ranks = random.sample(range(len(ids[queryid])),
                                   random.randint(0, min(5, len(ids[queryid]))))
             ranks.sort(reverse=True)
+            ranks_and_docids = []
             for rank in ranks:
                 docid = ids[queryid][rank]
                 items = queryids[docid - 1]
@@ -108,9 +110,13 @@ class TestCacheManager(TestCase):
                         del items[i]
                         break
                 del ids[queryid][rank]
-            random.shuffle(ranks)
 
-            man.remove_hits(queryid, ranks)
+                # The rank supplied to remove_hits is allowed to be an over
+                # estimate.
+                ranks_and_docids.append((rank + random.randint(0, 5), docid))
+            random.shuffle(ranks_and_docids)
+
+            man.remove_hits(queryid, ranks_and_docids)
 
             self.check_matches(man, queryid, ids[queryid], exhaustive)
 
