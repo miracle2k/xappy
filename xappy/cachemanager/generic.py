@@ -27,6 +27,28 @@ class CacheManager(object):
     """Base class for caches of precalculated results.
 
     """
+    def prepare_iter_by_docid(self):
+        """Prepare to iterate by document ID.
+
+        This does any preparations necessary for iter_by_docid().
+
+        Caches should keep track of whether any changes have been made since
+        this was last called, and use the values calculated last time if not.
+
+        """
+        # Naive implementation: build up all the data in memory.
+        if getattr(self, 'inverted_items', None) is None:
+            items = {}
+            for queryid in self.iter_queryids():
+                for rank, docid in enumerate(self.get_hits(queryid)):
+                    items.setdefault(docid, []).append((queryid, rank))
+            self.inverted_items = items
+
+    def invalidate_iter_by_docid(self):
+        """Invalidate any cached items for the iter_by_docid.
+
+        """
+        self.inverted_items = None
 
     def iter_by_docid(self):
         """Return an iterator which returns all the documents with cached hits,
@@ -40,12 +62,8 @@ class CacheManager(object):
         implementation if they wish.
 
         """
-        # Naive implementation: build up all the data in memory.
-        items = {}
-        for queryid in self.iter_queryids():
-            for rank, docid in enumerate(self.get_hits(queryid)):
-                items.setdefault(docid, []).append((queryid, rank))
-
+        self.prepare_iter_by_docid()
+        items = self.inverted_items
         for docid in sorted(items.keys()):
             yield docid, items[docid]
 
@@ -99,10 +117,17 @@ class CacheManager(object):
         """
         raise NotImplementedError
 
-    def remove_hits(self, queryid, ranks):
+    def remove_hits(self, queryid, ranks_and_docids):
         """Remove the hits at given ranks from the cached entry for a query.
 
         `queryid` is the numeric ID of the query to look up.
+
+        ranks_and_docids is a iterable of (rank, docid) pairs.  The docids in
+        these pairs are the docids of the items to remove. The ranks in the
+        pairs are _hints_ of the ranks to remove: the hints are allowed to be
+        overestimates (but not underestimates).  This will happen when the
+        IndexerConnection tries to remove hits from queries which have already
+        had some items removed.
 
         """
         raise NotImplementedError
@@ -302,22 +327,45 @@ class KeyValueStoreCacheManager(CacheManager, UserDict.DictMixin):
             del self[key]
             chunk += 1
 
-    def remove_hits(self, queryid, ranks):
-        if len(ranks) == 0:
+    def remove_hits(self, queryid, ranks_and_docids):
+        if len(ranks_and_docids) == 0:
             return
 
         # To remove a hit, we need to get all chunks after the one containing
         # the given rank, and update them.
 
         # First, ensure the ranks are a sorted list - sort in descending order.
-        ranks = list(ranks)
-        ranks.sort(reverse=True)
+        ranks_and_docids = list(ranks_and_docids)
+        ranks_and_docids.sort(reverse=True)
 
-        startchunk = int(ranks[-1] // self.chunksize)
+        startchunk = int(ranks_and_docids[-1][0] // self.chunksize)
         startrank = startchunk * self.chunksize
         hits = self.get_hits(queryid, startrank)
 
-        for rank in ranks:
-            del hits[rank - startrank]
+        unmatched = []
+        for rank, docid in ranks_and_docids:
+            if ((len(hits) > rank - startrank) and
+                (hits[rank - startrank] == docid)):
+                del hits[rank - startrank]
+            else:
+                unmatched.append((rank, docid))
+
+        if len(unmatched) != 0:
+            # Get all the hits, so that we can find the mismatched ones.
+            # We might be able to get away without fetching all the hits in
+            # some cases, but that would increase code complexity, so let's not
+            # do it unless profiling shows it to be necessary.
+            hits = self.get_hits(queryid, 0, startrank) + hits
+            startrank = 0
+            startchunk = 0
+
+            for rank, docid in unmatched:
+                rank = min(rank, len(hits) - 1)
+                while rank >= 0:
+                    if hits[rank] == docid:
+                        del hits[rank]
+                        break
+                    rank -= 1
+                assert rank != -1
 
         self.set_hits_internal(queryid, hits, startchunk)

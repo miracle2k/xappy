@@ -1,3 +1,9 @@
+Sun Nov 08 11:07:14 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/cachemanager/generic.py: Pull out the preparations for
+	  iter_by_docid to a separate method, and fix remove_hits to allow
+	  the supplied ranks to be mis-estimates.
+
 Sun Nov 08 11:06:15 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/cachemanager.py: Extend test to check what
