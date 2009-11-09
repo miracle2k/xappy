@@ -351,6 +351,7 @@ class KeyValueStoreCacheManager(CacheManager, UserDict.DictMixin):
                 unmatched.append((rank, docid))
 
         if len(unmatched) != 0:
+            #print "%d unmatched item in chunk %d" % (len(unmatched), startchunk)
             # Get all the hits, so that we can find the mismatched ones.
             # We might be able to get away without fetching all the hits in
             # some cases, but that would increase code complexity, so let's not
