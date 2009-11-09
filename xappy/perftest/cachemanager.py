@@ -189,7 +189,7 @@ class TestCacheManager(PerfTestCase):
             self.stop_timer('nocachesearch2')
 
         # Performing cached searches on the database
-        print "Performing %d searches with cache" % len(qidstrs)
+        print "Performing %d searches with cache, getting top 100 results" % len(qidstrs)
         for repeat in xrange(2):
             self.reset_timers(('cachedsearch1', 'getqid2', 'gethits2'))
             self.start_timer('cachedsearch1', 'Cached searches, getting results 0-100')
@@ -204,7 +204,7 @@ class TestCacheManager(PerfTestCase):
                 self.stop_timer('gethits2')
             self.stop_timer('cachedsearch1')
 
-        print "Performing %d searches with cache" % len(qidstrs)
+        print "Performing %d searches with cache, getting results 10000-10100" % len(qidstrs)
         for repeat in xrange(2):
             self.reset_timers(('cachedsearch2', 'getqid3', 'gethits3'))
             self.start_timer('cachedsearch2', 'Cached searches, getting results 10000-10100')

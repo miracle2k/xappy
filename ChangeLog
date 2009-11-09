@@ -1,3 +1,7 @@
+Mon Nov 09 04:09:28 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/perftest/cachemanager.py: Improve log messages marginally.
+
 Mon Nov 09 03:05:36 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/perftest/cachemanager.py: Performance test which includes
