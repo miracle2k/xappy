@@ -377,4 +377,5 @@ The disadvantages are:
  - The CacheManager would get slower once any deletes had happened, because the
    Cache would then need to check all the cached items before those requested
    against the "delete list".
- - A custom version of Xapian would be needed to expose the appropriate storage.
+ - A custom version of Xapian would be needed to expose the appropriate
+   PostingSource (and the associated encoding and decoding methods).
