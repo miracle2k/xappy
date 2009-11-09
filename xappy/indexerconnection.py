@@ -649,6 +649,7 @@ class IndexerConnection(object):
         if doc is None:
             return
 
+        #print "Removing docid=%d" % xapid
         for value in doc.values():
             if value.num < self._cache_manager_slot_start:
                 continue

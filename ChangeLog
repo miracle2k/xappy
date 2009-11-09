@@ -1,3 +1,7 @@
+Mon Nov 09 03:05:05 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py: Turn off debugging print.
+
 Mon Nov 09 03:04:30 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/cachemanager/generic.py: Turn off debugging print.
