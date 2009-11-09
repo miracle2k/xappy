@@ -107,6 +107,7 @@ class PerfTestCase(unittest.TestCase):
             desc = timer
         try:
             data = self.timers[timer]
+            data[2] = time.time()
         except KeyError:
             data = [0, 0.0, time.time(), desc]
             self.timers[timer] = data
@@ -121,8 +122,18 @@ class PerfTestCase(unittest.TestCase):
             return
         now = time.time()
         data[0] += 1
-        data[1] = now - data[2]
+        data[1] += now - data[2]
         data[2] = None
+
+    def reset_timers(self, timers):
+        """Reset the named timers to 0.
+
+        """
+        for timer in timers:
+            data = self.timers.get(timer, None)
+            if data is not None:
+                data[0] = 0
+                data[1] = 0.0
 
     def format_timers(self):
         """Format the timers for display.
@@ -132,9 +143,9 @@ class PerfTestCase(unittest.TestCase):
         for timer in self.timer_order:
             count, totaltime, starttime, desc = self.timers[timer]
             if count == 1:
-                result.append('%fs: %s' % (totaltime, desc))
+                result.append('%12.6fs: %s' % (totaltime, desc))
             else:
-                result.append('%fs: %s (%d instances)' % (totaltime, desc, count))
+                result.append('%12.6fs: %s (%d instances)' % (totaltime, desc, count))
         return '\n'.join(result)
 
     def tearDown(self):
