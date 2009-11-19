@@ -17,11 +17,11 @@
 #
 #  $xappylibdir: a checkout of xappy/trunk.
 
-rev="1.1.2"
-trunk_rev="13550"
+rev="1.1.3"
+trunk_rev="13653"
 matchspy_branchpoint="13550"
-clustering_branchpoint="13348"
-geospatial_branchpoint="13348"
+clustering_branchpoint="13638"
+geospatial_branchpoint="13638"
 coloursim_branchpoint="13348"
 
 if [ -e "$HOME/xappy" ]; then

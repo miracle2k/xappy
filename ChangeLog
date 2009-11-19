@@ -1,3 +1,12 @@
+Thu Nov 19 15:41:50 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs,
+	  xappy/searchconnection.py: Link to new xapian packages.  These
+	  packages have a slightly different API for doing sorting, so
+	  update searchconnection.py accordingly: this does mean that the
+	  latest version of xapian is required to perform custom sorting,
+	  so xapian and xappy need to be upgraded together here.
+
 Mon Nov 09 04:45:55 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
 
 	* docs/cachedresults.rst: Tweak final phrase.

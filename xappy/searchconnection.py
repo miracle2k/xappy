@@ -3234,15 +3234,15 @@ class SearchConnection(object):
                     for coord in sortby.centre:
                         coords.insert(_xapian.LatLongCoord.parse_latlong(coord))
 
-                # Make and use the sorter
+                # Make and use the keymaker
                 metric = _xapian.GreatCircleMetric()
-                sorter = _xapian.LatLongDistanceSorter(slot, coords, metric)
-                enq.set_sort_by_key_then_relevance(sorter, False)
+                keymaker = _xapian.LatLongDistanceKeyMaker(slot, coords, metric)
+                enq.set_sort_by_key_then_relevance(keymaker, False)
             else:
-                sorter = xapian.MultiValueSorter()
+                keymaker = xapian.MultiValueKeyMaker()
                 for field in sortby:
-                    sorter.add(*self._get_sort_slot_and_dir(field))
-                enq.set_sort_by_key_then_relevance(sorter, True)
+                    keymaker.add_value(*self._get_sort_slot_and_dir(field))
+                enq.set_sort_by_key_then_relevance(keymaker, False)
 
         if collapse is not None:
             try:
