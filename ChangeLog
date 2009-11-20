@@ -1,3 +1,8 @@
+Fri Nov 20 11:16:27 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: New version of xapian - should have improved
+	  performance for chert when values are in use.
+
 Thu Nov 19 15:41:50 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* libs/get_xapian.py,utils/make_xappy_tarballs,
