@@ -1,3 +1,8 @@
+Tue Nov 24 10:16:31 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/indexerconnection.py: Ignore missing docids when applying
+	  the cached items to a database - this is likely to be deliberate.
+
 Fri Nov 20 11:16:27 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* libs/get_xapian.py: New version of xapian - should have improved

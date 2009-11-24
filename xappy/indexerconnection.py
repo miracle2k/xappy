@@ -700,7 +700,12 @@ class IndexerConnection(object):
         
         This reads all the cached items from the cache manager, and applies
         them to the index.  This allows efficient lookup of the cached ranks
-        when performing a search, and when deleting items from
+        when performing a search, and when deleting items from the the
+        database.
+
+        If any documents in the cache are not present in this index, they are
+        silently ignored: the assumption is that in this case, the index is a
+        subset of the cached database.
 
         """
         if self._index is None:
@@ -710,7 +715,12 @@ class IndexerConnection(object):
                                "apply_cached_items()")
         myiter = self.cache_manager.iter_by_docid()
         for xapid, items in myiter:
-            xapdoc = self._index.get_document(xapid)
+            try:
+                xapdoc = self._index.get_document(xapid)
+            except xapian.DocNotFoundError:
+                # Ignore the document if not found, to allow a global cache to
+                # be applied to a subdatabase.
+                continue
             for queryid, rank in items:
                 xapdoc.add_value(self._cache_manager_slot_start + queryid,
                     xapian.sortable_serialise(self._cache_manager_max_hits -
