@@ -1,3 +1,12 @@
+Tue Nov 24 11:23:02 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Update for new
+	  version of Xapian; main difference is a considerable improvement
+	  in speed with the chert backend.  WARNING: there appears to be a
+	  compiler bug in GCC 4.2 which can cause searches using chert to
+	  fail.  If using GCC, I recommend using GCC 4.3 or later to avoid
+	  this bug.
+
 Tue Nov 24 10:16:31 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/indexerconnection.py: Ignore missing docids when applying
