@@ -1,3 +1,9 @@
+Wed Nov 25 10:59:19 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/__init__.py,xappy/cachemanager/generic.py,
+	  xappy/cachemanager/xapian_manager.py: Release these files under
+	  the MIT/X license.
+
 Wed Nov 25 10:52:12 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/queryinvert.py: Some fairly efficient code to
