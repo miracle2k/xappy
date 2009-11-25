@@ -1,3 +1,9 @@
+Wed Nov 25 10:52:12 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/queryinvert.py: Some fairly efficient code to
+	  invert lists of docids for queries, thanks to Shane for the
+	  original implementation.
+
 Tue Nov 24 11:23:02 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* libs/get_xapian.py,utils/make_xappy_tarballs: Update for new
