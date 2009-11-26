@@ -1,3 +1,9 @@
+Thu Nov 26 01:32:29 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py,xappy/cachemanager/xapian_manager.py,
+	  xappy/unittests/cachemanager.py: Add a new iter_query_strs()
+	  method.
+
 Thu Nov 26 00:17:57 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/generic.py,xappy/cachemanager/queryinvert.py:

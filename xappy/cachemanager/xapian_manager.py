@@ -88,6 +88,18 @@ class XapianCacheManager(generic.KeyValueStoreCacheManager):
             self.writable = False
         return self.db.metadata_keys()
 
+    def iter_query_strs(self):
+        if self.db is None:
+            try:
+                self.db = xapian.Database(self.dbpath)
+            except xapian.DatabaseOpeningError: 
+                if not os.path.exists(self.dbpath):
+                    # Not created yet - no values
+                    return iter(())
+                raise
+            self.writable = False
+        return (key[1:] for key in self.db.metadata_keys('Q'))
+
     def flush(self):
         if self.db is None or not self.writable:
             return

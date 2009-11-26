@@ -64,19 +64,23 @@ class TestCacheManager(TestCase):
         # List of all the docids in use. 
         docids = list(range(1, self.maxdocid + 1))
 
+        querystrs = []
         for i in xrange(1, self.maxqueryid + 1):
             count = random.randint(i, i * 100)
             items = random.sample(docids, count)
             random.shuffle(items)
             self.assertEqual(len(items), count)
             querystr = 'q%d' % i
+            querystrs.append(querystr)
             queryid = man.get_or_make_queryid(querystr)
             ids[queryid] = items
             for rank, docid in enumerate(items):
                 queryids[docid - 1].append((queryid, rank))
             man.set_hits(queryid, items)
+        querystrs.sort()
 
         man.flush()
+        self.assertEqual(list(sorted(man.iter_query_strs())), querystrs)
         self.assertEqual(list(sorted(ids.keys())), range(0, self.maxqueryid))
         self.assertEqual(list(man.iter_queryids()),
                          list(sorted(ids.keys())))

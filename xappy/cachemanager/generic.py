@@ -127,6 +127,14 @@ class CacheManager(object):
         """
         raise NotImplementedError
 
+    def iter_query_strs(self):
+        """Iterate the string form of all the stored queries.
+
+        Doesn't guarantee any ordering on the query strings.
+
+        """
+        raise NotImplementedError
+
     def get_queryid(self, query_str):
         """Get a (numeric) query ID given a query string.
 
