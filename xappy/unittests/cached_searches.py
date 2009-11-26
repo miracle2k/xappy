@@ -80,12 +80,26 @@ class TestCachedSearches(TestCase):
         expected.remove(49)
         self.assertEqual(results, expected)
 
-        # Try a search with a cache.
-        cached_hello = sconn.query_cached(man.get_queryid('hello'))
-        results = sconn.search(query_hello.norm() | cached_hello, 0, self.doccount)
-        results = [int(result.id, 16) for result in results]
         expected2 = list(xrange(self.doccount - 1, 0, -10))
         expected2.remove(49)
+
+        # Test that merge_with_cached works
+        cached_id = man.get_queryid('hello')
+        cached_hello = sconn.query_cached(cached_id)
+        self.assertEqual(repr(query_hello.norm() | cached_hello),
+                         repr(query_hello.merge_with_cached(cached_id)))
+
+        # Test a search for all documents, merged with a cache.
+        results = sconn.query_all().merge_with_cached(cached_id).\
+                    search(0, self.doccount)
+        results = [int(result.id, 16) for result in results]
+        self.assertEqual(results[:11], expected2)
+        self.assertEqual(results[:20], expected2 + range(9))
+
+        # Try a search with a cache.
+        results = sconn.search(query_hello.merge_with_cached(cached_id),
+                               0, self.doccount)
+        results = [int(result.id, 16) for result in results]
         self.assertEqual(results[:11], expected2)
         self.assertEqual(list(sorted(results)), expected)
 

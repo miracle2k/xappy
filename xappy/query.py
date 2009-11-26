@@ -307,6 +307,16 @@ class Query(object):
             return self * (maxweight / max_possible)
         return self
 
+    def merge_with_cached(self, cached_id):
+        """Merge this query with cached results.
+
+        `cached_id` is a cached query ID to use.
+
+        """
+        if self.__conn is None:
+            raise ValueError("This Query is not associated with a SearchConnection")
+        return self.norm() | self.__conn.query_cached(cached_id)
+
     def search(self, startrank, endrank, *args, **kwargs):
         """Perform a search using this query.
 

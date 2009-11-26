@@ -1,3 +1,9 @@
+Thu Nov 26 17:29:47 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/query.py,xappy/unittests/cached_searches.py: Add
+	  Query.merge_with_cached() to make applying a cached query easier.
+	  Add a test for this.
+
 Thu Nov 26 12:58:38 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/query.py,xappy/unittests/weight_action.py: Allow norm() to
