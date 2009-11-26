@@ -1,3 +1,7 @@
+Thu Nov 26 12:54:33 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* utils/make_xappy_tarballs: Update revision numbers.
+
 Thu Nov 26 01:32:29 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/generic.py,xappy/cachemanager/xapian_manager.py,
