@@ -288,11 +288,12 @@ class Query(object):
 
         return self.__conn.get_max_possible_weight(self)
 
-    def norm(self):
+    def norm(self, maxweight=1.0):
         """Normalise the possible weights returned by a query.
 
         This will return a new Query, which returns the same documents as this
         query, but for which the weights will fall strictly in the range 0..1.
+        (Or the range 0..maxweight if maxweight is specified.)
 
         This is equivalent to dividing the query by the result of
         `get_max_possible_weight()`, except that the case of the maximum
@@ -303,7 +304,7 @@ class Query(object):
         """
         max_possible = self.get_max_possible_weight()
         if max_possible > 0:
-            return self / max_possible
+            return self * (maxweight / max_possible)
         return self
 
     def search(self, startrank, endrank, *args, **kwargs):

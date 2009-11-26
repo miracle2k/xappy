@@ -1,3 +1,8 @@
+Thu Nov 26 12:58:38 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/query.py,xappy/unittests/weight_action.py: Allow norm() to
+	  take a maxweight parameter.  Update tests to check this works.
+
 Thu Nov 26 12:54:33 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* utils/make_xappy_tarballs: Update revision numbers.

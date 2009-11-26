@@ -59,11 +59,17 @@ class TestWeightAction(TestCase):
 
         # Combining the weights with normalisation - the weights are now
         # comparable, neither overpowering the other.
-        maxwt = self.sconn.get_max_possible_weight(q1)
-        q1b = self.sconn.query_multweight(q1, 1.0 / maxwt)
+        q1b = q1.norm()
         q = self.sconn.query_composite(self.sconn.OP_OR, (q1b, q2))
         r = self.sconn.search(q, 0, 10)
         self.assertEqual([int(i.id) for i in r], [4, 3, 0, 2, 1])
+
+        # Normalise with a higher weight for the test query - the weight from
+        # the text wins again.
+        q1b = q1.norm(2.0)
+        q = self.sconn.query_composite(self.sconn.OP_OR, (q1b, q2))
+        r = self.sconn.search(q, 0, 10)
+        self.assertEqual([int(i.id) for i in r], [0, 4, 3, 2, 1])
 
     def test_regression(self):
         """Check that weight queries keep a reference to the source postlist.
