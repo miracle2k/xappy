@@ -1,3 +1,10 @@
+Thu Nov 26 00:17:57 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py,xappy/cachemanager/queryinvert.py:
+	  Fully integrate the numpy-based inversion - caching its results
+	  for faster application to many subdatabases, and factoring it out
+	  as a MixIn.
+
 Wed Nov 25 10:59:19 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/__init__.py,xappy/cachemanager/generic.py,

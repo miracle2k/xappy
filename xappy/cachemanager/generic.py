@@ -25,22 +25,14 @@ r"""generic.py: Base cachemanager classes.
 __docformat__ = "restructuredtext en"
 
 import cPickle
+import queryinvert
 import UserDict
 
-class CacheManager(object):
-    """Base class for caches of precalculated results.
+class InMemoryInverterMixIn(object):
+    """Simple inverting implementation: build up all the data in memory.
 
     """
     def prepare_iter_by_docid(self):
-        """Prepare to iterate by document ID.
-
-        This does any preparations necessary for iter_by_docid().
-
-        Caches should keep track of whether any changes have been made since
-        this was last called, and use the values calculated last time if not.
-
-        """
-        # Naive implementation: build up all the data in memory.
         if getattr(self, 'inverted_items', None) is None:
             items = {}
             for queryid in self.iter_queryids():
@@ -55,21 +47,76 @@ class CacheManager(object):
         self.inverted_items = None
 
     def iter_by_docid(self):
+        self.prepare_iter_by_docid()
+        items = self.inverted_items
+        for docid in sorted(items.keys()):
+            yield docid, items[docid]
+
+
+class NumpyInverterMixIn(object):
+    """Inverting implementation which uses a numpy array for storage.
+
+    Should be able to scale to larger data volumes than the naive version.
+
+    """
+
+    def prepare_iter_by_docid(self):
+        if getattr(self, 'inverted_iter', None) is None:
+            if self.is_empty():
+                self.inverted_iter = ()
+                return
+            def itemiter():
+                for queryid in self.iter_queryids():
+                    yield queryid, self.get_hits(queryid)
+            self.inverted_iter = queryinvert.iterinverse(itemiter())
+
+    def invalidate_iter_by_docid(self):
+        if getattr(self, 'inverted_iter', None) is not None:
+            if not isinstance(self.inverted_iter, tuple):
+                self.inverted_iter.close()
+        self.inverted_iter = None
+
+    def iter_by_docid(self):
+        self.prepare_iter_by_docid()
+        return self.inverted_iter
+
+
+class CacheManager(object):
+    """Base class for caches of precalculated results.
+
+    """
+    def prepare_iter_by_docid(self):
+        """Prepare to iterate by document ID.
+
+        This does any preparations necessary for iter_by_docid().
+
+        Caches should keep track of whether any changes have been made since
+        this was last called, and use the values calculated last time if not.
+
+        """
+        raise NotImplementedError
+
+    def invalidate_iter_by_docid(self):
+        """Invalidate any cached items for the iter_by_docid.
+
+        """
+        raise NotImplementedError
+
+    def iter_by_docid(self):
         """Return an iterator which returns all the documents with cached hits,
         in order of document ID, together with the queryids and ranks for those
         queries.
 
         Returns (docid, <list of (queryid, rank)>) pairs.
 
-        The default implementation is fairly naive, and builds up all the data
-        in memory before iterating through it.  Subclasses can override this
-        implementation if they wish.
+        """
+        raise NotImplementedError
+
+    def is_empty(self):
+        """Return True iff the cache is empty.
 
         """
-        self.prepare_iter_by_docid()
-        items = self.inverted_items
-        for docid in sorted(items.keys()):
-            yield docid, items[docid]
+        raise NotImplementedError
 
     def iter_queryids(self):
         """Return an iterator returning all the queryids for which there are
@@ -148,7 +195,8 @@ class CacheManager(object):
         """
         raise NotImplementedError
 
-class KeyValueStoreCacheManager(CacheManager, UserDict.DictMixin):
+class KeyValueStoreCacheManager(NumpyInverterMixIn, UserDict.DictMixin,
+                                CacheManager):
     """A manager that stores the cached items in chunks in a key-value store.
 
     Subclasses must implement:
@@ -226,6 +274,13 @@ class KeyValueStoreCacheManager(CacheManager, UserDict.DictMixin):
 
         """
         raise NotImplementedError
+
+    def is_empty(self):
+        # Just need to check if self['I'] exists - we don't allow complete
+        # removal of a cached query, so if we've ever populated self['I'] we're
+        # not empty.
+        v = self['I']
+        return (len(v) == 0)
 
     def iter_queryids(self):
         # Currently, we don't allow sparse queryids, so we can just return an

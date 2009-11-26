@@ -35,55 +35,60 @@ from itertools import groupby, izip, repeat
 from operator import itemgetter
 import numpy as np
 
-def iterinverse(sequence, tmpdir=None):
-    """
-    Converts a sequence of (key, [value+]) to (value, [(key, position)+]).
-    (Positions start at 0.)
+class iterinverse(object):
+    def __init__(self, sequence, tmpdir=None):
+        """
+        Converts a sequence of (key, [value+]) to (value, [(key, position)+]).
+        (Positions start at 0.)
 
-    This returns a pair of iterators: a forward iterator and a reverse
-    iterator.  The forward iterator must be fully exhausted before the reverse
-    iterator is first used.
+        This returns a pair of iterators: a forward iterator and a reverse
+        iterator.  The forward iterator must be fully exhausted before the
+        reverse iterator is first used.
 
-    Temporary data is buffered on disk. It requires 12 bytes per
-    (key, value) pair. Each (key, [value+]) will be temporarily buffered
-    in memory.
+        Temporary data is buffered on disk. It requires 12 bytes per (key,
+        value) pair. Each (key, [value+]) will be temporarily buffered in
+        memory.
 
-    Keys and values must be 32 bit integers.
+        Keys and values must be 32 bit integers.
 
-    >>> data = [(2, [3, 4, 5]), (3, [4, 5, 6]), (1, [7, 2, 1])]
-    >>> seq, invseq = iterinverse(data)
-    >>> [(k, list(v)) for (k, v) in seq]
-    [(2, [3, 4, 5]), (3, [4, 5, 6]), (1, [7, 2, 1])]
-    >>> [(k, list(v)) for (k, v) in invseq]
-    [(1, [(1, 2)]), (2, [(1, 1)]), (3, [(2, 0)]), (4, [(2, 1), (3, 0)]), (5, [(2, 2), (3, 1)]), (6, [(3, 2)]), (7, [(1, 0)])]
+        >>> data = [(2, [3, 4, 5]), (3, [4, 5, 6]), (1, [7, 2, 1])]
+        >>> invseq = iterinverse(data)
+        >>> [(k, list(v)) for (k, v) in invseq]
+        [(1, [(1, 2)]), (2, [(1, 1)]), (3, [(2, 0)]), (4, [(2, 1), (3, 0)]), (5, [(2, 2), (3, 1)]), (6, [(3, 2)]), (7, [(1, 0)])]
     
-    """
-    # this is deleted when it goes out of scope
-    tf = tempfile.TemporaryFile(prefix='invdata',  suffix='xappy', dir=tmpdir)
-    dtype = [('value', np.int32), ('key', np.int32), ('rank', np.int32)]
+        """
+        # this is deleted when it goes out of scope
+        self.tf = tempfile.TemporaryFile(prefix='invdata',
+                                         suffix='xappy', dir=tmpdir)
+        self.dtype = [('value', np.int32), ('key', np.int32), ('rank', np.int32)]
 
-    input_complete = [False]
-    def iter():
         for (key, values) in sequence:
             # we need to iterate the values sequence as well as allowing caller
             # to iterate, so it must be materialized
-            valuecopy = np.fromiter(izip(values, repeat(key), xrange(len(values))), dtype)
-            yield (key, valuecopy.getfield(np.int32, 0))
+            valuecopy = np.fromiter(izip(values,
+                                         repeat(key),
+                                         xrange(len(values))), self.dtype)
             buffer = valuecopy.tostring()
-            tf.write(buffer)
-        input_complete[0] = True
+            del valuecopy
+            self.tf.write(buffer)
 
-    def inviter():
-        assert input_complete[0], "input iterator was not exhausted"
-        a = np.memmap(tf, dtype=dtype, mode='r+')
-        # use mergesort because it's stable - preserves ranks
+        a = np.memmap(self.tf, dtype=self.dtype, mode='r+')
         a.sort()
-        for (k, vals) in groupby(a, itemgetter(0)):
-            yield (k, map(lambda x: (x[1], x[2]), vals))
         del a
-        tf.close()
+    
+    def __iter__(self):
+        a = np.memmap(self.tf, dtype=self.dtype, mode='r')
+        for (k, vals) in groupby(a, itemgetter(0)):
+            yield (int(k), map(lambda x: (int(x[1]), int(x[2])), vals))
+        del a
 
-    return (iter(), inviter())
+    def close(self):
+        if self.tf is not None:
+            self.tf.close()
+            self.tf = None
+
+    def __del__(self):
+        self.close()
 
 if __name__ == "__main__" :
     import random
@@ -92,21 +97,21 @@ if __name__ == "__main__" :
     min_docs_per_query = 20
     average_docs_per_query = 200
     max_docid = 1000000
-    r = random.Random()
-    lambd = 1.0 / (average_docs_per_query - min_docs_per_query)
-    input_iter = ( (i, (np.random.randint(0, max_docid, int(r.expovariate(lambd)))))
-        for i in xrange(querycount))
+
+    def input_iter():
+        count = 0
+        r = random.Random()
+        lambd = 1.0 / (average_docs_per_query - min_docs_per_query)
+        for i in xrange(querycount):
+            newlen = int(r.expovariate(lambd))
+            yield (i, (np.random.randint(0, max_docid, newlen)))
+            if (i + 1) % 10000 == 0:
+                print "creating %s.." % (i + 1)
+            count += newlen
+        print "iterated %s queries with %s doc references" % (querycount, count)
+
     print "testing..."
-    forward_iter, inverse_iter = iterinverse(input_iter)
-    count = 0
-    i = 0
-    for (k, vals) in forward_iter:
-        newlen = len(vals)
-        count += newlen
-        i += 1
-        if i % 10000 == 0:
-            print "creating %s.." % i
-    print "iterated %s queries with %s doc references" % (querycount, count)
+    inverse_iter = iterinverse(input_iter())
     
     count = 0
     i = 0
