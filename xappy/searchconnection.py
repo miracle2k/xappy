@@ -3409,12 +3409,12 @@ class SearchConnection(object):
         """
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
+        if docid is not None and xapid is not None:
+            raise _errors.SearchError("Only one of docid and xapid "
+                                      "should be set")
         while True:
             try:
                 if docid is not None:
-                    if xapid is not None:
-                        raise _errors.SearchError("Only one of docid and xapid"
-                                                  " should be set")
                     postlist = self._index.postlist('Q' + docid)
                     try:
                         plitem = postlist.next()

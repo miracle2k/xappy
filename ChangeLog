@@ -1,3 +1,11 @@
+Mon Nov 30 12:10:19 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Check that only one of docid and xapid
+	  are set in get_document() before entering the while loop.  This
+	  fixes a bug where the xapid got set later in the loop, so when a
+	  DatabaseModifiedException error happened, the xapid was set the
+	  next time around, triggering the error.
+
 Thu Nov 26 17:29:47 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/query.py,xappy/unittests/cached_searches.py: Add
