@@ -15,6 +15,12 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 from xappytest import *
 
+def dedent(str):
+    """Convert all indentation and newlines into single spaces.
+
+    """
+    return (' '.join(s.strip() for s in str.split('\n'))).strip()
+
 class TestQuerySerialise(TestCase):
     def pre_test(self):
         self.indexpath = os.path.join(self.tempdir, 'foo')
@@ -71,6 +77,8 @@ class TestQuerySerialise(TestCase):
                    q1.and_not(q2),
                    q1.and_maybe(q2),
                    xappy.Query.compose(xappy.Query.OP_OR, (q1, q2, q3, q4)),
+                   xappy.Query.compose(xappy.Query.OP_OR, (q1,
+                         xappy.Query.compose(xappy.Query.OP_OR, (q2, q3, q4)))),
                   )
 
         for q in queries:
@@ -79,6 +87,60 @@ class TestQuerySerialise(TestCase):
             q_repr2 = q_unrepr.evalable_repr()
             self.assertEqual(repr(q), repr(q_unrepr))
             self.assertEqual(q_repr, q_repr2)
+
+
+    def test_query_compose_serialise(self):
+        """Test serialising of composed queries.
+
+        """
+        q1 = self.sconn.query_field('a', 'A1')
+        q2 = self.sconn.query_field('a', 'A2')
+        q3 = self.sconn.query_field('a', 'A3')
+        q4 = self.sconn.query_field('a', 'A4')
+
+        q = xappy.Query.compose(xappy.Query.OP_OR, (q1,))
+        r = q.evalable_repr()
+        self.assertEqual(r, dedent("""
+            conn.query_field('a', value='A1')
+        """))
+
+        q = xappy.Query.compose(xappy.Query.OP_OR, (q1, q2))
+        r = q.evalable_repr()
+        self.assertEqual(r, dedent("""
+            (conn.query_field('a', value='A1') |
+             conn.query_field('a', value='A2'))
+        """))
+
+        q = xappy.Query.compose(xappy.Query.OP_OR, (q1,
+            xappy.Query.compose(xappy.Query.OP_OR, (q2, q3, q4))))
+        r = q.evalable_repr()
+        self.assertEqual(r, dedent("""
+            Query.compose(Query.OP_OR,
+                          (conn.query_field('a', value='A1'),
+                           conn.query_field('a', value='A2'),
+                           conn.query_field('a', value='A3'),
+                           conn.query_field('a', value='A4')))
+        """))
+
+        q = xappy.Query.compose(xappy.Query.OP_OR, (q1,
+            xappy.Query.compose(xappy.Query.OP_AND, (q2, q3, q4))))
+        r = q.evalable_repr()
+        self.assertEqual(r, dedent("""
+                          (conn.query_field('a', value='A1') |
+                          Query.compose(Query.OP_AND,
+                                        (conn.query_field('a', value='A2'),
+                                        conn.query_field('a', value='A3'),
+                                        conn.query_field('a', value='A4'))))
+        """))
+
+        q = xappy.Query.compose(xappy.Query.OP_OR, (q1,
+            xappy.Query.compose(xappy.Query.OP_AND, (q2, q3))))
+        r = q.evalable_repr()
+        self.assertEqual(r, dedent("""
+                          (conn.query_field('a', value='A1') |
+                           (conn.query_field('a', value='A2') &
+                            conn.query_field('a', value='A3')))
+        """))
 
 
 if __name__ == '__main__':

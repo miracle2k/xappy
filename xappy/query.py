@@ -53,11 +53,12 @@ class Query(object):
         if query is None:
             query = xapian.Query()
             if _serialised is None:
-                _serialised = 'xappy.Query()'
+                _serialised = 'Query()'
 
         # Set the default query parameters.
         self.__checkatleast = 0
-        self.__sortby = None
+        self.__op = None
+        self.__subqs = None
 
         if isinstance(query, xapian.Query):
             self.__query = query
@@ -119,10 +120,32 @@ class Query(object):
         xapian.Query or xappy.Query objects).
 
         """
+        queries = tuple(queries)
+
+        # Special cases for 0 or 1 subqueries - don't build pointless
+        # combinations.
+        if len(queries) == 0:
+            return Query()
+        elif len(queries) == 1:
+            return Query(queries[0])
+
+        # flatten the queries: any subqueries in the list which are also
+        # combination queries with the same operator should be merged into this
+        # combination query.
+        flattened_queries = []
+        for q in queries:
+            if not isinstance(q, xapian.Query) and q.__op == operator:
+                flattened_queries.extend(q.__subqs)
+            else:
+                flattened_queries.append(q)
+
         result = Query()
+        result.__op = operator
+        result.__subqs = flattened_queries
+
         xapqs = []
         serialisedqs = []
-        for q in queries:
+        for q in flattened_queries:
             if isinstance(q, xapian.Query):
                 xapqs.append(q)
                 serialisedqs = None
@@ -137,14 +160,26 @@ class Query(object):
                 result.__merge_params(q)
             else:
                 raise TypeError("queries must contain a list of xapian.Query or xappy.Query objects")
+
         result.__query = xapian.Query(operator, xapqs)
         if serialisedqs is not None:
-            serialisedqs = ', '.join(serialisedqs)
-            if serialisedqs != '':
-                serialisedqs = '(' + serialisedqs + ',)'
+            if len(serialisedqs) == 0:
+                result.__serialised = "Query()"
+            elif len(serialisedqs) == 1:
+                result.__serialised = serialisedqs[0]
+            elif len(serialisedqs) == 2:
+                result.__serialised = '(' + {
+                    Query.OP_AND: ' & ',
+                    Query.OP_OR: ' | ',
+                }[operator].join(serialisedqs) + ')'
             else:
-                serialisedqs = '()'
-            result.__serialised = "xappy.Query.compose(%d, %s)" % (operator, serialisedqs)
+                operator_str = {
+                    Query.OP_AND: 'Query.OP_AND',
+                    Query.OP_OR: 'Query.OP_OR',
+                }[operator]
+                result.__serialised = "Query.compose(" + operator_str + \
+                                      ", (" + ', '.join(serialisedqs) + "))"
+
         return result
 
     def __mul__(self, multiplier):
@@ -154,7 +189,7 @@ class Query(object):
         result = Query()
         result.__merge_params(self)
         if self.__serialised is not None:
-            result.__serialised = "%s * %.65g" % (self.__serialised, multiplier)
+            result.__serialised = '(' + self.__serialised + " * " + repr(multiplier) + ')'
         try:
             result.__query = xapian.Query(xapian.Query.OP_SCALE_WEIGHT,
                                           self.__query, multiplier)
@@ -192,7 +227,7 @@ class Query(object):
         """
         if not isinstance(other, (Query, xapian.Query)):
             return NotImplemented
-        return self.__combine_with(Query.OP_AND, other)
+        return Query.compose(Query.OP_AND, (self, other))
 
     def __or__(self, other):
         """Return a query combined using OR with another query.
@@ -200,7 +235,7 @@ class Query(object):
         """
         if not isinstance(other, (Query, xapian.Query)):
             return NotImplemented
-        return self.__combine_with(Query.OP_OR, other)
+        return Query.compose(Query.OP_OR, (self, other))
 
     def __xor__(self, other):
         """Return a query combined using XOR with another query.
@@ -222,22 +257,22 @@ class Query(object):
             result.__merge_params(other)
             if self.__serialised is not None and other.__serialised is not None:
                 funcname = {
-                    Query.OP_AND: " & ",
-                    Query.OP_OR: " | ",
-                    xapian.Query.OP_XOR: " ^ ",
+                    xapian.Query.OP_XOR: ".xor",
                     xapian.Query.OP_AND_NOT: ".and_not",
                     xapian.Query.OP_FILTER: ".filter",
                     xapian.Query.OP_AND_MAYBE: ".adjust",
                 }[operator]
-                result.__serialised = ''.join(('(', self.__serialised, ')',
-                                               funcname, '(',
-                                               other.__serialised, ')'))
+                result.__serialised = ''.join((self.__serialised, funcname,
+                                               '(' + other.__serialised + ')'))
         else:
             raise TypeError("other must be a xapian.Query or xappy.Query object")
 
         result.__query = xapian.Query(operator, self.__query, oquery)
 
         return result
+
+    def xor(self, other):
+        return self.__combine_with(xapian.Query.OP_XOR, other)
 
     def and_not(self, other):
         """Return a query which returns filtered results of this query.
@@ -297,18 +332,22 @@ class Query(object):
 
         This is equivalent to dividing the query by the result of
         `get_max_possible_weight()`, except that the case of the maximum
-        possible weight being 0 is handled correctly.  Note that this means
-        that it will be very rare for a resulting document to attain a weight
-        of 1.0.
+        possible weight being 0 is handled correctly.  The serialised
+        representation of the query is also nicer if norm is used() than when
+        dividing by get_max_possible_weight (in that it usually won't contain
+        long floating point number representations).
+
+        Note that it will be very rare for a resulting document to attain a
+        weight of 1.0.
 
         """
         max_possible = self.get_max_possible_weight()
-        if max_possible > 0:
+        if max_possible > 0.:
             result = self * (maxweight / max_possible)
             if maxweight == 1.0:
-                result.__serialised = '(' + self.__serialised + ').norm()'
+                result.__serialised = self.__serialised + '.norm()'
             else:
-                result.__serialised = '(' + self.__serialised + ').norm(' + repr(maxweight) + ')'
+                result.__serialised = self.__serialised + '.norm(' + repr(maxweight) + ')'
             return result
         return self
 
@@ -320,7 +359,10 @@ class Query(object):
         """
         if self.__conn is None:
             raise ValueError("This Query is not associated with a SearchConnection")
-        return self.norm() | self.__conn.query_cached(cached_id)
+        result = self.norm() | self.__conn.query_cached(cached_id)
+        result.__serialised = self.__serialised + \
+            '.merge_with_cached(%d)' % cached_id
+        return result
 
     def search(self, startrank, endrank, *args, **kwargs):
         """Perform a search using this query.
@@ -379,10 +421,16 @@ class Query(object):
         """Return a serialised form of this query, suitable for eval.
 
         This form can be passed to eval to get back the unserialised query,
-        though this must be done in a context in which "conn" is a symbol
-        defined to be the search connection which the query is associated with,
-        and in which "xapian" is the appropriate module.  A convenient method
-        to do this is the SearchConnection.query_from_evalable() method.
+        though this must be done in a context in which the following symbols
+        are defined:
+        
+         - "conn" is a symbol defined to be the search connection which the query is associated with.
+         - "xapian" is the "xapian" module.
+         - "xappy" is the "xappy" module.
+         - "Query" is the "xappy.Query" class.
+        
+        A convenient method to do this is the
+        SearchConnection.query_from_evalable() method.
 
         If the query was originally created by passing a raw xapian query to
         the query constructor, the serialised form cannot be computed, and this
