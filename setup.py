@@ -117,7 +117,7 @@ setup(name = "xappy",
       license = 'GPL',
       platforms = 'Any',
 
-      packages = ['xappy'],
+      packages = ['xappy', 'xappy.cachemanager'],
       package_dir = {'xappy': 'xappy'},
 
       **extra_kwargs)

@@ -1,3 +1,7 @@
+Tue Dec 01 12:42:35 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* MANIFEST.in,setup.py: Add xappy.cachemanger to distribution.
+
 Tue Dec 01 11:47:46 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/query.py: Improve the serialisation of the result of
