@@ -2874,7 +2874,8 @@ class SearchConnection(object):
 
         """
         import xappy
-        vars = {'conn': self, 'xappy': xappy, 'xapian': xapian}
+        vars = {'conn': self, 'xappy': xappy, 'xapian': xapian,
+                'Query': xappy.Query}
         return eval(serialised, vars)
 
     def spell_correct(self, querystr, allow=None, deny=None, default_op=OP_AND,
@@ -3192,8 +3193,6 @@ class SearchConnection(object):
         if self._index is None:
             raise _errors.SearchError("SearchConnection has been closed")
 
-        serialised = self._make_parent_func_repr("search")
-
         if 'facets' in _checkxapian.missing_features:
             if getfacets is not None or \
                allowfacets is not None or \
@@ -3222,9 +3221,7 @@ class SearchConnection(object):
                 try:
                     slot = self._field_mappings.get_slot(sortby.fieldname, 'loc')
                 except KeyError:
-                    # Return a "match nothing" query
-                    return Query(_xapian.Query(), _conn=self,
-                                 _serialised=serialised)
+                    raise _errors.SearchError("Field %r was not indexed for geolocation sorting" % slotspec)
 
                 # Get the coords
                 coords = _xapian.LatLongCoords()

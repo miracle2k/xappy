@@ -1,3 +1,9 @@
+Tue Dec 01 23:53:22 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Add 'Query' to the unserialisation
+	  context.  Fix an incorrect return type if a field was specified
+	  for geolocation sorting which hadn't been indexed appropriately.
+
 Tue Dec 01 12:42:35 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* MANIFEST.in,setup.py: Add xappy.cachemanger to distribution.
