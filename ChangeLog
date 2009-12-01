@@ -1,3 +1,8 @@
+Tue Dec 01 11:47:46 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/query.py: Improve the serialisation of the result of
+	  norm().
+
 Mon Nov 30 12:10:19 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py: Check that only one of docid and xapid

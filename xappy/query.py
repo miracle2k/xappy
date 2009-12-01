@@ -304,7 +304,12 @@ class Query(object):
         """
         max_possible = self.get_max_possible_weight()
         if max_possible > 0:
-            return self * (maxweight / max_possible)
+            result = self * (maxweight / max_possible)
+            if maxweight == 1.0:
+                result.__serialised = '(' + self.__serialised + ').norm()'
+            else:
+                result.__serialised = '(' + self.__serialised + ').norm(' + repr(maxweight) + ')'
+            return result
         return self
 
     def merge_with_cached(self, cached_id):
