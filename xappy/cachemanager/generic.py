@@ -27,6 +27,10 @@ __docformat__ = "restructuredtext en"
 import cPickle
 import queryinvert
 import UserDict
+try:
+    from hashlib import md5
+except ImportError:
+    from md5 import md5
 
 class InMemoryInverterMixIn(object):
     """Simple inverting implementation: build up all the data in memory.
@@ -299,14 +303,30 @@ class KeyValueStoreCacheManager(NumpyInverterMixIn, UserDict.DictMixin,
             return iter(())
         return xrange(self.decode_int(v))
 
+    def iter_query_strs(self):
+        for query_id in self.iter_queryids():
+            query_str = self['S' + str(query_id)]
+            if len(query_str) > 0:
+                yield query_str
+
+    @staticmethod
+    def _make_query_key(query_str):
+        return 'Q' + md5(query_str).digest()
+
     def get_queryid(self, query_str):
-        v = self['Q' + query_str]
+        v = self[self._make_query_key(query_str)]
         if len(v) == 0:
             return None
-        return self.decode_int(v)
+        stored_str, retval  = self.decode(v)
+        if stored_str == query_str:
+            return retval
+        # Collision for the hash - very very unlikely, so just return a cache
+        # miss in this case.
+        return None
 
     def get_or_make_queryid(self, query_str):
-        v = self['Q' + query_str]
+        query_key = self._make_query_key(query_str)
+        v = self[query_key]
         if len(v) == 0:
             # Get the next ID to use.
             v = self['I']
@@ -315,10 +335,15 @@ class KeyValueStoreCacheManager(NumpyInverterMixIn, UserDict.DictMixin,
             else:
                 thisid = self.decode_int(v)
 
-            self['Q' + query_str] = self.encode_int(thisid)
+            self[query_key] = self.encode((query_str, thisid))
+            self['S' + str(thisid)] = query_str
             self['I'] = self.encode_int(thisid + 1)
             return thisid
-        return self.decode_int(v)
+        stored_str, retval  = self.decode(v)
+        if stored_str == query_str:
+            return retval
+        raise ValueError("Hash values collide: stored query string is %r, "
+                         "query string is %r" % (stored_str, query_str))
 
     def make_hit_chunk_key(self, queryid, chunk):
         """Make the key for looking up a particular chunk for a given queryid.
