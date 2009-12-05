@@ -1,3 +1,9 @@
+Sat Dec 05 23:50:15 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/doctests/indexerconnection_doctest1.txt: Be less fussy
+	  about required text in exception message (it's changed with
+	  latest Xapian).
+
 Sat Dec 05 23:37:58 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* libs/get_xapian.py,utils/make_xappy_tarballs: Link to packages
