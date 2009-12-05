@@ -1,3 +1,8 @@
+Sat Dec 05 23:37:58 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Link to packages
+	  built with new version of xapian.
+
 Wed Dec 02 01:16:00 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/generic.py,
