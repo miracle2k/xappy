@@ -26,6 +26,8 @@ __docformat__ = "restructuredtext en"
 
 from generic import CacheManager, KeyValueStoreCacheManager
 try:
-    from xapian_manager import XapianCacheManager, XapianSelfInvertingCacheManager
+    from xapian_manager import \
+        XapianCacheManager, \
+        XapianSelfInvertingCacheManager
 except ImportError:
     pass

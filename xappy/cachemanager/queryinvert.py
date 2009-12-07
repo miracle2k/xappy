@@ -29,13 +29,12 @@ to
     (docid, [(queryid, rank)+])
 
 """
-import random
 import tempfile
 from itertools import groupby, izip, repeat
 from operator import itemgetter
 import numpy as np
 
-class iterinverse(object):
+class InverseIterator(object):
     def __init__(self, sequence, tmpdir=None):
         """
         Converts a sequence of (key, [value+]) to (value, [(key, position)+]).
@@ -52,7 +51,7 @@ class iterinverse(object):
         Keys and values must be 32 bit integers.
 
         >>> data = [(2, [3, 4, 5]), (3, [4, 5, 6]), (1, [7, 2, 1])]
-        >>> invseq = iterinverse(data)
+        >>> invseq = InverseIterator(data)
         >>> [(k, list(v)) for (k, v) in invseq]
         [(1, [(1, 2)]), (2, [(1, 1)]), (3, [(2, 0)]), (4, [(2, 1), (3, 0)]), (5, [(2, 2), (3, 1)]), (6, [(3, 2)]), (7, [(1, 0)])]
     
@@ -60,7 +59,9 @@ class iterinverse(object):
         # this is deleted when it goes out of scope
         self.tf = tempfile.TemporaryFile(prefix='invdata',
                                          suffix='xappy', dir=tmpdir)
-        self.dtype = [('value', np.int32), ('key', np.int32), ('rank', np.int32)]
+        self.dtype = [('value', np.int32),
+                      ('key', np.int32),
+                      ('rank', np.int32)]
 
         for (key, values) in sequence:
             # we need to iterate the values sequence as well as allowing caller
@@ -68,9 +69,9 @@ class iterinverse(object):
             valuecopy = np.fromiter(izip(values,
                                          repeat(key),
                                          xrange(len(values))), self.dtype)
-            buffer = valuecopy.tostring()
+            buf = valuecopy.tostring()
             del valuecopy
-            self.tf.write(buffer)
+            self.tf.write(buf)
 
         a = np.memmap(self.tf, dtype=self.dtype, mode='r+')
         a.sort()
@@ -83,6 +84,9 @@ class iterinverse(object):
         del a
 
     def close(self):
+        """Close the temporary file used.
+
+        """
         if self.tf is not None:
             self.tf.close()
             self.tf = None
@@ -90,7 +94,10 @@ class iterinverse(object):
     def __del__(self):
         self.close()
 
-if __name__ == "__main__" :
+def runtest():
+    """Run a test of this code - intended to be called from the command line.
+
+    """
     import random
     querycount = 100000
     # really we'd expect few large and many more small
@@ -111,14 +118,17 @@ if __name__ == "__main__" :
         print "iterated %s queries with %s doc references" % (querycount, count)
 
     print "testing..."
-    inverse_iter = iterinverse(input_iter())
+    inverse_iter = InverseIterator(input_iter())
     
     count = 0
     i = 0
-    for (k, vals) in inverse_iter:
+    for (_, vals) in inverse_iter:
         newlen = len(vals)
         count += newlen
         i += 1
         if i % 10000 == 0:
-            print "creating %s.." % i
+            print "iterated %s.." % i
     print "iterated %s docs with %s query references" % (querycount, count)
+
+if __name__ == "__main__" :
+    runtest()

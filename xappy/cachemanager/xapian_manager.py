@@ -27,7 +27,6 @@ __docformat__ = "restructuredtext en"
 import generic
 import os
 import shutil
-import tempfile
 import xapian
 
 class XapianCacheManager(generic.KeyValueStoreCacheManager):
@@ -120,7 +119,8 @@ class XapianSelfInvertingCacheManager(XapianCacheManager):
         provided to the cache.
 
         """
-        if self.inverted: return
+        if self.inverted:
+            return
 
         if not os.path.exists(self.dbpath):
             self.inverted = True

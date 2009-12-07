@@ -25,65 +25,18 @@ r"""generic.py: Base cachemanager classes.
 __docformat__ = "restructuredtext en"
 
 import cPickle
-import queryinvert
 import UserDict
 try:
     from hashlib import md5
 except ImportError:
     from md5 import md5
 
-class InMemoryInverterMixIn(object):
-    """Simple inverting implementation: build up all the data in memory.
-
-    """
-    def prepare_iter_by_docid(self):
-        if getattr(self, 'inverted_items', None) is None:
-            items = {}
-            for queryid in self.iter_queryids():
-                for rank, docid in enumerate(self.get_hits(queryid)):
-                    items.setdefault(docid, []).append((queryid, rank))
-            self.inverted_items = items
-
-    def invalidate_iter_by_docid(self):
-        """Invalidate any cached items for the iter_by_docid.
-
-        """
-        self.inverted_items = None
-
-    def iter_by_docid(self):
-        self.prepare_iter_by_docid()
-        items = self.inverted_items
-        for docid in sorted(items.keys()):
-            yield docid, items[docid]
-
-
-class NumpyInverterMixIn(object):
-    """Inverting implementation which uses a numpy array for storage.
-
-    Should be able to scale to larger data volumes than the naive version.
-
-    """
-
-    def prepare_iter_by_docid(self):
-        if getattr(self, 'inverted_iter', None) is None:
-            if self.is_empty():
-                self.inverted_iter = ()
-                return
-            def itemiter():
-                for queryid in self.iter_queryids():
-                    yield queryid, self.get_hits(queryid)
-            self.inverted_iter = queryinvert.iterinverse(itemiter())
-
-    def invalidate_iter_by_docid(self):
-        if getattr(self, 'inverted_iter', None) is not None:
-            if not isinstance(self.inverted_iter, tuple):
-                self.inverted_iter.close()
-        self.inverted_iter = None
-
-    def iter_by_docid(self):
-        self.prepare_iter_by_docid()
-        return self.inverted_iter
-
+try:
+    from numpy_inverter import NumpyInverterMixIn
+    InverterMixIn = NumpyInverterMixIn
+except ImportError:
+    from inmemory_inverter import InMemoryInverterMixIn
+    InverterMixIn = InMemoryInverterMixIn
 
 class CacheManager(object):
     """Base class for caches of precalculated results.
@@ -207,7 +160,7 @@ class CacheManager(object):
         """
         raise NotImplementedError
 
-class KeyValueStoreCacheManager(NumpyInverterMixIn, UserDict.DictMixin,
+class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
                                 CacheManager):
     """A manager that stores the cached items in chunks in a key-value store.
 
@@ -243,7 +196,7 @@ class KeyValueStoreCacheManager(NumpyInverterMixIn, UserDict.DictMixin,
     def __init__(self, chunksize=None):
         if chunksize is None:
             chunksize = 1000
-        self.chunksize=chunksize
+        self.chunksize = chunksize
         CacheManager.__init__(self)
 
     def __getitem__(self, key):
@@ -345,7 +298,8 @@ class KeyValueStoreCacheManager(NumpyInverterMixIn, UserDict.DictMixin,
         raise ValueError("Hash values collide: stored query string is %r, "
                          "query string is %r" % (stored_str, query_str))
 
-    def make_hit_chunk_key(self, queryid, chunk):
+    @staticmethod
+    def make_hit_chunk_key(queryid, chunk):
         """Make the key for looking up a particular chunk for a given queryid.
 
         """

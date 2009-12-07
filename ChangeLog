@@ -1,3 +1,9 @@
+Mon Dec 07 20:18:51 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/: Split the inverters into separate files, and
+	  fallback to inmemory if numpy is not available.  Various other
+	  code tidyups.
+
 Mon Dec 07 14:15:03 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py,xappy/searchresults.py: Split the
