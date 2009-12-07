@@ -1,3 +1,13 @@
+Mon Dec 07 14:15:03 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py,xappy/searchresults.py: Split the
+	  SearchResults and SearchResult classes out of
+	  searchconnection.py, as a first step to making the code a bit
+	  more readable.  Also, minimise the number of imported symbols,
+	  get rid of the "*" in "from foo import *", and use the proper
+	  names of various imports rather than prefixing them with an
+	  underscore.
+
 Sat Dec 05 23:50:15 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/doctests/indexerconnection_doctest1.txt: Be less fussy
