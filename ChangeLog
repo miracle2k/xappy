@@ -1,3 +1,10 @@
+Tue Dec 08 10:54:27 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py,xappy/searchresults.py,xappy/utils.py:
+	  Move add_to_dict_of_dicts() into utils.py.  Add
+	  SearchResultContext, used to bundle up all the resources that a
+	  SearchResult object might need.
+
 Tue Dec 08 09:25:54 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/: Split get_significant_digits into separate utility

@@ -70,3 +70,12 @@ def get_significant_digits(value, lower, upper):
 
     # Return the value, rounded to the nearest multiple of pos_pow_10
     return ((value + pos_pow_10 // 2) // pos_pow_10) * pos_pow_10
+
+def add_to_dict_of_dicts(d, key, item, value):
+    """Add an entry to a dict of dicts.
+
+    """
+    try:
+        d[key][item] = d[key].get(item, 0) + value
+    except KeyError:
+        d[key] = {item: value}

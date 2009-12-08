@@ -39,16 +39,27 @@ import highlight
 import errors
 from indexerconnection import IndexerConnection
 import re
-from utils import get_significant_digits
+from utils import get_significant_digits, add_to_dict_of_dicts
 
-def add_to_dict_of_dicts(d, key, item, value):
-    """Add to an an entry to a dict of dicts.
+class SearchResultContext(object):
+    """A context used by SearchResult objects to get various pieces of
+    information about the search.
 
     """
-    try:
-        d[key][item] = d[key].get(item, 0) + value
-    except KeyError:
-        d[key] = {item: value}
+    def __init__(self, conn, field_mappings, term_weights, query):
+        """Initialise a context.
+
+         - `conn`: the SearchConnection used.
+         - `field_mappings`: the mappings from field names to prefixes and
+           slots.
+         - `term_weights`: an object used to get term weights.
+         - `query`: the query which was performed.
+
+        """
+        self.conn = conn
+        self.field_mappings = field_mappings
+        self.term_weights = term_weights
+        self.query = query
 
 class SearchResult(ProcessedDocument):
     """A result from a search.
@@ -78,12 +89,14 @@ class SearchResult(ProcessedDocument):
        occasionally.
 
     """
-    def __init__(self, msetitem, results):
-        ProcessedDocument.__init__(self, results._fieldmappings, msetitem.document)
+    def __init__(self, msetitem, context):
+        ProcessedDocument.__init__(self, context.field_mappings, msetitem.document)
         self.rank = msetitem.rank
         self.weight = msetitem.weight
         self.percent = msetitem.percent
-        self._results = results
+        self._term_weights = context.term_weights
+        self._conn = context.conn
+        self._query = context.query
 
         # Fields for which term and value assocs have been calculated.
         self._tvassocs_fields = None
@@ -105,7 +118,7 @@ class SearchResult(ProcessedDocument):
         Raises a KeyError if the field is not known.
 
         """
-        actions = self._results._conn._field_actions[field]._actions
+        actions = self._conn._field_actions[field]._actions
         for action, kwargslist in actions.iteritems():
             if action == FieldActions.INDEX_FREETEXT:
                 for kwargs in kwargslist:
@@ -147,7 +160,7 @@ class SearchResult(ProcessedDocument):
         """Calculate the term-value associations.
 
         """
-        conn = self._results._conn
+        conn = self._conn
         self._termassocs = {}
         self._valueassocs = {}
 
@@ -187,7 +200,7 @@ class SearchResult(ProcessedDocument):
         slots = {}
         for field in allow:
             p = []
-            actions = self._results._conn._field_actions[field]._actions
+            actions = self._conn._field_actions[field]._actions
             is_ft = None
             for action, kwargslist in actions.iteritems():
                 if action == FieldActions.INDEX_FREETEXT:
@@ -223,7 +236,7 @@ class SearchResult(ProcessedDocument):
         queryweights = {}
         for term in query._get_terms():
             try:
-                queryweights[term] = self._results._mset.get_termweight(term)
+                queryweights[term] = self._term_weights.get(term)
             except errors.XapianError:
                 pass
 
@@ -370,7 +383,7 @@ class SearchResult(ProcessedDocument):
             raise errors.SearchError("Cannot specify both `allow` and `deny` "
                                      "(got %r and %r)" % (allow, deny))
         if allow is None:
-            allow = [key for key in self._results._conn._field_actions]
+            allow = [key for key in self._conn._field_actions]
         if deny is not None:
             allow = [key for key in allow if key not in deny]
 
@@ -378,8 +391,7 @@ class SearchResult(ProcessedDocument):
         allow.sort()
 
         if query is None:
-            query = self._results._query
-        conn = self._results._conn
+            query = self._query
 
         if simple:
             return self._relevant_data_simple(allow, query, groupnumbers)
@@ -493,7 +505,7 @@ class SearchResult(ProcessedDocument):
         results = []
         text = '\n'.join(field)
         if query is None:
-            query = self._results._query
+            query = self._query
         return highlighter.makeSample(text, query, maxlen, hl)
 
     def highlight(self, field, hl=('<b>', '</b>'), strip_tags=False, query=None):
@@ -524,7 +536,7 @@ class SearchResult(ProcessedDocument):
         field = self.data[field]
         results = []
         if query is None:
-            query = self._results._query
+            query = self._query
         for text in field:
             results.append(highlighter.highlight(text, query, hl, strip_tags))
         return results
@@ -534,82 +546,99 @@ class SearchResult(ProcessedDocument):
                 (self.rank, self.id, self.data))
 
 
+class MSetTermWeightGetter(object):
+    """Object for getting termweights directly from an mset.
+
+    """
+    def __init__(self, mset):
+        self.mset = mset
+
+    def get(self, term):
+        return self.mset.get_termweight(term)
+
+
 class MSetSearchResultIter(object):
     """An iterator over a set of results from a search.
 
     """
-    def __init__(self, mset, results):
-        self._results = results
-        self._iter = iter(mset)
+    def __init__(self, mset, context):
+        self.context = context
+        self.it = iter(mset)
 
     def next(self):
-        return SearchResult(self._iter.next(), self._results)
+        return SearchResult(self.it.next(), self.context)
+
+
+class MSetResultOrdering(object):
+    def __init__(self, mset, context):
+        self.mset = mset
+        self.context = context
+
+    def get_iter(self):
+        """Get an iterator over the search results.
+
+        """
+        return MSetSearchResultIter(self.mset, self.context)
+
+    def get_hit(self, index):
+        """Get the hit with a given index.
+
+        """
+        msetitem = self.mset.get_hit(index)
+        return SearchResult(msetitem, self.context)
+
 
 class ReorderedMSetSearchResultIter(object):
     """An iterator over a set of results from a search which have been
     reordered.
 
     """
-    def __init__(self, mset, order, results):
-        self._mset = mset
-        self._order = order
-        self._results = results
-        self._iter = iter(self._order)
+    def __init__(self, mset, order, context):
+        self.mset = mset
+        self.order = order
+        self.context = context
+        self.it = iter(self.order)
 
     def next(self):
-        index = self._iter.next()
-        msetitem = self._mset.get_hit(index)
-        return SearchResult(msetitem, self._results)
-
-class MSetResultOrdering(object):
-    def __init__(self, mset):
-        self.mset = mset
-
-    def get_iter(self, results):
-        """Get an iterator over the search results.
-
-        """
-        return MSetSearchResultIter(self.mset, results)
-
-    def get_hit(self, index, results):
-        """Get the hit with a given index.
-
-        """
+        index = self.it.next()
         msetitem = self.mset.get_hit(index)
-        return SearchResult(msetitem, results)
+        return SearchResult(msetitem, self.context)
+
 
 class ReorderedMSetResultOrdering(object):
-    def __init__(self, mset, mset_order):
+    def __init__(self, mset, mset_order, context):
         self.mset = mset
         self.mset_order = mset_order
+        self.context = context
 
-    def get_iter(self, results):
+    def get_iter(self):
         """Get an iterator over the search results.
 
         """
         return ReorderedMSetSearchResultIter(self.mset, self.mset_order,
-                                             results)
+                                             self.context)
 
-    def get_hit(self, index, results):
+    def get_hit(self, index):
         """Get the hit with a given index.
 
         """
         msetitem = self.mset.get_hit(self.mset_order[index])
-        return SearchResult(msetitem, results)
+        return SearchResult(msetitem, self.context)
 
 class SearchResults(object):
     """A set of results of a search.
 
     """
-    def __init__(self, conn, query, fieldmappings,
+    def __init__(self, conn, query, field_mappings,
                  facetspies, facetfields,
                  facethierarchy, facetassocs,
-                 ordering, mset):
+                 ordering, mset, context):
         self._conn = conn
         self._query = query
         self._ordering = ordering
         self._mset = mset
-        self._fieldmappings = fieldmappings
+        self._context = context
+        self._field_mappings = field_mappings
         self._facetspies = facetspies
         self._facetfields = facetfields
         self._facethierarchy = facethierarchy
@@ -775,7 +804,8 @@ class SearchResults(object):
                 potentials[next_cat] = (l[1][0],
                                         wt * utilities.get(next_cat, 0.01), wt)
 
-        self._ordering = ReorderedMSetResultOrdering(self._mset, new_order)
+        self._ordering = ReorderedMSetResultOrdering(self._mset, new_order,
+                                                     self._context)
 
     def _reorder_by_clusters(self, clusters):
         """Reorder the mset based on some clusters.
@@ -794,7 +824,8 @@ class SearchResults(object):
                 nottophits.append(i)
         new_order = tophits
         new_order.extend(nottophits)
-        self._ordering = ReorderedMSetResultOrdering(self._mset, new_order)
+        self._ordering = ReorderedMSetResultOrdering(self._mset, new_order,
+                                                     self._context)
 
     def _get_singlefield_slot(self, fields, assume_single_value):
         """Return the slot number if the specified list of fields contains only
@@ -923,7 +954,8 @@ class SearchResults(object):
             new_order.extend(range(end, self.endrank))
         assert len(new_order) == self.endrank
         if reordered:
-            self._ordering = ReorderedMSetResultOrdering(self._mset, new_order)
+            self._ordering = ReorderedMSetResultOrdering(self._mset, new_order,
+                                                         self._context)
         else:
             assert new_order == range(self.endrank)
             self._ordering = MSetResultOrdering(self._mset)
@@ -1030,7 +1062,7 @@ class SearchResults(object):
         """Get the hit with a given index.
 
         """
-        return self._ordering.get_hit(index, self)
+        return self._ordering.get_hit(index)
 
     def __getitem__(self, index_or_slice):
         """Get an item, or slice of items.
@@ -1048,7 +1080,7 @@ class SearchResults(object):
         The iterator returns the results in increasing order of rank.
 
         """
-        return self._ordering.get_iter(self)
+        return self._ordering.get_iter()
 
     def __len__(self):
         """Get the number of hits in the search result.
