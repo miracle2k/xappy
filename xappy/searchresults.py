@@ -39,6 +39,7 @@ import highlight
 import errors
 from indexerconnection import IndexerConnection
 import re
+from utils import get_significant_digits
 
 def add_to_dict_of_dicts(d, key, item, value):
     """Add to an an entry to a dict of dicts.
@@ -533,88 +534,81 @@ class SearchResult(ProcessedDocument):
                 (self.rank, self.id, self.data))
 
 
-class SearchResultIter(object):
+class MSetSearchResultIter(object):
     """An iterator over a set of results from a search.
 
     """
-    def __init__(self, results, order):
+    def __init__(self, mset, results):
         self._results = results
-        self._order = order
-        if self._order is None:
-            self._iter = iter(results._mset)
-        else:
-            self._iter = iter(self._order)
+        self._iter = iter(mset)
 
     def next(self):
-        if self._order is None:
-            msetitem = self._iter.next()
-        else:
-            index = self._iter.next()
-            msetitem = self._results._mset.get_hit(index)
-        return SearchResult(msetitem, self._results)
+        return SearchResult(self._iter.next(), self._results)
 
-
-def _get_significant_digits(value, lower, upper):
-    """Get the significant digits of value which are constrained by the
-    (inclusive) lower and upper bounds.
-
-    If there are no significant digits which are definitely within the
-    bounds, exactly one significant digit will be returned in the result.
-
-    >>> _get_significant_digits(15,15,15)
-    15
-    >>> _get_significant_digits(15,15,17)
-    20
-    >>> _get_significant_digits(4777,208,6000)
-    5000
-    >>> _get_significant_digits(4777,4755,4790)
-    4800
-    >>> _get_significant_digits(4707,4695,4710)
-    4700
-    >>> _get_significant_digits(4719,4717,4727)
-    4720
-    >>> _get_significant_digits(0,0,0)
-    0
-    >>> _get_significant_digits(9,9,10)
-    9
-    >>> _get_significant_digits(9,9,100)
-    9
+class ReorderedMSetSearchResultIter(object):
+    """An iterator over a set of results from a search which have been
+    reordered.
 
     """
-    assert(lower <= value)
-    assert(value <= upper)
-    diff = upper - lower
+    def __init__(self, mset, order, results):
+        self._mset = mset
+        self._order = order
+        self._results = results
+        self._iter = iter(self._order)
 
-    # Get the first power of 10 greater than the difference.
-    # This corresponds to the magnitude of the smallest significant digit.
-    if diff == 0:
-        pos_pow_10 = 1
-    else:
-        pos_pow_10 = int(10 ** math.ceil(math.log10(diff)))
+    def next(self):
+        index = self._iter.next()
+        msetitem = self._mset.get_hit(index)
+        return SearchResult(msetitem, self._results)
 
-    # Special case for situation where we don't have any significant digits:
-    # get the magnitude of the most significant digit in value.
-    if pos_pow_10 > value:
-        if value == 0:
-            pos_pow_10 = 1
-        else:
-            pos_pow_10 = int(10 ** math.floor(math.log10(value)))
+class MSetResultOrdering(object):
+    def __init__(self, mset):
+        self.mset = mset
 
-    # Return the value, rounded to the nearest multiple of pos_pow_10
-    return ((value + pos_pow_10 // 2) // pos_pow_10) * pos_pow_10
+    def get_iter(self, results):
+        """Get an iterator over the search results.
+
+        """
+        return MSetSearchResultIter(self.mset, results)
+
+    def get_hit(self, index, results):
+        """Get the hit with a given index.
+
+        """
+        msetitem = self.mset.get_hit(index)
+        return SearchResult(msetitem, results)
+
+class ReorderedMSetResultOrdering(object):
+    def __init__(self, mset, mset_order):
+        self.mset = mset
+        self.mset_order = mset_order
+
+    def get_iter(self, results):
+        """Get an iterator over the search results.
+
+        """
+        return ReorderedMSetSearchResultIter(self.mset, self.mset_order,
+                                             results)
+
+    def get_hit(self, index, results):
+        """Get the hit with a given index.
+
+        """
+        msetitem = self.mset.get_hit(self.mset_order[index])
+        return SearchResult(msetitem, results)
 
 class SearchResults(object):
     """A set of results of a search.
 
     """
-    def __init__(self, conn, enq, query, mset, fieldmappings,
-                 facetspies, facetfields, facethierarchy,
-                 facetassocs):
+    def __init__(self, conn, query, fieldmappings,
+                 facetspies, facetfields,
+                 facethierarchy, facetassocs,
+                 ordering, mset):
         self._conn = conn
-        self._enq = enq
         self._query = query
+        self._ordering = ordering
         self._mset = mset
-        self._mset_order = None
         self._fieldmappings = fieldmappings
         self._facetspies = facetspies
         self._facetfields = facetfields
@@ -781,7 +775,7 @@ class SearchResults(object):
                 potentials[next_cat] = (l[1][0],
                                         wt * utilities.get(next_cat, 0.01), wt)
 
-        self._mset_order = new_order
+        self._ordering = ReorderedMSetResultOrdering(self._mset, new_order)
 
     def _reorder_by_clusters(self, clusters):
         """Reorder the mset based on some clusters.
@@ -789,7 +783,6 @@ class SearchResults(object):
         """
         if self.startrank != 0:
             raise errors.SearchError("startrank must be zero to reorder by clusters")
-        reordered = False
         tophits = []
         nottophits = []
 
@@ -799,8 +792,9 @@ class SearchResults(object):
                 tophits.append(i)
             else:
                 nottophits.append(i)
-        self._mset_order = tophits
-        self._mset_order.extend(nottophits)
+        new_order = tophits
+        new_order.extend(nottophits)
+        self._ordering = ReorderedMSetResultOrdering(self._mset, new_order)
 
     def _get_singlefield_slot(self, fields, assume_single_value):
         """Return the slot number if the specified list of fields contains only
@@ -929,9 +923,10 @@ class SearchResults(object):
             new_order.extend(range(end, self.endrank))
         assert len(new_order) == self.endrank
         if reordered:
-            self._mset_order = new_order
+            self._ordering = ReorderedMSetResultOrdering(self._mset, new_order)
         else:
             assert new_order == range(self.endrank)
+            self._ordering = MSetResultOrdering(self._mset)
 
     def __repr__(self):
         return ("<SearchResults(startrank=%d, "
@@ -997,7 +992,7 @@ class SearchResults(object):
         lower = self._mset.get_matches_lower_bound()
         upper = self._mset.get_matches_upper_bound()
         est = self._mset.get_matches_estimated()
-        return _get_significant_digits(est, lower, upper)
+        return get_significant_digits(est, lower, upper)
     matches_human_readable_estimate = property(_get_human_readable_estimate,
                                                doc=
     """Get a human readable estimate of the number of matching documents.
@@ -1035,11 +1030,7 @@ class SearchResults(object):
         """Get the hit with a given index.
 
         """
-        if self._mset_order is None:
-            msetitem = self._mset.get_hit(index)
-        else:
-            msetitem = self._mset.get_hit(self._mset_order[index])
-        return SearchResult(msetitem, self)
+        return self._ordering.get_hit(index, self)
 
     def __getitem__(self, index_or_slice):
         """Get an item, or slice of items.
@@ -1057,7 +1048,7 @@ class SearchResults(object):
         The iterator returns the results in increasing order of rank.
 
         """
-        return SearchResultIter(self, self._mset_order)
+        return self._ordering.get_iter(self)
 
     def __len__(self):
         """Get the number of hits in the search result.

@@ -1,3 +1,12 @@
+Tue Dec 08 09:25:54 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/: Split get_significant_digits into separate utility
+	  function, in new "utils.py" file.  Refactor SearchResults
+	  reordering stuff to use a MSetResultOrdering or
+	  ReorderedMSetResultOrdering object to control get_hits and iter:
+	  removes the _mset_order member from SearchResults.  Working
+	  towards removing the _mset member, too.
+
 Tue Dec 08 00:06:31 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/: Backport licenses from the xappy2 repository at
