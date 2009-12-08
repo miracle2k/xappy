@@ -42,8 +42,8 @@ from indexerconnection import IndexerConnection, PrefixedTermIter, \
          DocumentIter, SynonymIter, _allocate_id
 from query import Query
 
-from searchresults import SearchResults, SearchResultContext, \
-         MSetFacetResults, \
+from searchresults import SearchResults, SearchResultContext
+from mset_search_results import MSetFacetResults, \
          MSetResultOrdering, MSetResultStats, MSetTermWeightGetter
 
 class ExternalWeightSource(object):
@@ -2163,15 +2163,16 @@ class SearchConnection(object):
         facets = MSetFacetResults(facetspies, facetfields, facet_hierarchy,
                                   self._facet_query_table.get(query_type))
 
+        ordering = MSetResultOrdering(mset, context, self)
+        if collapse is not None:
+            ordering.collapse_slotnum = collapse_slotnum
+            ordering.collapse_max = collapse_max
+
         res = SearchResults(self, query, self._field_mappings,
                             facets,
-                            MSetResultOrdering(mset, context),
+                            ordering,
                             MSetResultStats(mset),
                             mset, context)
-
-        if collapse is not None:
-            res.collapse_slotnum = collapse_slotnum
-            res.collapse_max = collapse_max
 
         return res
 

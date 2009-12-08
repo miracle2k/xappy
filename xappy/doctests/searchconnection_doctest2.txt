@@ -406,7 +406,7 @@ Do a similarity search with an ID which isn't in the database:
 
 Check the expand decider used by similarity reordering of queries.
 >>> res = sconn.search(q2, 0, 5)
->>> ed = res._make_expand_decider('title')
+>>> ed = res._ordering._make_expand_decider('title')
 >>> ed('foo')
 False
 >>> ed('XBA:foo')
