@@ -1,3 +1,12 @@
+Tue Dec 08 00:06:31 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/: Backport licenses from the xappy2 repository at
+	  http://code.google.com/p/xappy2/.  Also, some minor tidying up of
+	  inline calls to doctest - these are no longer required since the
+	  top level test script can be used instead.  Also, fix
+	  documentation comment for query.py which had been cut-and-pasted
+	  from searchconnection.py.
+
 Mon Dec 07 20:18:51 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/: Split the inverters into separate files, and
