@@ -43,6 +43,7 @@ from indexerconnection import IndexerConnection, PrefixedTermIter, \
 from query import Query
 
 from searchresults import SearchResults, SearchResultContext, \
+         MSetFacetResults, \
          MSetResultOrdering, MSetResultStats, MSetTermWeightGetter
 
 class ExternalWeightSource(object):
@@ -2159,10 +2160,11 @@ class SearchConnection(object):
         context = SearchResultContext(self, self._field_mappings,
                                       MSetTermWeightGetter(mset), query)
 
+        facets = MSetFacetResults(facetspies, facetfields, facet_hierarchy,
+                                  self._facet_query_table.get(query_type))
+
         res = SearchResults(self, query, self._field_mappings,
-                            facetspies, facetfields,
-                            facet_hierarchy,
-                            self._facet_query_table.get(query_type),
+                            facets,
                             MSetResultOrdering(mset, context),
                             MSetResultStats(mset),
                             mset, context)

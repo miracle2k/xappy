@@ -587,6 +587,12 @@ class MSetResultOrdering(object):
         msetitem = self.mset.get_hit(index)
         return SearchResult(msetitem, self.context)
 
+    def __len__(self):
+        """Get the number of items in this ordering.
+
+        """
+        return len(self.mset)
+
 class MSetResultStats(object):
     def __init__(self, mset):
         self.mset = mset
@@ -643,13 +649,18 @@ class ReorderedMSetResultOrdering(object):
         msetitem = self.mset.get_hit(self.mset_order[index])
         return SearchResult(msetitem, self.context)
 
+    def __len__(self):
+        """Get the number of items in this ordering.
+
+        """
+        return len(self.mset_order)
+
 class SearchResults(object):
     """A set of results of a search.
 
     """
     def __init__(self, conn, query, field_mappings,
-                 facetspies, facetfields,
-                 facethierarchy, facetassocs,
+                 facets,
                  ordering, stats, mset, context):
         self._conn = conn
         self._query = query
@@ -658,11 +669,7 @@ class SearchResults(object):
         self._mset = mset
         self._context = context
         self._field_mappings = field_mappings
-        self._facetspies = facetspies
-        self._facetfields = facetfields
-        self._facethierarchy = facethierarchy
-        self._facetassocs = facetassocs
-        self._facetvalues = {}
+        self._facets = facets
 
     def _cluster(self, num_clusters, maxdocs, fields=None,
                  assume_single_value=False):
@@ -1113,7 +1120,7 @@ class SearchResults(object):
         by calling iter() on this SearchResults object.
 
         """
-        return len(self._mset)
+        return len(self._ordering)
 
     def get_suggested_facets(self, maxfacets=5, desired_num_of_categories=7,
                              required_facets=None):
@@ -1160,54 +1167,77 @@ class SearchResults(object):
         the returned list.
 
         """
+        return self._facets.get_suggested_facets(maxfacets,
+                                                 desired_num_of_categories,
+                                                 required_facets)
+
+class MSetFacetResults(object):
+    """The result of counting facets.
+
+    """
+    def __init__(self, facetspies, facetfields, facethierarchy, facetassocs):
+        self.facetspies = facetspies
+        self.facetfields = facetfields
+        self.facethierarchy = facethierarchy
+        self.facetassocs = facetassocs
+
+        self.facetvalues = {}
+
+    def get_suggested_facets(self, maxfacets,
+                             desired_num_of_categories,
+                             required_facets):
+        """Get the suggested facets.  Parameters and return value are as for
+        `SearchResults.get_suggested_facets()`.
+
+        """
         if 'facets' in _checkxapian.missing_features:
             raise errors.SearchError("Facets unsupported with this release of xapian")
-        if self._facetspies is None:
+        if self.facetspies is None:
             raise errors.SearchError("Facet selection wasn't enabled when the search was run")
         if isinstance(required_facets, basestring):
             required_facets = [required_facets]
         scores = []
         facettypes = {}
-        for field, slot, kwargslist in self._facetfields:
+        for field, slot, kwargslist in self.facetfields:
             type = None
             for kwargs in kwargslist:
                 type = kwargs.get('type', None)
                 if type is not None: break
             if type is None: type = 'string'
 
-            if field not in self._facetvalues:
-                facetspy = self._facetspies.get(slot)
+            if field not in self.facetvalues:
+                facetspy = self.facetspies.get(slot)
                 if facetspy is None:
-                    self._facetvalues[field] = []
+                    self.facetvalues[field] = []
                 else:
                     if type == 'float':
-                        self._facetvalues[field] = xapian.NumericRanges(facetspy.get_values(), desired_num_of_categories)
+                        self.facetvalues[field] = xapian.NumericRanges(facetspy.get_values(), desired_num_of_categories)
                     else:
-                        self._facetvalues[field] = facetspy
+                        self.facetvalues[field] = facetspy
 
             facettypes[field] = type
-            if isinstance(self._facetvalues[field], xapian.NumericRanges):
-                score = xapian.score_evenness(self._facetvalues[field].get_ranges(),
-                                               self._facetvalues[field].get_values_seen(),
-                                               desired_num_of_categories)
+            if isinstance(self.facetvalues[field], xapian.NumericRanges):
+                score = xapian.score_evenness(self.facetvalues[field].get_ranges(),
+                                              self.facetvalues[field].get_values_seen(),
+                                              desired_num_of_categories)
             else:
-                score = xapian.score_evenness(self._facetvalues[field], desired_num_of_categories)
+                score = xapian.score_evenness(self.facetvalues[field], desired_num_of_categories)
             scores.append((score, field, slot))
 
         # Sort on whether facet is top-level ahead of score (use subfacets first),
         # and on whether facet is preferred for the query type ahead of anything else
-        if self._facethierarchy:
+        if self.facethierarchy:
             # Note, tuple[-2] is the value of 'field' in a scores tuple
-            scores = [(tuple[-2] not in self._facethierarchy,) + tuple for tuple in scores]
-        if self._facetassocs:
+            scores = [(tuple[-2] not in self.facethierarchy,) + tuple for tuple in scores]
+        if self.facetassocs:
             preferred = IndexerConnection.FacetQueryType_Preferred
-            scores = [(self._facetassocs.get(tuple[-2]) != preferred,) + tuple for tuple in scores]
+            scores = [(self.facetassocs.get(tuple[-2]) != preferred,) + tuple for tuple in scores]
         scores.sort()
-        if self._facethierarchy:
+        if self.facethierarchy:
             index = 1
         else:
             index = 0
-        if self._facetassocs:
+        if self.facetassocs:
             index += 1
         if index > 0:
             scores = [tuple[index:] for tuple in scores]
@@ -1225,7 +1255,7 @@ class SearchResults(object):
                 continue
 
             # Get the values
-            values = self._facetvalues[field]
+            values = self.facetvalues[field]
             if isinstance(values, xapian.MatchSpy):
                 values = values.get_values_as_dict()
             elif isinstance(values, xapian.NumericRanges):

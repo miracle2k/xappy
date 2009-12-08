@@ -1,3 +1,8 @@
+Tue Dec 08 11:49:10 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py,xappy/searchresults.py: Factor out
+	  facet information to a MSetFacetResults object.
+
 Tue Dec 08 11:17:20 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py,xappy/searchresults.py: Refactor
