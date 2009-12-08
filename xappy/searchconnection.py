@@ -43,7 +43,7 @@ from indexerconnection import IndexerConnection, PrefixedTermIter, \
 from query import Query
 
 from searchresults import SearchResults, SearchResultContext, \
-         MSetResultOrdering, MSetTermWeightGetter
+         MSetResultOrdering, MSetResultStats, MSetTermWeightGetter
 
 class ExternalWeightSource(object):
     """A source of extra weight information for searches.
@@ -2164,6 +2164,7 @@ class SearchConnection(object):
                             facet_hierarchy,
                             self._facet_query_table.get(query_type),
                             MSetResultOrdering(mset, context),
+                            MSetResultStats(mset),
                             mset, context)
 
         if collapse is not None:

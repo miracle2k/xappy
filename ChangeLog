@@ -1,3 +1,8 @@
+Tue Dec 08 11:17:20 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py,xappy/searchresults.py: Refactor
+	  getting result stats into a separate object.
+
 Tue Dec 08 10:54:27 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py,xappy/searchresults.py,xappy/utils.py:

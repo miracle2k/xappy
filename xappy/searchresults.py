@@ -587,6 +587,24 @@ class MSetResultOrdering(object):
         msetitem = self.mset.get_hit(index)
         return SearchResult(msetitem, self.context)
 
+class MSetResultStats(object):
+    def __init__(self, mset):
+        self.mset = mset
+
+    def get_startrank(self):
+        return self.mset.get_firstitem()
+
+    def get_endrank(self):
+        return self.mset.get_firstitem() + len(self.mset)
+
+    def get_lower_bound(self):
+        return self.mset.get_matches_lower_bound()
+
+    def get_upper_bound(self):
+        return self.mset.get_matches_upper_bound()
+
+    def get_estimated(self):
+        return self.mset.get_matches_estimated()
 
 class ReorderedMSetSearchResultIter(object):
     """An iterator over a set of results from a search which have been
@@ -632,10 +650,11 @@ class SearchResults(object):
     def __init__(self, conn, query, field_mappings,
                  facetspies, facetfields,
                  facethierarchy, facetassocs,
-                 ordering, mset, context):
+                 ordering, stats, mset, context):
         self._conn = conn
         self._query = query
         self._ordering = ordering
+        self._stats = stats
         self._mset = mset
         self._context = context
         self._field_mappings = field_mappings
@@ -988,7 +1007,7 @@ class SearchResults(object):
     """)
 
     def _get_startrank(self):
-        return self._mset.get_firstitem()
+        return self._stats.get_startrank()
     startrank = property(_get_startrank, doc=
     """Get the rank of the first item in the search results.
 
@@ -997,7 +1016,7 @@ class SearchResults(object):
     """)
 
     def _get_endrank(self):
-        return self._mset.get_firstitem() + len(self._mset)
+        return self._stats.get_endrank()
     endrank = property(_get_endrank, doc=
     """Get the rank of the item after the end of the search results.
 
@@ -1007,23 +1026,23 @@ class SearchResults(object):
     """)
 
     def _get_lower_bound(self):
-        return self._mset.get_matches_lower_bound()
+        return self._stats.get_lower_bound()
     matches_lower_bound = property(_get_lower_bound, doc=
     """Get a lower bound on the total number of matching documents.
 
     """)
 
     def _get_upper_bound(self):
-        return self._mset.get_matches_upper_bound()
+        return self._stats.get_upper_bound()
     matches_upper_bound = property(_get_upper_bound, doc=
     """Get an upper bound on the total number of matching documents.
 
     """)
 
     def _get_human_readable_estimate(self):
-        lower = self._mset.get_matches_lower_bound()
-        upper = self._mset.get_matches_upper_bound()
-        est = self._mset.get_matches_estimated()
+        lower = self._stats.get_lower_bound()
+        upper = self._stats.get_upper_bound()
+        est = self._stats.get_estimated()
         return get_significant_digits(est, lower, upper)
     matches_human_readable_estimate = property(_get_human_readable_estimate,
                                                doc=
@@ -1037,15 +1056,15 @@ class SearchResults(object):
     """)
 
     def _get_estimated(self):
-        return self._mset.get_matches_estimated()
+        return self._stats.get_estimated()
     matches_estimated = property(_get_estimated, doc=
     """Get an estimate for the total number of matching documents.
 
     """)
 
     def _estimate_is_exact(self):
-        return self._mset.get_matches_lower_bound() == \
-               self._mset.get_matches_upper_bound()
+        return self._stats.get_lower_bound() == \
+               self._stats.get_upper_bound()
     estimate_is_exact = property(_estimate_is_exact, doc=
     """Check whether the estimated number of matching documents is exact.
 
