@@ -1,3 +1,9 @@
+Wed Dec 09 03:19:39 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py: Add a preliminary set of classes
+	  for representing the results of reading the cache in a form
+	  suitable for use in search results.
+
 Wed Dec 09 03:18:39 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/query.py: Add support for storing the queryid for a cached
