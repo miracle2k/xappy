@@ -32,6 +32,7 @@ import inspect
 import itertools
 
 import xapian
+from cache_search_results import CacheResultOrdering
 from datastructures import UnprocessedDocument, ProcessedDocument
 from fieldactions import ActionContext, FieldActions, \
          ActionSet, SortableMarshaller, convert_range_to_term, \
@@ -1943,13 +1944,130 @@ class SearchConnection(object):
 
         slot = cached_queryid + self._cache_manager_slot_start
         ps = xapian.ValueWeightPostingSource(slot)
-        return Query(xapian.Query(ps), _refs=[ps], _conn=self, _serialised=serialised)
+        return Query(xapian.Query(ps), _refs=[ps], _conn=self, _serialised=serialised,
+                     _queryid=cached_queryid)
+
+    def _make_facet_matchspies(self, query, allowfacets, denyfacets,
+                               usesubfacets, query_type):
+        # Set facetspies to {}, even if no facet fields are found, to
+        # distinguish from no facet calculation being performed.  (This
+        # will prevent an error being thrown when the list of suggested
+        # facets is requested - instead, an empty list will be returned.)
+        facetspies = {}
+        facetfields = []
+
+        if allowfacets is not None and denyfacets is not None:
+            raise errors.SearchError("Cannot specify both `allowfacets` and `denyfacets`")
+        if allowfacets is None:
+            allowfacets = [key for key in self._field_actions]
+        if denyfacets is not None:
+            allowfacets = [key for key in allowfacets if key not in denyfacets]
+
+        # include None in queryfacets so a top-level facet will
+        # satisfy self._facet_hierarchy.get(field) in queryfacets
+        # (i.e. always include top-level facets)
+        queryfacets = set([None])
+        if usesubfacets:
+            # add facets used in the query to queryfacets
+            for term in query._get_xapian_query():
+                prefix = self._get_prefix_from_term(term)
+                field = self._field_mappings.get_fieldname_from_prefix(prefix)
+                if field and FieldActions.FACET in self._field_actions[field]._actions:
+                    queryfacets.add(field)
+
+        for field in allowfacets:
+            try:
+                actions = self._field_actions[field]._actions
+            except KeyError:
+                actions = {}
+            for action, kwargslist in actions.iteritems():
+                if action == FieldActions.FACET:
+                    # filter out non-top-level facets that aren't subfacets
+                    # of a facet in the query
+                    if usesubfacets:
+                        is_subfacet = False
+                        for parent in self._facet_hierarchy.get(field, [None]):
+                            if parent in queryfacets:
+                                is_subfacet = True
+                        if not is_subfacet:
+                            continue
+                    # filter out facets that should never be returned for the query type
+                    if self._facet_query_never(field, query_type):
+                        continue
+                    slot = self._field_mappings.get_slot(field, 'facet')
+                    facettype = None
+                    for kwargs in kwargslist:
+                        facettype = kwargs.get('type', None)
+                        if facettype is not None:
+                            break
+                    if facettype is None or facettype == 'string':
+                        facetspy = xapian.MultiValueCountMatchSpy(slot)
+                    else:
+                        facetspy = xapian.ValueCountMatchSpy(slot)
+                    facetspies[slot] = facetspy
+                    facetfields.append((field, slot, kwargslist))
+        return facetspies, facetfields
+
+    def _make_enquire(self, query):
+        if not isinstance(query, xapian.Query):
+            xapq = query._get_xapian_query()
+        else:
+            xapq = query
+        enq = xapian.Enquire(self._index)
+        enq.set_query(xapq)
+        enq.set_docid_order(enq.DONT_CARE)
+        return enq
+
+    def _apply_sort_parameters(self, enq, sortby):
+        if isinstance(sortby, basestring):
+            enq.set_sort_by_value_then_relevance(
+                *self._get_sort_slot_and_dir(sortby))
+        elif isinstance(sortby, self.SortByGeolocation):
+            # Get the slot
+            try:
+                slot = self._field_mappings.get_slot(sortby.fieldname, 'loc')
+            except KeyError:
+                raise errors.SearchError("Field %r was not indexed for geolocation sorting" % slotspec)
+
+            # Get the coords
+            coords = xapian.LatLongCoords()
+            if isinstance(sortby.centre, basestring):
+                coords.insert(xapian.LatLongCoord.parse_latlong(sortby.centre))
+            else:
+                for coord in sortby.centre:
+                    coords.insert(xapian.LatLongCoord.parse_latlong(coord))
+
+            # Make and use the keymaker
+            metric = xapian.GreatCircleMetric()
+            keymaker = xapian.LatLongDistanceKeyMaker(slot, coords, metric)
+            enq.set_sort_by_key_then_relevance(keymaker, False)
+            enq._keymaker = keymaker
+            enq._metric = metric
+        else:
+            keymaker = xapian.MultiValueKeyMaker()
+            for field in sortby:
+                keymaker.add_value(*self._get_sort_slot_and_dir(field))
+            enq.set_sort_by_key_then_relevance(keymaker, False)
+            enq._keymaker = keymaker
+
+    def _apply_collapse_parameters(self, enq, collapse, collapse_max):
+        try:
+            collapse_slotnum = self._field_mappings.get_slot(collapse, 'collsort')
+        except KeyError:
+            raise errors.SearchError("Field %r was not indexed for collapsing" % collapse)
+        if collapse_max == 1:
+            # Backwards compatibility - only this form existed before 1.1.0
+            enq.set_collapse_key(collapse_slotnum)
+        else:
+            enq.set_collapse_key(collapse_slotnum, collapse_max)
+        return collapse_slotnum
 
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
                getfacets=None, allowfacets=None, denyfacets=None, usesubfacets=None,
                percentcutoff=None, weightcutoff=None,
-               query_type=None, weight_params=None, collapse_max=1):
+               query_type=None, weight_params=None, collapse_max=1,
+               facet_checkatleast=0):
         """Perform a search, for documents matching a query.
 
         - `query` is the query to perform.
@@ -1959,12 +2077,14 @@ class SearchConnection(object):
         - `endrank` is the rank at the end of the range of matching documents
           to return.  This is exclusive, so the result with this rank will not
           be returned.
-        - `checkatleast` is the minimum number of results to check for: the
-          estimate of the total number of matches will always be exact if
-          the number of matches is less than `checkatleast`.  A value of ``-1``
-          can be specified for the checkatleast parameter - this has the
-          special meaning of "check all matches", and is equivalent to passing
-          the result of get_doccount().
+        - `checkatleast` is the minimum number of results to check for when
+          doing a normal (non facet) search: the estimate of the total number
+          of matches will always be exact if the number of matches is less than
+          `checkatleast`.  A value of ``-1`` can be specified for the
+          checkatleast parameter - this has the special meaning of "check all
+          matches", and is equivalent to passing the result of get_doccount().
+        - `facet_checkatleast` is the minimum number of results to check for
+          when doing a facet search.
         - `sortby` is the name of a field to sort by.  It may be preceded by a
           '+' or a '-' to indicate ascending or descending order
           (respectively).  If the first character is neither '+' or '-', the
@@ -1991,15 +2111,15 @@ class SearchConnection(object):
           returned.
         - `weightcutoff` is the minimum weight a result must have to be
           returned.
-        - `query_type` is a value indicating the type of query being
-          performed.  If not None, the value is used to influence which facets
-          are be returned by the get_suggested_facets() function.  If the
-          value of `getfacets` is False, it has no effect.
+        - `query_type` is a value indicating the type of query being performed.
+          If not None, the value is used to influence which facets are be
+          returned by the get_suggested_facets() function.  If the value of
+          `getfacets` is False, it has no effect.
         - `weight_params` is a dictionary (from string to number) of named
-          parameters to pass to the weighting function.  Currently, the
-          defined names are "k1", "k2", "k3", "b", "min_normlen".  Any
-          unrecognised names will be ignored.  For documentation of the
-          parameters, see the docs/weighting.rst document.
+          parameters to pass to the weighting function.  Currently, the defined
+          names are "k1", "k2", "k3", "b", "min_normlen".  Any unrecognised
+          names will be ignored.  For documentation of the parameters, see the
+          docs/weighting.rst document.
 
         If neither 'allowfacets' or 'denyfacets' is specified, all fields
         holding facets will be considered (but see 'usesubfacets').
@@ -2018,163 +2138,146 @@ class SearchConnection(object):
         if checkatleast == -1:
             checkatleast = self._index.get_doccount()
 
-        if not isinstance(query, xapian.Query):
-            xapq = query._get_xapian_query()
-        else:
-            xapq = query
+        # Check if we've got a cached query.
+        queryid = None
+        uncached_query = query
+        if self.cache_manager is not None:
+            if hasattr(query, '_get_queryid'):
+                queryid = query._get_queryid()
+                uncached_query = query._get_original_query()
 
-        enq = xapian.Enquire(self._index)
-
-        enq.set_query(xapq)
-
-        if sortby is not None:
-            if isinstance(sortby, basestring):
-                enq.set_sort_by_value_then_relevance(
-                    *self._get_sort_slot_and_dir(sortby))
-            elif isinstance(sortby, self.SortByGeolocation):
-                # Get the slot
-                try:
-                    slot = self._field_mappings.get_slot(sortby.fieldname, 'loc')
-                except KeyError:
-                    raise errors.SearchError("Field %r was not indexed for geolocation sorting" % slotspec)
-
-                # Get the coords
-                coords = xapian.LatLongCoords()
-                if isinstance(sortby.centre, basestring):
-                    coords.insert(xapian.LatLongCoord.parse_latlong(sortby.centre))
-                else:
-                    for coord in sortby.centre:
-                        coords.insert(xapian.LatLongCoord.parse_latlong(coord))
-
-                # Make and use the keymaker
-                metric = xapian.GreatCircleMetric()
-                keymaker = xapian.LatLongDistanceKeyMaker(slot, coords, metric)
-                enq.set_sort_by_key_then_relevance(keymaker, False)
-            else:
-                keymaker = xapian.MultiValueKeyMaker()
-                for field in sortby:
-                    keymaker.add_value(*self._get_sort_slot_and_dir(field))
-                enq.set_sort_by_key_then_relevance(keymaker, False)
-
-        if collapse is not None:
-            try:
-                collapse_slotnum = self._field_mappings.get_slot(collapse, 'collsort')
-            except KeyError:
-                raise errors.SearchError("Field %r was not indexed for collapsing" % collapse)
-            if collapse_max == 1:
-                # Backwards compatibility - only this form existed before 1.1.0
-                enq.set_collapse_key(collapse_slotnum)
-            else:
-                enq.set_collapse_key(collapse_slotnum, collapse_max)
-
-        maxitems = max(endrank - startrank, 0)
-        # Always check for at least one more result, so we can report whether
-        # there are more matches.
-        checkatleast = max(checkatleast, endrank + 1)
-
-        # add a matchspy for facet selection here.
-        facetspies = None
-        facetfields = []
+        # Prepare the facet spies.
         if getfacets:
-            # Set facetspies to {}, even if no facet fields are found, to
-            # distinguish from no facet calculation being performed.  (This
-            # will prevent an error being thrown when the list of suggested
-            # facets is requested - instead, an empty list will be returned.)
-            facetspies = {}
-            if allowfacets is not None and denyfacets is not None:
-                raise errors.SearchError("Cannot specify both `allowfacets` and `denyfacets`")
-            if allowfacets is None:
-                allowfacets = [key for key in self._field_actions]
-            if denyfacets is not None:
-                allowfacets = [key for key in allowfacets if key not in denyfacets]
+            facetspies, facetfields = self._make_facet_matchspies(uncached_query,
+                allowfacets, denyfacets, usesubfacets, query_type)
+        else:
+            facetspies, facetfields = None, []
 
-            # include None in queryfacets so a top-level facet will
-            # satisfy self._facet_hierarchy.get(field) in queryfacets
-            # (i.e. always include top-level facets)
-            queryfacets = set([None])
-            if usesubfacets:
-                # add facets used in the query to queryfacets
-                for term in query._get_xapian_query():
-                    prefix = self._get_prefix_from_term(term)
-                    field = self._field_mappings.get_fieldname_from_prefix(prefix)
-                    if field and FieldActions.FACET in self._field_actions[field]._actions:
-                        queryfacets.add(field)
+        # Get whatever information we can from the cache.
+        cache_hits, cache_stats, cache_facets = None, None, None
+        if queryid is not None:
+            if sortby is None and collapse is None:
+                # Get the ordering of the requested hits.  Ask for one more, so
+                # we can tell if there are further hits.
+                cache_hits = self.cache_manager.get_hits(queryid, startrank, endrank + 1)
+                if len(cache_hits) < endrank - startrank:
+                    # Drop the cached hits if we don't have enough from the
+                    # pure cache lookup - we'll need to do a combined search
+                    # instead.
+                    cache_hits = None
 
-            for field in allowfacets:
+                # Get statistics on the number of matches.
+                #cache_stats = self.cache_manager.get_stats(queryid)
+
+                # Get the stored facet values.
+                if len(facetfields) != 0:
+                    pass
+                    #cache_facets = self.cache_manager.get_facets(queryid)
+
+
+        # Work out how many results we need.
+        real_maxitems, real_checkatleast = 0, 0
+        need_to_search = False
+
+        if cache_hits is None:
+            real_maxitems = max(endrank - startrank, 0)
+            # Always check for at least one more result, so we can report
+            # whether there are more matches.
+            real_checkatleast = max(checkatleast, endrank + 1)
+            need_to_search = True
+        else:
+            # We have cached hits, so don't need to run the search to get the
+            # ordering.  Therefore, no need for the query which is combined
+            # with the cache.
+            query = uncached_query
+
+        if cache_stats is None:
+            # Need to get basic statistics from the search, but we'll just to a
+            # 0-document search for this if we don't need anything else.
+            need_to_search = True
+
+        if len(facetfields) != 0:
+            # FIXME - check if the facets requested were available - if not all
+            # available, set cache_facets to None.
+
+            if cache_facets is None:
+                real_checkatleast = max(real_checkatleast, facet_checkatleast)
+                need_to_search = True
+
+        # FIXME - we currently always need to search to get a mset object for 
+        need_to_search = True
+
+        if need_to_search:
+            # Build up the xapian enquire object
+            enq = self._make_enquire(query)
+            if sortby is not None:
+                self._apply_sort_parameters(enq, sortby)
+            if collapse is not None:
+                collapse_slotnum = self._apply_collapse_parameters(enq, collapse, collapse_max)
+            if getfacets:
+                for facetspy in facetspies.itervalues():
+                    enq.add_matchspy(facetspy)
+
+            # Set percentage and weight cutoffs
+            if percentcutoff is not None or weightcutoff is not None:
+                if percentcutoff is None:
+                    percentcutoff = 0
+                if weightcutoff is None:
+                    weightcutoff = 0
+                enq.set_cutoff(percentcutoff, weightcutoff)
+
+            # Set weighting scheme
+            self.__set_weight_params(enq, weight_params)
+
+            # Repeat the search until we don't get a DatabaseModifiedError
+            while True:
                 try:
-                    actions = self._field_actions[field]._actions
-                except KeyError:
-                    actions = {}
-                for action, kwargslist in actions.iteritems():
-                    if action == FieldActions.FACET:
-                        # filter out non-top-level facets that aren't subfacets
-                        # of a facet in the query
-                        if usesubfacets:
-                            is_subfacet = False
-                            for parent in self._facet_hierarchy.get(field, [None]):
-                                if parent in queryfacets:
-                                    is_subfacet = True
-                            if not is_subfacet:
-                                continue
-                        # filter out facets that should never be returned for the query type
-                        if self._facet_query_never(field, query_type):
-                            continue
-                        slot = self._field_mappings.get_slot(field, 'facet')
-                        facettype = None
-                        for kwargs in kwargslist:
-                            facettype = kwargs.get('type', None)
-                            if facettype is not None:
-                                break
-                        if facettype is None or facettype == 'string':
-                            facetspy = xapian.MultiValueCountMatchSpy(slot)
-                        else:
-                            facetspy = xapian.ValueCountMatchSpy(slot)
-                        enq.add_matchspy(facetspy)
-                        facetspies[slot] = facetspy
-                        facetfields.append((field, slot, kwargslist))
+                    mset = enq.get_mset(startrank, real_maxitems, real_checkatleast)
+                    break
+                except xapian.DatabaseModifiedError, e:
+                    self.reopen()
 
-        enq.set_docid_order(enq.DONT_CARE)
 
-        # Set percentage and weight cutoffs
-        if percentcutoff is not None or weightcutoff is not None:
-            if percentcutoff is None:
-                percentcutoff = 0
-            if weightcutoff is None:
-                weightcutoff = 0
-            enq.set_cutoff(percentcutoff, weightcutoff)
+        # Build the search results:
 
-        # Set weighting scheme
-        self.__set_weight_params(enq, weight_params)
+        if cache_facets is None:
+            # The facet results don't depend on anything else.
+            facet_hierarchy = None
+            if usesubfacets:
+                facet_hierarchy = self._facet_hierarchy
+            facets = MSetFacetResults(facetspies, facetfields, facet_hierarchy,
+                                      self._facet_query_table.get(query_type))
+        else:
+            facets = FIXME
 
-        # Repeat the search until we don't get a DatabaseModifiedError
-        while True:
-            try:
-                mset = enq.get_mset(startrank, maxitems, checkatleast)
-                break
-            except xapian.DatabaseModifiedError, e:
-                self.reopen()
-        facet_hierarchy = None
-        if usesubfacets:
-            facet_hierarchy = self._facet_hierarchy
 
-        context = SearchResultContext(self, self._field_mappings,
-                                      MSetTermWeightGetter(mset), query)
+        if need_to_search:
+            # Need a way to get term weights.
+            weightgetter = MSetTermWeightGetter(mset)
 
-        facets = MSetFacetResults(facetspies, facetfields, facet_hierarchy,
-                                  self._facet_query_table.get(query_type))
+        # The context is supplied to each SearchResult.
+        context = SearchResultContext(self, self._field_mappings, weightgetter, query)
 
-        ordering = MSetResultOrdering(mset, context, self)
-        if collapse is not None:
-            ordering.collapse_slotnum = collapse_slotnum
-            ordering.collapse_max = collapse_max
+        if cache_hits is None:
+            # Use the ordering returned by the MSet.
+            ordering = MSetResultOrdering(mset, context, self)
+            if collapse is not None:
+                ordering.collapse_slotnum = collapse_slotnum
+                ordering.collapse_max = collapse_max
+        else:
+            # Use the ordering returned by the Cache.
+            ordering = CacheResultOrdering(context,
+                                           cache_hits[:endrank-startrank],
+                                           startrank)
 
-        res = SearchResults(self, query, self._field_mappings,
-                            facets,
-                            ordering,
-                            MSetResultStats(mset),
-                            mset, context)
+        # Statistics on the number of matching documents.
+        if cache_stats is None:
+            stats = MSetResultStats(mset)
+        else:
+            stats = FIXME
 
-        return res
+        return SearchResults(self, query, self._field_mappings,
+                             facets, ordering, stats, context)
 
     def iterids(self):
         """Get an iterator which returns all the ids in the database.

@@ -104,7 +104,8 @@ class TestCachedSearches(TestCase):
         self.assertEqual(list(sorted(results)), expected)
 
         # Try the same search with a different set of cached results.
-        cached_world = sconn.query_cached(man.get_queryid('world'))
+        world_queryid = man.get_queryid('world')
+        cached_world = sconn.query_cached(world_queryid)
         results = sconn.search(query_hello.norm() | cached_world, 0, self.doccount)
         results = [int(result.id, 16) for result in results]
         world_order.remove(17)
@@ -117,6 +118,15 @@ class TestCachedSearches(TestCase):
         results = [int(result.id, 16) for result in results]
         self.assertEqual(results, [i - 1 for i in world_order])
 
+        # Try doing a search which is a pure cache hit.
+        results = sconn.search(cached_world, 0, 2)
+        results = [int(result.id, 16) for result in results]
+        self.assertEqual(results, [i - 1 for i in world_order[:2]])
+
+        # Try doing a search which is a pure cache hit.
+        results = sconn.search(query_world.merge_with_cached(world_queryid), 0, 2)
+        results = [int(result.id, 16) for result in results]
+        self.assertEqual(results, [i - 1 for i in world_order[:2]])
 
 if __name__ == '__main__':
     main()

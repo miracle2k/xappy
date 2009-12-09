@@ -1,3 +1,9 @@
+Wed Dec 09 03:20:51 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py,xappy/searchresults.py,
+	  xappy/unittests/cached_searches.py: Refactor searchresults to use
+	  the cache automatically if the query is appropriate.
+
 Wed Dec 09 03:19:39 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cache_search_results.py: Add a preliminary set of classes

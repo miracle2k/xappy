@@ -542,7 +542,7 @@ class SearchResults(object):
     """
     def __init__(self, conn, query, field_mappings,
                  facets,
-                 ordering, stats, mset, context):
+                 ordering, stats, context):
         self._conn = conn
         self._query = query
         self._ordering = ordering
