@@ -75,6 +75,12 @@ class MSetResultOrdering(object):
         msetitem = self.mset.get_hit(index)
         return SearchResult(msetitem, self.context)
 
+    def get_startrank(self):
+        return self.mset.get_firstitem()
+
+    def get_endrank(self):
+        return self.mset.get_firstitem() + len(self.mset)
+
     def __len__(self):
         """Get the number of items in this ordering.
 
@@ -398,12 +404,6 @@ class MSetResultStats(object):
     def __init__(self, mset):
         self.mset = mset
 
-    def get_startrank(self):
-        return self.mset.get_firstitem()
-
-    def get_endrank(self):
-        return self.mset.get_firstitem() + len(self.mset)
-
     def get_lower_bound(self):
         return self.mset.get_matches_lower_bound()
 
@@ -412,6 +412,7 @@ class MSetResultStats(object):
 
     def get_estimated(self):
         return self.mset.get_matches_estimated()
+
 
 class ReorderedMSetSearchResultIter(object):
     """An iterator over a set of results from a search which have been
@@ -449,6 +450,12 @@ class ReorderedMSetResultOrdering(object):
         """
         msetitem = self.mset.get_hit(self.mset_order[index])
         return SearchResult(msetitem, self.context)
+
+    def get_startrank(self):
+        return self.mset.get_firstitem()
+
+    def get_endrank(self):
+        return self.mset.get_firstitem() + len(self.mset)
 
     def __len__(self):
         """Get the number of items in this ordering.

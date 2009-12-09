@@ -629,7 +629,7 @@ class SearchResults(object):
     """)
 
     def _get_startrank(self):
-        return self._stats.get_startrank()
+        return self._ordering.get_startrank()
     startrank = property(_get_startrank, doc=
     """Get the rank of the first item in the search results.
 
@@ -638,7 +638,7 @@ class SearchResults(object):
     """)
 
     def _get_endrank(self):
-        return self._stats.get_endrank()
+        return self._ordering.get_endrank()
     endrank = property(_get_endrank, doc=
     """Get the rank of the item after the end of the search results.
 

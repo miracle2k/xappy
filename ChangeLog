@@ -1,3 +1,9 @@
+Wed Dec 09 12:05:31 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py,xappy/mset_search_results.py,
+	  xappy/searchresults.py: Get the start and end rank from the
+	  ordering instead of the stats; makes a lot more sense this way.
+
 Wed Dec 09 03:24:52 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/utils.py: Add missing import of "math".

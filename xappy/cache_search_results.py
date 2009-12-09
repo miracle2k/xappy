@@ -90,31 +90,27 @@ class CacheResultOrdering(object):
         """
         return len(self.xapids)
 
+    def get_startrank(self):
+        return self.startrank
+
+    def get_endrank(self):
+        return self.startrank + len(self.xapids)
+
 
 class CacheResultStats(object):
     def __init__(self, serialised):
         stats = json.loads(serialised)
 
-        self.startrank = stats.get('startrank', 0)
-        self.endrank = stats.get('endrank', 0)
         self.lower_bound = stats.get('lower_bound', 0)
         self.upper_bound = stats.get('upper_bound', 0)
         self.estimated = stats.get('estimated', 0)
 
     def serialised(self):
         return json.dumps({
-                          'startrank': self.startrank,
-                          'endrank': self.endrank,
                           'lower_bound': self.lower_bound,
                           'upper_bound': self.upper_bound,
                           'estimated': self.estimated,
                           }, check_circular=False)
-
-    def get_startrank(self):
-        return self.startrank
-
-    def get_endrank(self):
-        return self.endrank
 
     def get_lower_bound(self):
         return self.lower_bound
