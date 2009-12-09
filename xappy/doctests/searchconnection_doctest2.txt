@@ -437,5 +437,6 @@ Closing connection at path foo: Conn1
 >>> del result
 >>> del results
 >>> del results2
->>> del results3
+>>> import gc
+>>> del results3; gc.collect() and None
 Closing connection at path foo2: Conn2

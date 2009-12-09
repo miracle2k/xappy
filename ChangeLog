@@ -1,3 +1,8 @@
+Wed Dec 09 01:04:03 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/doctests/searchconnection_doctest2.txt: Be less susceptible
+	  to garbage collection timing.
+
 Tue Dec 08 12:29:52 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/doctests/searchconnection_doctest2.txt,
