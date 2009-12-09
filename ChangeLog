@@ -1,3 +1,8 @@
+Wed Dec 09 13:09:35 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Add stats_checkatleast, to allow the
+	  value of checkatleast when calculating stats to be set.
+
 Wed Dec 09 12:05:31 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cache_search_results.py,xappy/mset_search_results.py,

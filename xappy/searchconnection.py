@@ -2067,7 +2067,7 @@ class SearchConnection(object):
                getfacets=None, allowfacets=None, denyfacets=None, usesubfacets=None,
                percentcutoff=None, weightcutoff=None,
                query_type=None, weight_params=None, collapse_max=1,
-               facet_checkatleast=0):
+               stats_checkatleast=0, facet_checkatleast=0):
         """Perform a search, for documents matching a query.
 
         - `query` is the query to perform.
@@ -2137,6 +2137,10 @@ class SearchConnection(object):
                 raise errors.SearchError("Facets unsupported with this release of xapian")
         if checkatleast == -1:
             checkatleast = self._index.get_doccount()
+        if stats_checkatleast == -1:
+            stats_checkatleast = self._index.get_doccount()
+        if facet_checkatleast == -1:
+            facet_checkatleast = self._index.get_doccount()
 
         # Check if we've got a cached query.
         queryid = None
@@ -2176,14 +2180,14 @@ class SearchConnection(object):
 
 
         # Work out how many results we need.
-        real_maxitems, real_checkatleast = 0, 0
+        real_maxitems = 0
         need_to_search = False
 
         if cache_hits is None:
             real_maxitems = max(endrank - startrank, 0)
             # Always check for at least one more result, so we can report
             # whether there are more matches.
-            real_checkatleast = max(checkatleast, endrank + 1)
+            checkatleast = max(checkatleast, endrank + 1)
             need_to_search = True
         else:
             # We have cached hits, so don't need to run the search to get the
@@ -2195,13 +2199,14 @@ class SearchConnection(object):
             # Need to get basic statistics from the search, but we'll just to a
             # 0-document search for this if we don't need anything else.
             need_to_search = True
+            checkatleast = max(checkatleast, stats_checkatleast)
 
         if len(facetfields) != 0:
             # FIXME - check if the facets requested were available - if not all
             # available, set cache_facets to None.
 
             if cache_facets is None:
-                real_checkatleast = max(real_checkatleast, facet_checkatleast)
+                checkatleast = max(checkatleast, facet_checkatleast)
                 need_to_search = True
 
         # FIXME - we currently always need to search to get a mset object for 
@@ -2232,7 +2237,7 @@ class SearchConnection(object):
             # Repeat the search until we don't get a DatabaseModifiedError
             while True:
                 try:
-                    mset = enq.get_mset(startrank, real_maxitems, real_checkatleast)
+                    mset = enq.get_mset(startrank, real_maxitems, checkatleast)
                     break
                 except xapian.DatabaseModifiedError, e:
                     self.reopen()
