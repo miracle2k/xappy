@@ -22,6 +22,8 @@ r"""utils.py: Utility functions.
 """
 __docformat__ = "restructuredtext en"
 
+import math
+
 def get_significant_digits(value, lower, upper):
     """Get the significant digits of value which are constrained by the
     (inclusive) lower and upper bounds.

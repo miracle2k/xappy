@@ -1,3 +1,7 @@
+Wed Dec 09 03:24:52 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/utils.py: Add missing import of "math".
+
 Wed Dec 09 03:20:51 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py,xappy/searchresults.py,
