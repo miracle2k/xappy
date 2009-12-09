@@ -1,3 +1,8 @@
+Wed Dec 09 03:18:39 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/query.py: Add support for storing the queryid for a cached
+	  query in the Query object.
+
 Wed Dec 09 01:04:03 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/doctests/searchconnection_doctest2.txt: Be less susceptible

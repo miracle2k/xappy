@@ -35,7 +35,7 @@ class Query(object):
     OP_OR = xapian.Query.OP_OR
 
     def __init__(self, query=None, _refs=None, _conn=None, _ranges=None,
-                 _serialised=None):
+                 _serialised=None, _queryid=None):
         """Create a new query.
 
         If `query` is a xappy.Query, or xapian.Query, object, the new query is
@@ -69,6 +69,7 @@ class Query(object):
             self.__conn = _conn
             self.__ranges = _ranges
             self.__serialised = _serialised
+            self.__cacheinfo = (_queryid, self)
         else:
             # Assume `query` is a xappy.Query() object.
             self.__query = query.__query
@@ -79,6 +80,7 @@ class Query(object):
                 self.__serialised = query.__serialised
             else:
                 self.__serialised = _serialised
+            self.__cacheinfo = (_queryid, self)
             self.__merge_params(query)
 
     def empty(self):
@@ -365,6 +367,7 @@ class Query(object):
         result = self.norm() | self.__conn.query_cached(cached_id)
         result.__serialised = self.__serialised + \
             '.merge_with_cached(%d)' % cached_id
+        result.__cacheinfo = (cached_id, self)
         return result
 
     def search(self, startrank, endrank, *args, **kwargs):
@@ -449,6 +452,20 @@ class Query(object):
 
         """
         self.__serialised = serialised
+
+    def _get_queryid(self):
+        """Get the queryid if the query is a cached query.
+
+        Returns None if it's not a cached query.
+
+        """
+        return self.__cacheinfo[0]
+
+    def _get_original_query(self):
+        """Get the version of the query which doesn't have the cache applied.
+
+        """
+        return self.__cacheinfo[1]
 
     def __str__(self):
         return str(self.__query)
