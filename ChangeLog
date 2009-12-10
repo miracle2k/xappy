@@ -1,3 +1,10 @@
+Thu Dec 10 11:28:01 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/highlight.py: Cache the stemmers, and the results of the
+	  stemmers, in thread local storage, to allow the cache to be
+	  reused across uses of the Highlighter.  Based on a patch from
+	  Bruno Rezende.
+
 Wed Dec 09 13:09:35 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py: Add stats_checkatleast, to allow the

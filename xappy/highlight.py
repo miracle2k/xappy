@@ -1,4 +1,5 @@
 # Copyright (C) 2007 Lemur Consulting Ltd
+# Copyright (C) 2009 Richard Boulton
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,6 +25,50 @@ __docformat__ = "restructuredtext en"
 
 import re
 import xapian
+import threading
+
+_tls = threading.local()
+_tls.stemmers = {}
+def get_stemmer(language_code):
+    """Get a stemmer for a given language.
+
+    Using this method instead of instantiating a new CachedStemmer object
+    allows the caches in the stemmer to be reused.  Thread local storage is
+    used to ensure that the returned stemmer is specific to the current thread,
+    since stemmers (and the cache) aren't threadsafe.
+
+    """
+    try:
+        return _tls.stemmers[language_code]
+    except KeyError:
+        stemmer = CachedStemmer(language_code)
+        _tls.stemmers[language_code] = stemmer
+        return stemmer
+
+class CachedStemmer(object):
+    """A cached stemmer.
+
+    """
+    def __init__(self, language_code):
+        self._stem = xapian.Stem(language_code)
+        self._stemcache = {}
+
+    def __call__(self, word):
+        """Stem a word.
+
+        """
+        try:
+            return self._stemcache[word]
+        except KeyError:
+            stem = self._stem(word)
+
+            # Stop the stem cache growing indefinitely.
+            # FIXME - do something a bit nicer here.
+            if len(self._stemcache) > 10000:
+                self._stemcache = {}
+
+            self._stemcache[word] = stem
+            return stem
 
 class Highlighter(object):
     """Class for highlighting text and creating contextual summaries.
@@ -46,25 +91,12 @@ class Highlighter(object):
         if stemmer is not None:
             self._stem = stemmer
         else:
-            self._stem = xapian.Stem(language_code)
+            self._stem = get_stemmer(language_code)
         self._terms = None
         self._query = None
-        self._stemcache = {}
 
     def stem(self, word):
-        try:
-            return self._stemcache[word]
-        except KeyError:
-            stem = self._stem(word)
-
-            # Stop the stem cache growing indefinitely - in normal usage,
-            # highlighters aren't very long-lived, so this won't be hit,
-            # anyway.
-            if len(self._stemcache) > 10000:
-                self._stemcache = {}
-
-            self._stemcache[word] = stem
-            return stem
+        return self._stem(word)
 
     def _split_text(self, text, strip_tags=False):
         """Split some text into words and non-words.
@@ -130,7 +162,7 @@ class Highlighter(object):
         elif hasattr(query, '_get_xapian_query'):
             self._terms = [self._strip_prefix(t) for t in query._get_xapian_query()]
         else:
-            self._terms = [self.stem(q.lower()) for q in query]
+            self._terms = [self._stem(q.lower()) for q in query]
         self._query = query
 
     def makeSample(self, text, query, maxlen=600, hl=None):
@@ -162,7 +194,7 @@ class Highlighter(object):
         while end < len(words):
             blockchars += len(words[end])
             if words[end].isalnum():
-                if self.stem(words[end].lower()) in self._terms:
+                if self._stem(words[end].lower()) in self._terms:
                     count += 1
                 end += 1
             elif words[end] in ',.;:?!\n':
@@ -245,7 +277,7 @@ class Highlighter(object):
         for w in words:
             wl = w.lower()
             score += callback(prefix + wl)
-            score += callback(prefix + self.stem(wl))
+            score += callback(prefix + self._stem(wl))
         return score
 
     def _hl(self, words, hl):
@@ -258,7 +290,7 @@ class Highlighter(object):
             # HACK - more forgiving about stemmed terms
             wl = w.lower()
             if wl in self._terms or \
-               self.stem(wl) in self._terms:
+               self._stem(wl) in self._terms:
                 words[i] = ''.join((hl[0], w, hl[1]))
 
         return ''.join(words)
