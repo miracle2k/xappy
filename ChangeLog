@@ -1,3 +1,8 @@
+Thu Dec 10 11:34:07 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/highlight.py: Use thread local storage correctly - make the
+	  "stemmers" dict on demand in each thread.
+
 Thu Dec 10 11:28:01 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/highlight.py: Cache the stemmers, and the results of the

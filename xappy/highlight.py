@@ -28,7 +28,6 @@ import xapian
 import threading
 
 _tls = threading.local()
-_tls.stemmers = {}
 def get_stemmer(language_code):
     """Get a stemmer for a given language.
 
@@ -43,6 +42,10 @@ def get_stemmer(language_code):
     except KeyError:
         stemmer = CachedStemmer(language_code)
         _tls.stemmers[language_code] = stemmer
+        return stemmer
+    except AttributeError:
+        stemmer = CachedStemmer(language_code)
+        _tls.stemmers = {language_code: stemmer}
         return stemmer
 
 class CachedStemmer(object):
