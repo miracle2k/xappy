@@ -1,3 +1,8 @@
+Mon Dec 14 13:47:26 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py,xappy/searchconnection.py: Tie in
+	  facets and stats from the cache.
+
 Mon Dec 14 13:45:31 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/generic.py: Implement get_facets() properly.

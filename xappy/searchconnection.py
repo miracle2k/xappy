@@ -2171,12 +2171,11 @@ class SearchConnection(object):
                     cache_hits = None
 
                 # Get statistics on the number of matches.
-                #cache_stats = self.cache_manager.get_stats(queryid)
+                cache_stats = self.cache_manager.get_stats(queryid)
 
                 # Get the stored facet values.
                 if len(facetfields) != 0:
-                    pass
-                    #cache_facets = self.cache_manager.get_facets(queryid)
+                    cache_facets = self.cache_manager.get_facets(queryid)
 
 
         # Work out how many results we need.
@@ -2244,7 +2243,6 @@ class SearchConnection(object):
 
 
         # Build the search results:
-
         if cache_facets is None:
             # The facet results don't depend on anything else.
             facet_hierarchy = None
@@ -2253,8 +2251,7 @@ class SearchConnection(object):
             facets = MSetFacetResults(facetspies, facetfields, facet_hierarchy,
                                       self._facet_query_table.get(query_type))
         else:
-            facets = FIXME
-
+            facets = CacheFacetResults(cache_facets)
 
         if need_to_search:
             # Need a way to get term weights.
@@ -2279,7 +2276,7 @@ class SearchConnection(object):
         if cache_stats is None:
             stats = MSetResultStats(mset)
         else:
-            stats = FIXME
+            stats = CacheResultStats(cache_stats)
 
         return SearchResults(self, query, self._field_mappings,
                              facets, ordering, stats, context)

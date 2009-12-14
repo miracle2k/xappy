@@ -98,19 +98,8 @@ class CacheResultOrdering(object):
 
 
 class CacheResultStats(object):
-    def __init__(self, serialised):
-        stats = json.loads(serialised)
-
-        self.lower_bound = stats.get('lower_bound', 0)
-        self.upper_bound = stats.get('upper_bound', 0)
-        self.estimated = stats.get('estimated', 0)
-
-    def serialised(self):
-        return json.dumps({
-                          'lower_bound': self.lower_bound,
-                          'upper_bound': self.upper_bound,
-                          'estimated': self.estimated,
-                          }, check_circular=False)
+    def __init__(self, args):
+        self.lower_bound, self.upper_bound, self.estimated = args
 
     def get_lower_bound(self):
         return self.lower_bound
@@ -120,3 +109,15 @@ class CacheResultStats(object):
 
     def get_estimated(self):
         return self.estimated
+
+class CacheFacetResults(object):
+    """The result of counting facets.
+
+    """
+    def __init__(self, facets):
+        self.facets = facets
+
+    def get_suggested_facets(self, maxfacets,
+                             desired_num_of_categories,
+                             required_facets):
+        return self.facets
