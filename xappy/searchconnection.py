@@ -32,7 +32,8 @@ import inspect
 import itertools
 
 import xapian
-from cache_search_results import CacheResultOrdering
+from cache_search_results import CacheResultOrdering, CacheResultStats, \
+         CacheFacetResults
 from datastructures import UnprocessedDocument, ProcessedDocument
 from fieldactions import ActionContext, FieldActions, \
          ActionSet, SortableMarshaller, convert_range_to_term, \
@@ -42,7 +43,6 @@ import errors
 from indexerconnection import IndexerConnection, PrefixedTermIter, \
          DocumentIter, SynonymIter, _allocate_id
 from query import Query
-
 from searchresults import SearchResults, SearchResultContext
 from mset_search_results import MSetFacetResults, \
          MSetResultOrdering, MSetResultStats, MSetTermWeightGetter
@@ -554,9 +554,12 @@ class SearchConnection(object):
             if defaultargs is None:
                 defaultargs = ()
             args = []
-            for argname in argnames[1:-len(defaultargs)]:
-                args.append(repr(values[argname]))
-            if len(defaultargs) > 0:
+            if len(defaultargs) == 0:
+                for argname in argnames[1:]:
+                    args.append(repr(values[argname]))
+            else:
+                for argname in argnames[1:-len(defaultargs)]:
+                    args.append(repr(values[argname]))
                 for i, argname in enumerate(argnames[-len(defaultargs):]):
                     val = values[argname]
                     if val != defaultargs[i]:

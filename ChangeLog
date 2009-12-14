@@ -1,3 +1,9 @@
+Mon Dec 14 13:54:51 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Fix argument serialisation for query
+	  constructors which have no default arguments: fixes
+	  evalable_repr() for queries created with query_id().
+
 Mon Dec 14 13:47:26 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cache_search_results.py,xappy/searchconnection.py: Tie in
