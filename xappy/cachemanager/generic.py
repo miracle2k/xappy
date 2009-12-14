@@ -125,7 +125,25 @@ class CacheManager(object):
         """
         raise NotImplementedError
 
-    def set_hits(self, queryid, docids):
+    def get_stats(self, queryid):
+        """Return some stats about the number of matching documents for a query.
+
+        This returns a 3-tuple of:
+
+         - matches_lower_bound
+         - matches_upper_bound
+         - matches_estimated
+
+        Some or all of the values returned may be None, indicating that that
+        particular value is not stored in the cache.
+
+        """
+        raise NotImplementedError
+
+    def set_hits(self, queryid, docids,
+                 matches_lower_bound=None,
+                 matches_upper_bound=None,
+                 matches_estimated=None):
         """Set the Xapian document IDs of documents matching a query.
 
         `queryid` is the numeric ID of the query to look up.
@@ -144,6 +162,27 @@ class CacheManager(object):
         overestimates (but not underestimates).  This will happen when the
         IndexerConnection tries to remove hits from queries which have already
         had some items removed.
+
+        """
+        raise NotImplementedError
+
+    def set_facets(self, queryid, facets):
+        """Set the facets matched by a query.
+
+        `facets` is a sequence containing the facet data, as follows:
+
+         - items in the sequence are (fieldname, facetvalues)
+         - fieldname is a string
+         - facetvalues is a sequence of (value, frequency)
+         - value is a string for string fields
+         - value is a 2-tuple of (start, end) for float fields
+         - start and end are floats.
+         - frequency is an integer
+
+        ie: facets=(
+                    (fieldname1, ((val1, freq1), (val2, freq2), ))
+                    (fieldname2, (((start3, end3), freq3), ))
+                   )
 
         """
         raise NotImplementedError
@@ -183,6 +222,16 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
      - decode_int()
      - encode_docids()
      - decode_docids()
+
+    Prefixes used:
+
+     - 'I': A single value holding the next queryid to allocate.
+     - 'S': Followed by a decimal queryid, contains the query string.
+     - 'Q': Followed by a md5sum of the query string, contains the query string
+       and the query ID.
+     - 'H': Followed by queryid:chunkid, contains a chunk of hits.
+     - 'T': Followed by a queryid, contains the stats for that query.
+     - 'F': Followed by a queryid, contains the facets for that query.
 
     """
     encode = staticmethod(lambda x: cPickle.dumps(x, 2))
@@ -339,8 +388,19 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
 
         return hits
 
-    def set_hits(self, queryid, docids):
+    def get_stats(self, queryid):
+        data = self['T' + str(queryid)]
+        if len(data) == 0:
+            return (None, None, None)
+        return self.decode(data)
+
+    def set_hits(self, queryid, docids,
+                 matches_lower_bound=None,
+                 matches_upper_bound=None,
+                 matches_estimated=None):
         self.set_hits_internal(queryid, docids, 0)
+        self.set_stats(queryid, matches_lower_bound,
+                       matches_upper_bound, matches_estimated)
 
     def set_hits_internal(self, queryid, docids, chunk):
         """Internal implementation of set_hits.
@@ -372,6 +432,17 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
                 break
             del self[key]
             chunk += 1
+
+    def set_stats(self, queryid, 
+                  matches_lower_bound,
+                  matches_upper_bound,
+                  matches_estimated):
+        """Set the statistics for this queryid.
+
+        """
+        self['T' + str(queryid)] = self.encode((matches_lower_bound,
+                                                matches_upper_bound,
+                                                matches_estimated))
 
     def remove_hits(self, queryid, ranks_and_docids):
         if len(ranks_and_docids) == 0:
@@ -416,3 +487,34 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
                 assert rank != -1
 
         self.set_hits_internal(queryid, hits, startchunk)
+
+        # Decrease the stats
+        delcount = len(ranks_and_docids)
+
+        data = self['T' + str(queryid)]
+        if len(data) != 0:
+            data = self.decode(data)
+            if data[0] is not None:
+                data[0] -= 1
+            if data[1] is not None:
+                data[1] -= 1
+            if data[2] is not None:
+                data[2] -= 1
+            self['T' + str(queryid)] = self.encode(data)
+
+    def set_facets(self, queryid, facets):
+        """
+
+        """
+        # Flatten any iterators into tuples.
+        facets = tuple((item[0], tuple(item[1])) for item in facets)
+        self['F' + str(queryid)] = self.encode(facets)
+
+    def get_facets(self, queryid, facets):
+        """
+
+        """
+        data = self['F' + str(queryid)]
+        if len(data) == 0:
+            return ()
+        return self.decode(data)
