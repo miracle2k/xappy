@@ -166,6 +166,15 @@ class CacheManager(object):
         """
         raise NotImplementedError
 
+    def get_facets(self, queryid):
+        """Get the facets matched by a query.
+
+        The result of this is exactly the same as the `facets` parameter passed
+        to set_facets().
+
+        """
+        raise NotImplementedError
+
     def set_facets(self, queryid, facets):
         """Set the facets matched by a query.
 
@@ -503,17 +512,11 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
             self['T' + str(queryid)] = self.encode(data)
 
     def set_facets(self, queryid, facets):
-        """
-
-        """
         # Flatten any iterators into tuples.
         facets = tuple((item[0], tuple(item[1])) for item in facets)
         self['F' + str(queryid)] = self.encode(facets)
 
-    def get_facets(self, queryid, facets):
-        """
-
-        """
+    def get_facets(self, queryid):
         data = self['F' + str(queryid)]
         if len(data) == 0:
             return ()
