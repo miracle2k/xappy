@@ -1,3 +1,8 @@
+Mon Dec 14 13:58:19 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/unittests/query_id.py: Test query_id for correct
+	  serialisation.
+
 Mon Dec 14 13:54:51 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py: Fix argument serialisation for query

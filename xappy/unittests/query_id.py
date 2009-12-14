@@ -54,5 +54,7 @@ class TestQueryId(TestCase):
         results = query.search(0, 10)
         self.assertEqual([r.id for r in results], ["121"])
 
+        self.assertEqual(query.evalable_repr(), "conn.query_id('121')")
+
 if __name__ == '__main__':
     main()
