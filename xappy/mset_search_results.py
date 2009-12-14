@@ -491,24 +491,18 @@ class MSetFacetResults(object):
             required_facets = [required_facets]
         scores = []
         facettypes = {}
-        for field, slot, kwargslist in self.facetfields:
-            type = None
-            for kwargs in kwargslist:
-                type = kwargs.get('type', None)
-                if type is not None: break
-            if type is None: type = 'string'
-
+        for field, slot, facettype in self.facetfields:
             if field not in self.facetvalues:
                 facetspy = self.facetspies.get(slot)
                 if facetspy is None:
                     self.facetvalues[field] = []
                 else:
-                    if type == 'float':
+                    if facettype == 'float':
                         self.facetvalues[field] = xapian.NumericRanges(facetspy.get_values(), desired_num_of_categories)
                     else:
                         self.facetvalues[field] = facetspy
 
-            facettypes[field] = type
+            facettypes[field] = facettype
             if isinstance(self.facetvalues[field], xapian.NumericRanges):
                 score = xapian.score_evenness(self.facetvalues[field].get_ranges(),
                                               self.facetvalues[field].get_values_seen(),

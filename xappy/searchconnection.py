@@ -1950,6 +1950,14 @@ class SearchConnection(object):
         return Query(xapian.Query(ps), _refs=[ps], _conn=self, _serialised=serialised,
                      _queryid=cached_queryid)
 
+    @staticmethod
+    def _field_type_from_kwargslist(kwargslist):
+        for kwargs in kwargslist:
+            fieldtype = kwargs.get('type', None)
+            if fieldtype is not None:
+                return fieldtype
+        return 'string'
+
     def _make_facet_matchspies(self, query, allowfacets, denyfacets,
                                usesubfacets, query_type):
         # Set facetspies to {}, even if no facet fields are found, to
@@ -1998,17 +2006,13 @@ class SearchConnection(object):
                     if self._facet_query_never(field, query_type):
                         continue
                     slot = self._field_mappings.get_slot(field, 'facet')
-                    facettype = None
-                    for kwargs in kwargslist:
-                        facettype = kwargs.get('type', None)
-                        if facettype is not None:
-                            break
-                    if facettype is None or facettype == 'string':
+                    facettype = self._field_type_from_kwargslist(kwargslist)
+                    if facettype == 'string':
                         facetspy = xapian.MultiValueCountMatchSpy(slot)
                     else:
                         facetspy = xapian.ValueCountMatchSpy(slot)
                     facetspies[slot] = facetspy
-                    facetfields.append((field, slot, kwargslist))
+                    facetfields.append((field, slot, facettype))
         return facetspies, facetfields
 
     def _make_enquire(self, query):

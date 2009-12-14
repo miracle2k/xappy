@@ -1,3 +1,9 @@
+Mon Dec 14 18:44:00 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/mset_search_results.py,xappy/searchconnection.py: Pass the
+	  field types through to the facet results directly, instead of the
+	  kwargs from the action.
+
 Mon Dec 14 13:58:19 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/unittests/query_id.py: Test query_id for correct
