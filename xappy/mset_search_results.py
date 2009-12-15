@@ -468,47 +468,61 @@ class MSetFacetResults(object):
     """The result of counting facets.
 
     """
-    def __init__(self, facetspies, facetfields, facethierarchy, facetassocs):
+    def __init__(self, facetspies, facetfields, facethierarchy, facetassocs,
+                 desired_num_of_categories):
         self.facetspies = facetspies
         self.facetfields = facetfields
         self.facethierarchy = facethierarchy
         self.facetassocs = facetassocs
 
         self.facetvalues = {}
+        for field, slot, facettype in self.facetfields:
+            self.facetvalues[field] = self.calc_facet_value(slot,
+                facettype, desired_num_of_categories)
 
-    def get_suggested_facets(self, maxfacets,
-                             desired_num_of_categories,
-                             required_facets):
+    def calc_facet_value(self, slot, facettype, desired_num_of_categories):
+        """Calculate the facet value for a given slot, and return it.
+
+        """
+        facetspy = self.facetspies.get(slot)
+        if facetspy is None:
+            return [], 0
+        else:
+            if facettype == 'float':
+                ranges = xapian.NumericRanges(facetspy.get_values(),
+                                              desired_num_of_categories)
+
+                score = xapian.score_evenness(ranges.get_ranges(),
+                                              ranges.get_values_seen(),
+                                              desired_num_of_categories)
+                values = ranges.get_ranges_as_dict()
+            else:
+                score = xapian.score_evenness(facetspy,
+                                              desired_num_of_categories)
+                values = facetspy.get_values_as_dict()
+            values = tuple(sorted(values.iteritems()))
+            return values, score
+
+    def get_facets(self):
+        """Get all the calculated facets.
+
+        """
+
+    def get_suggested_facets(self, maxfacets, required_facets):
         """Get the suggested facets.  Parameters and return value are as for
         `SearchResults.get_suggested_facets()`.
 
         """
-        if 'facets' in _checkxapian.missing_features:
-            raise errors.SearchError("Facets unsupported with this release of xapian")
         if self.facetspies is None:
             raise errors.SearchError("Facet selection wasn't enabled when the search was run")
         if isinstance(required_facets, basestring):
             required_facets = [required_facets]
         scores = []
         facettypes = {}
-        for field, slot, facettype in self.facetfields:
-            if field not in self.facetvalues:
-                facetspy = self.facetspies.get(slot)
-                if facetspy is None:
-                    self.facetvalues[field] = []
-                else:
-                    if facettype == 'float':
-                        self.facetvalues[field] = xapian.NumericRanges(facetspy.get_values(), desired_num_of_categories)
-                    else:
-                        self.facetvalues[field] = facetspy
 
+        for field, slot, facettype in self.facetfields:
             facettypes[field] = facettype
-            if isinstance(self.facetvalues[field], xapian.NumericRanges):
-                score = xapian.score_evenness(self.facetvalues[field].get_ranges(),
-                                              self.facetvalues[field].get_values_seen(),
-                                              desired_num_of_categories)
-            else:
-                score = xapian.score_evenness(self.facetvalues[field], desired_num_of_categories)
+            values, score = self.facetvalues[field] 
             scores.append((score, field, slot))
 
         # Sort on whether facet is top-level ahead of score (use subfacets first),
@@ -542,11 +556,7 @@ class MSetFacetResults(object):
                 continue
 
             # Get the values
-            values = self.facetvalues[field]
-            if isinstance(values, xapian.MatchSpy):
-                values = values.get_values_as_dict()
-            elif isinstance(values, xapian.NumericRanges):
-                values = values.get_ranges_as_dict()
+            values, score = self.facetvalues[field] 
 
             # Required facets must occur at least once, other facets must occur
             # at least twice.
@@ -557,21 +567,10 @@ class MSetFacetResults(object):
                 if len(values) <= 1:
                     continue
 
-            newvalues = []
-            if facettypes[field] == 'float':
-                # Convert numbers to python numbers, and number ranges to a
-                # python tuple of two numbers.
-                for (value1, value2), frequency in values.iteritems():
-                    newvalues.append(((value1, value2), frequency))
-            else:
-                for value, frequency in values.iteritems():
-                    newvalues.append((value, frequency))
-
-            newvalues.sort()
             if required:
-                required_results.append((score, field, newvalues))
+                required_results.append((score, field, values))
             else:
-                results.append((score, field, newvalues))
+                results.append((score, field, values))
 
         # Throw away any excess results if we have more required_results to
         # insert.

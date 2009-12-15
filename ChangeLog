@@ -1,3 +1,19 @@
+Tue Dec 15 08:43:24 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/mset_search_results.py,xappy/searchconnection.py,
+	  xappy/searchresults.py: Refactor facet calculation.  Scoring now
+	  happens immediately, rather than when get_suggested_facets() is
+	  called.  This requires adding a "facet_desired_num_of_categories"
+	  parameter to SearchConnection.search().  I'm likely to remove
+	  get_suggested_facets() entirely soon, since experience has shown
+	  that the facet suggestion algorithm it uses isn't of much
+	  practical use: it's probably better to just return all the valid
+	  facets for now, and allow higher layers to choose them, until we
+	  know a better algorithm.
+	* docs/introduction.rst,xappy/doctests/searchconnection_doctest2.txt:
+	  Update to expect range facets values in a tuple rather than a
+	  list.
+
 Mon Dec 14 18:44:00 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/mset_search_results.py,xappy/searchconnection.py: Pass the

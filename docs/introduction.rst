@@ -467,7 +467,7 @@ restricted to a particular facet value, for example)::
 
   >>> results = conn.search(q, 0, 10, checkatleast=1000, getfacets=True)
   >>> results.get_suggested_facets()
-  [('category', [('bible', 1), ('test documents', 1)]), ('price', [((12.199999999999999, 12.199999999999999), 1), ((20.559999999999999, 20.559999999999999), 1)])]
+  [('category', (('bible', 1), ('test documents', 1))), ('price', (((12.199999999999999, 12.199999999999999), 1), ((20.559999999999999, 20.559999999999999), 1)))]
 
 .. Note:: When the result set is being generated, various optimisations are performed to avoid wasting time looking at documents which can't possibly get into the portion of the result set which has been requested.  These are normally desirable optimisations because they can speed up searches considerably, but if information about the facets in the result set as a whole is desired, the optimisations can cause inaccurate values to be returned.  Therefore, it is possible to force the search engine to look at at least a minimum number of results, by setting the "checkatleast" parameter of the search() method.  As a special case, a value of -1 forces all matches to be examined, regardless of database size: this should be used with care, because it can result in slow searches.
 

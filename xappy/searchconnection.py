@@ -2074,7 +2074,8 @@ class SearchConnection(object):
                getfacets=None, allowfacets=None, denyfacets=None, usesubfacets=None,
                percentcutoff=None, weightcutoff=None,
                query_type=None, weight_params=None, collapse_max=1,
-               stats_checkatleast=0, facet_checkatleast=0):
+               stats_checkatleast=0, facet_checkatleast=0,
+               facet_desired_num_of_categories=7):
         """Perform a search, for documents matching a query.
 
         - `query` is the query to perform.
@@ -2256,7 +2257,8 @@ class SearchConnection(object):
             if usesubfacets:
                 facet_hierarchy = self._facet_hierarchy
             facets = MSetFacetResults(facetspies, facetfields, facet_hierarchy,
-                                      self._facet_query_table.get(query_type))
+                                      self._facet_query_table.get(query_type),
+                                      facet_desired_num_of_categories)
         else:
             facets = CacheFacetResults(cache_facets)
 

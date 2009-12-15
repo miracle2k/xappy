@@ -737,7 +737,7 @@ class SearchResults(object):
         """
         return len(self._ordering)
 
-    def get_suggested_facets(self, maxfacets=5, desired_num_of_categories=7,
+    def get_suggested_facets(self, maxfacets=5, desired_num_of_categories=None,
                              required_facets=None):
         """Get a suggested set of facets, to present to the user.
 
@@ -782,6 +782,4 @@ class SearchResults(object):
         the returned list.
 
         """
-        return self._facets.get_suggested_facets(maxfacets,
-                                                 desired_num_of_categories,
-                                                 required_facets)
+        return self._facets.get_suggested_facets(maxfacets, required_facets)
