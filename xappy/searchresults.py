@@ -737,6 +737,19 @@ class SearchResults(object):
         """
         return len(self._ordering)
 
+    def get_facets(self):
+        """Get all the facets calculated for these search results.
+
+        This returns a dict, keyed by field name, for which the values are a
+        sequence of 2-tuples holding the suggested values or ranges for that
+        field.
+
+        The values may be an empty sequence; this indicates that no values were
+        found in the matching documents for that field.
+
+        """
+        return self._facets.get_facets()
+
     def get_suggested_facets(self, maxfacets=5, desired_num_of_categories=None,
                              required_facets=None):
         """Get a suggested set of facets, to present to the user.

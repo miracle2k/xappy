@@ -1,3 +1,10 @@
+Tue Dec 15 09:56:56 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/mset_search_results.py,xappy/searchresults.py,
+	  xappy/unittests/facets.py: Add SearchResults.get_facets() which
+	  returns all the facets.  Refactor the facet calculation to store
+	  results in a more useful form for returning this.
+
 Tue Dec 15 08:55:49 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* setup.py,xappy/__init__.py: Bump version to 0.6.0 - release won't

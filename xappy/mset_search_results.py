@@ -476,9 +476,12 @@ class MSetFacetResults(object):
         self.facetassocs = facetassocs
 
         self.facetvalues = {}
+        self.facetscore = {}
         for field, slot, facettype in self.facetfields:
-            self.facetvalues[field] = self.calc_facet_value(slot,
-                facettype, desired_num_of_categories)
+            values, score = self.calc_facet_value(slot, facettype,
+                                                  desired_num_of_categories)
+            self.facetvalues[field] = values
+            self.facetscore[field] = score
 
     def calc_facet_value(self, slot, facettype, desired_num_of_categories):
         """Calculate the facet value for a given slot, and return it.
@@ -506,7 +509,11 @@ class MSetFacetResults(object):
     def get_facets(self):
         """Get all the calculated facets.
 
+        Returns a dictionary, mapping from field name to the values for that
+        field.
+
         """
+        return self.facetvalues
 
     def get_suggested_facets(self, maxfacets, required_facets):
         """Get the suggested facets.  Parameters and return value are as for
@@ -522,7 +529,7 @@ class MSetFacetResults(object):
 
         for field, slot, facettype in self.facetfields:
             facettypes[field] = facettype
-            values, score = self.facetvalues[field] 
+            score = self.facetscore[field] 
             scores.append((score, field, slot))
 
         # Sort on whether facet is top-level ahead of score (use subfacets first),
@@ -555,8 +562,7 @@ class MSetFacetResults(object):
             if not required and len(results) + len(required_results) >= maxfacets:
                 continue
 
-            # Get the values
-            values, score = self.facetvalues[field] 
+            values = self.facetvalues[field] 
 
             # Required facets must occur at least once, other facets must occur
             # at least twice.
@@ -567,6 +573,7 @@ class MSetFacetResults(object):
                 if len(values) <= 1:
                     continue
 
+            score = self.facetscore[field] 
             if required:
                 required_results.append((score, field, values))
             else:
