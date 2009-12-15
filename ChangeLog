@@ -1,3 +1,8 @@
+Tue Dec 15 16:08:23 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py: Revert previous fix to stats
+	  storage, but also don't store anything if all stats are None.
+
 Tue Dec 15 14:14:27 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/generic.py: Return None if no stats, instead

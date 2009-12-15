@@ -134,8 +134,8 @@ class CacheManager(object):
          - matches_upper_bound
          - matches_estimated
 
-        It may alternatively return None, indicating that that particular value
-        is not stored in the cache.
+        Any of these values may be None, indicating that they are not stored in
+        the cache.
 
         """
         raise NotImplementedError
@@ -400,7 +400,7 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
     def get_stats(self, queryid):
         data = self['T' + str(queryid)]
         if len(data) == 0:
-            return None
+            return (None, None, None)
         return self.decode(data)
 
     def set_hits(self, queryid, docids,
@@ -449,9 +449,16 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
         """Set the statistics for this queryid.
 
         """
-        self['T' + str(queryid)] = self.encode((matches_lower_bound,
-                                                matches_upper_bound,
-                                                matches_estimated))
+        key = 'T' + str(queryid)
+        if (matches_lower_bound is None and
+            matches_upper_bound is None and
+            matches_estimated is None):
+            del self[key]
+        else:
+            self[key] = self.encode((matches_lower_bound,
+                                     matches_upper_bound,
+                                     matches_estimated))
+
 
     def remove_hits(self, queryid, ranks_and_docids):
         if len(ranks_and_docids) == 0:
