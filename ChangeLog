@@ -1,3 +1,7 @@
+Tue Dec 15 14:12:03 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Update a couple of comments.
+
 Tue Dec 15 09:56:56 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/mset_search_results.py,xappy/searchresults.py,

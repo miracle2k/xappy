@@ -2216,7 +2216,8 @@ class SearchConnection(object):
                 checkatleast = max(checkatleast, facet_checkatleast)
                 need_to_search = True
 
-        # FIXME - we currently always need to search to get a mset object for 
+        # FIXME - we currently always need to search to get an mset object for
+        # getting term weights
         need_to_search = True
 
         if need_to_search:
@@ -2263,8 +2264,11 @@ class SearchConnection(object):
             facets = CacheFacetResults(cache_facets)
 
         if need_to_search:
-            # Need a way to get term weights.
             weightgetter = MSetTermWeightGetter(mset)
+        else:
+            # FIXME - Need a way to get term weights, for calculating relevant
+            # data.
+            weightgetter = FIXME
 
         # The context is supplied to each SearchResult.
         context = SearchResultContext(self, self._field_mappings, weightgetter, query)
