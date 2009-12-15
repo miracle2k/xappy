@@ -134,8 +134,8 @@ class CacheManager(object):
          - matches_upper_bound
          - matches_estimated
 
-        Some or all of the values returned may be None, indicating that that
-        particular value is not stored in the cache.
+        It may alternatively return None, indicating that that particular value
+        is not stored in the cache.
 
         """
         raise NotImplementedError
@@ -400,7 +400,7 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
     def get_stats(self, queryid):
         data = self['T' + str(queryid)]
         if len(data) == 0:
-            return (None, None, None)
+            return None
         return self.decode(data)
 
     def set_hits(self, queryid, docids,

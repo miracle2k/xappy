@@ -1,3 +1,8 @@
+Tue Dec 15 14:14:27 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py: Return None if no stats, instead
+	  of (None, None, None).
+
 Tue Dec 15 14:12:03 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py: Update a couple of comments.
