@@ -172,6 +172,8 @@ class CacheManager(object):
         The result of this is exactly the same as the `facets` parameter passed
         to set_facets().
 
+        If no facets are stored, this should return None.
+
         """
         raise NotImplementedError
 
@@ -526,5 +528,5 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
     def get_facets(self, queryid):
         data = self['F' + str(queryid)]
         if len(data) == 0:
-            return ()
+            return None
         return self.decode(data)

@@ -1,3 +1,8 @@
+Tue Dec 15 18:42:13 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py: Fix bug with facets for search
+	  with cached hits - was always trying to use cached facets, too.
+
 Tue Dec 15 18:40:42 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/unittests/cached_searches.py: Add tests of getting facets
