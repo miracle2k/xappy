@@ -32,8 +32,7 @@ import inspect
 import itertools
 
 import xapian
-from cache_search_results import CacheResultOrdering, CacheResultStats, \
-         CacheFacetResults
+from cache_search_results import CacheResultOrdering, CacheFacetResults
 from datastructures import UnprocessedDocument, ProcessedDocument
 from fieldactions import ActionContext, FieldActions, \
          ActionSet, SortableMarshaller, convert_range_to_term, \
@@ -45,7 +44,7 @@ from indexerconnection import IndexerConnection, PrefixedTermIter, \
 from query import Query
 from searchresults import SearchResults, SearchResultContext
 from mset_search_results import MSetFacetResults, \
-         MSetResultOrdering, MSetResultStats, MSetTermWeightGetter
+         MSetResultOrdering, ResultStats, MSetTermWeightGetter
 
 class ExternalWeightSource(object):
     """A source of extra weight information for searches.
@@ -2166,7 +2165,7 @@ class SearchConnection(object):
             facetspies, facetfields = None, []
 
         # Get whatever information we can from the cache.
-        cache_hits, cache_stats, cache_facets = None, None, None
+        cache_hits, cache_stats, cache_facets = None, (None, None, None), None
         if queryid is not None:
             if sortby is None and collapse is None:
                 # Get the ordering of the requested hits.  Ask for one more, so
@@ -2202,8 +2201,10 @@ class SearchConnection(object):
             # with the cache.
             query = uncached_query
 
-        if cache_stats is None:
-            # Need to get basic statistics from the search, but we'll just to a
+        if (cache_stats[0] is None or
+            cache_stats[1] is None or
+            cache_stats[2] is None):
+            # Need to get basic statistics from the search, but we'll just do a
             # 0-document search for this if we don't need anything else.
             need_to_search = True
             checkatleast = max(checkatleast, stats_checkatleast)
@@ -2249,6 +2250,8 @@ class SearchConnection(object):
                     break
                 except xapian.DatabaseModifiedError, e:
                     self.reopen()
+        else:
+            mset = None
 
 
         # Build the search results:
@@ -2286,10 +2289,7 @@ class SearchConnection(object):
                                            startrank)
 
         # Statistics on the number of matching documents.
-        if cache_stats is None:
-            stats = MSetResultStats(mset)
-        else:
-            stats = CacheResultStats(cache_stats)
+        stats = ResultStats(mset, cache_stats)
 
         return SearchResults(self, query, self._field_mappings,
                              facets, ordering, stats, context)

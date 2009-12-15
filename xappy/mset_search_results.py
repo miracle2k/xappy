@@ -400,18 +400,25 @@ class MSetResultOrdering(object):
             return self
 
 
-class MSetResultStats(object):
-    def __init__(self, mset):
+class ResultStats(object):
+    def __init__(self, mset, cache_stats):
         self.mset = mset
+        self.cache_stats = list(cache_stats)
 
     def get_lower_bound(self):
-        return self.mset.get_matches_lower_bound()
+        if self.cache_stats[0] is None:
+            self.cache_stats[0] = self.mset.get_matches_lower_bound()
+        return self.cache_stats[0]
 
     def get_upper_bound(self):
-        return self.mset.get_matches_upper_bound()
+        if self.cache_stats[1] is None:
+            self.cache_stats[1] = self.mset.get_matches_upper_bound()
+        return self.cache_stats[1]
 
     def get_estimated(self):
-        return self.mset.get_matches_estimated()
+        if self.cache_stats[2] is None:
+            self.cache_stats[2] = self.mset.get_matches_estimated()
+        return self.cache_stats[2]
 
 
 class ReorderedMSetSearchResultIter(object):

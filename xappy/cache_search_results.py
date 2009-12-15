@@ -97,19 +97,6 @@ class CacheResultOrdering(object):
         return self.startrank + len(self.xapids)
 
 
-class CacheResultStats(object):
-    def __init__(self, args):
-        self.lower_bound, self.upper_bound, self.estimated = args
-
-    def get_lower_bound(self):
-        return self.lower_bound
-
-    def get_upper_bound(self):
-        return self.upper_bound
-
-    def get_estimated(self):
-        return self.estimated
-
 class CacheFacetResults(object):
     """The result of counting facets.
 

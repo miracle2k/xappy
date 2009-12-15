@@ -125,6 +125,10 @@ class TestCachedSearches(TestCase):
 
         # Try doing a search which is a pure cache hit.
         results = sconn.search(query_world.merge_with_cached(world_queryid), 0, 2)
+        self.assertEqual(results.matches_lower_bound, 59)
+        self.assertEqual(results.matches_estimated, 59)
+        self.assertEqual(results.matches_upper_bound, 59)
+        self.assertEqual(results.matches_human_readable_estimate, 59)
         results = [int(result.id, 16) for result in results]
         self.assertEqual(results, [i - 1 for i in world_order[:2]])
 

@@ -1,3 +1,15 @@
+Tue Dec 15 16:09:04 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py,xappy/mset_search_results.py,
+	  xappy/searchconnection.py: Remove CacheResultStats and
+	  MSetResultStats - replace them with a generic ResultStats which
+	  takes both the mset and the cached value, and returns the cached
+	  values if not None, and reads the mset otherwise.  Adjust the
+	  search code to perform the search if any of the cached values are
+	  None.
+	* xappy/unittests/cached_searches.py: Minimal test for stats return
+	  values.
+
 Tue Dec 15 16:08:23 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/generic.py: Revert previous fix to stats
