@@ -1,3 +1,8 @@
+Tue Dec 15 18:40:42 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/unittests/cached_searches.py: Add tests of getting facets
+	  from cached searches.
+
 Tue Dec 15 16:42:10 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cache_search_results.py: Remove old parameter from

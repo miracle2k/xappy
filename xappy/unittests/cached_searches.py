@@ -33,11 +33,16 @@ class TestCachedSearches(TestCase):
         # Make a database, and add some documents to it.
         iconn = xappy.IndexerConnection(self.dbpath)
         iconn.add_field_action('text', xappy.FieldActions.INDEX_FREETEXT)
+        iconn.add_field_action('f1', xappy.FieldActions.FACET)
+        iconn.add_field_action('f2', xappy.FieldActions.FACET, type='float')
+
         for i in xrange(self.doccount):
             doc = xappy.UnprocessedDocument()
             doc.append('text', 'hello')
             if i > self.doccount / 2:
                 doc.append('text', 'world')
+            doc.append('f1', str(i % 5))
+            doc.append('f2', i % 7)
             iconn.add(doc)
 
         # Make a cache, and set the hits for some queries.
@@ -45,6 +50,8 @@ class TestCachedSearches(TestCase):
         man.set_hits(man.get_or_make_queryid('hello'),
                      range(self.doccount, 0, -10))
 
+        uncached_world_order = list(xrange(self.doccount / 2 + 2,
+                                           self.doccount + 1))
         world_order = list(xrange(1, self.doccount + 1))
         random.shuffle(world_order)
         man.set_hits(man.get_or_make_queryid('world'), world_order)
@@ -131,6 +138,67 @@ class TestCachedSearches(TestCase):
         self.assertEqual(results.matches_human_readable_estimate, 59)
         results = [int(result.id, 16) for result in results]
         self.assertEqual(results, [i - 1 for i in world_order[:2]])
+
+        # Try getting some facet results for a non-cached search.
+        results = query_world.search(0, self.doccount, getfacets=True)
+        resultids = [int(result.id, 16) for result in results]
+        self.assertEqual(resultids, [i - 1 for i in uncached_world_order])
+        self.assertEqual(results.get_facets(), {
+            'f1': (('0', 11),
+                   ('1', 12),
+                   ('2', 12),
+                   ('3', 12),
+                   ('4', 12)),
+            'f2': (((0.0, 0.0), 9),
+                   ((1.0, 1.0), 8),
+                   ((2.0, 2.0), 8),
+                   ((3.0, 3.0), 8),
+                   ((4.0, 4.0), 8),
+                   ((5.0, 5.0), 9),
+                   ((6.0, 6.0), 9))
+        })
+
+        # Try getting some facet results for a cached search.
+        results = query_world.merge_with_cached(world_queryid) \
+                             .search(0, self.doccount, getfacets=True)
+        resultids = [int(result.id, 16) for result in results]
+        self.assertEqual(resultids, [i - 1 for i in world_order])
+        self.assertEqual(results.get_facets(), {
+            'f1': (('0', 22),
+                   ('1', 23),
+                   ('2', 24),
+                   ('3', 24),
+                   ('4', 23)),
+            'f2': (((0.0, 0.0), 17),
+                   ((1.0, 1.0), 16),
+                   ((2.0, 2.0), 16),
+                   ((3.0, 3.0), 17),
+                   ((4.0, 4.0), 17),
+                   ((5.0, 5.0), 17),
+                   ((6.0, 6.0), 16))
+        })
+
+        # Try getting some facet results for a pure cache hit.
+        count = 2
+        results = query_world.merge_with_cached(world_queryid) \
+                             .search(0, count, getfacets=True,
+                                     facet_checkatleast=2)
+        resultids = [int(result.id, 16) for result in results]
+        self.assertEqual(resultids, [i - 1 for i in world_order[:count]])
+        self.assertEqual(results.get_facets(), {
+            'f1': (('0', 11),
+                   ('1', 12),
+                   ('2', 12),
+                   ('3', 12),
+                   ('4', 12)),
+            'f2': (((0.0, 0.0), 9),
+                   ((1.0, 1.0), 8),
+                   ((2.0, 2.0), 8),
+                   ((3.0, 3.0), 8),
+                   ((4.0, 4.0), 8),
+                   ((5.0, 5.0), 9),
+                   ((6.0, 6.0), 9))
+        })
 
 if __name__ == '__main__':
     main()
