@@ -1,3 +1,9 @@
+Tue Dec 15 08:55:49 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* setup.py,xappy/__init__.py: Bump version to 0.6.0 - release won't
+	  be for a little while yet, but this allows me to test the version
+	  for backward compatibility.
+
 Tue Dec 15 08:43:24 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/mset_search_results.py,xappy/searchconnection.py,

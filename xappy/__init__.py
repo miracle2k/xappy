@@ -26,7 +26,7 @@ details of how to use the xappy package.
 """
 __docformat__ = "restructuredtext en"
 
-__version__ = '0.5.1'
+__version__ = '0.6.0'
 
 import _checkxapian
 from datastructures import UnprocessedDocument, ProcessedDocument

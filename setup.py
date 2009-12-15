@@ -95,13 +95,13 @@ to Xappy.
 
 
 setup(name = "xappy",
-      version = "0.5.1", # update this in xappy/__init__.py, too.  FIXME - get automatically
+      version = "0.6.0", # update this in xappy/__init__.py, too.  FIXME - get automatically
       author = "Richard Boulton",
       author_email = "richard@lemurconsulting.com",
       maintainer = "Richard Boulton",
       maintainer_email = "richard@lemurconsulting.com",
       url = "http://code.google.com/p/xappy",
-      download_url = "http://xappy.googlecode.com/files/xappy-0.5.1.tar.gz",
+      download_url = "http://xappy.googlecode.com/files/xappy-0.6.0.tar.gz",
       description = "Easy-to-use interface to the Xapian search engine",
       long_description = long_description,
       classifiers = [
