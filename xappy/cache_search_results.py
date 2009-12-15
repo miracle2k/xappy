@@ -105,6 +105,5 @@ class CacheFacetResults(object):
         self.facets = facets
 
     def get_suggested_facets(self, maxfacets,
-                             desired_num_of_categories,
                              required_facets):
         return self.facets

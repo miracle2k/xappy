@@ -1,3 +1,8 @@
+Tue Dec 15 16:42:10 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py: Remove old parameter from
+	  get_suggested_facets().
+
 Tue Dec 15 16:09:04 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cache_search_results.py,xappy/mset_search_results.py,
