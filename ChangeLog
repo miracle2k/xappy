@@ -1,3 +1,7 @@
+Wed Dec 30 12:20:46 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* utils/make_xappy_tarballs: Update branchpoints.
+
 Tue Dec 15 18:42:13 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/generic.py: Fix bug with facets for search
