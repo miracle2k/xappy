@@ -99,9 +99,9 @@ class TestCachedSearches(TestCase):
         # Test a search for all documents, merged with a cache.
         results = sconn.query_all().merge_with_cached(cached_id).\
                     search(0, self.doccount)
-        results = [int(result.id, 16) for result in results]
-        self.assertEqual(results[:11], expected2)
-        self.assertEqual(results[:20], expected2 + range(9))
+        resultids = [int(result.id, 16) for result in results]
+        self.assertEqual(resultids[:11], expected2)
+        self.assertEqual(resultids[:20], expected2 + range(9))
 
         # Try a search with a cache.
         results = sconn.search(query_hello.merge_with_cached(cached_id),
@@ -109,6 +109,14 @@ class TestCachedSearches(TestCase):
         results = [int(result.id, 16) for result in results]
         self.assertEqual(results[:11], expected2)
         self.assertEqual(list(sorted(results)), expected)
+
+        # Try searches for each of the sub ranges.
+        expected2_full = expected2 + sorted(set(expected) - set(expected2))
+        for i in xrange(len(expected) + 10):
+            results = sconn.search(query_hello.merge_with_cached(cached_id),
+                                   i, i + 10)
+            results = [int(result.id, 16) for result in results]
+            self.assertEqual(results, expected2_full[i:i + 10])
 
         # Try the same search with a different set of cached results.
         world_queryid = man.get_queryid('world')
@@ -138,6 +146,15 @@ class TestCachedSearches(TestCase):
         self.assertEqual(results.matches_human_readable_estimate, 59)
         results = [int(result.id, 16) for result in results]
         self.assertEqual(results, [i - 1 for i in world_order[:2]])
+
+        # Try pure cache hits at non-0 start offset.
+        for i in xrange(100):
+            results = sconn.search(query_world.merge_with_cached(world_queryid),
+                                   i, i + 10)
+            for j in xrange(len(results)):
+                self.assertEqual(int(results[j].id, 16), world_order[i + j] - 1)
+            results = [int(result.id, 16) for result in results]
+            self.assertEqual(results, [i - 1 for i in world_order[i:i + 10]])
 
         # Try getting some facet results for a non-cached search.
         results = query_world.search(0, self.doccount, getfacets=True)
