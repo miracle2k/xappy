@@ -300,6 +300,14 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
         """
         raise NotImplementedError
 
+    def clear(self):
+        """Remove all items stored in the cache manager.
+
+        """
+        self.invalidate_iter_by_docid()
+        for key in tuple(self.keys()):
+            del self[key]
+
     def is_empty(self):
         # Just need to check if self['I'] exists - we don't allow complete
         # removal of a cached query, so if we've ever populated self['I'] we're

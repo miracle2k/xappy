@@ -1,3 +1,9 @@
+Wed Dec 30 15:03:45 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py,xappy/cachemanager/xapian_manager.py,
+	  xappy/unittests/cachemanager.py: Add a "clear()" method to
+	  CacheManager to delete all the items in the cache.
+
 Wed Dec 30 13:21:14 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* libs/get_xapian.py: New xapian packages.  Includes performance

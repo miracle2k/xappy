@@ -82,10 +82,12 @@ class XapianCacheManager(generic.KeyValueStoreCacheManager):
             except xapian.DatabaseOpeningError: 
                 if not os.path.exists(self.dbpath):
                     # Not created yet - no values
-                    return iter(())
+                    return
                 raise
             self.writable = False
-        return self.db.metadata_keys()
+        for key in self.db.metadata_keys():
+            if key[0].isupper():
+                yield key
 
     def flush(self):
         if self.db is None or not self.writable:

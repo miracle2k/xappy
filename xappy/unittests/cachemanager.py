@@ -129,5 +129,10 @@ class TestCacheManager(TestCase):
             self.assertEqual([qid for qid, rank in qids],
                              [qid for qid, rank in queryids[docid - 1]])
 
+        self.assertNotEqual(list(man.keys()), [])
+        man.clear()
+        self.assertEqual(list(man.keys()), [])
+        self.assertEqual(list(man.iter_by_docid()), [])
+
 if __name__ == '__main__':
     main()
