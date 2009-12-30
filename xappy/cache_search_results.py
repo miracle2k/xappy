@@ -81,7 +81,7 @@ class CacheResultOrdering(object):
 
         """
         msetitem = CacheMSetItem(self.context.conn, index,
-                                 self.xapids[index - self.startrank])
+                                 self.xapids[index])
         return SearchResult(msetitem, self.context)
 
     def __len__(self):

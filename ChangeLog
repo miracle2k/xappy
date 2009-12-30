@@ -1,3 +1,8 @@
+Wed Dec 30 19:26:52 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py: Fix bug in accessing results
+	  directly by index.
+
 Wed Dec 30 19:26:18 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/unittests/cached_searches.py: Check accesses to search
