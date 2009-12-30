@@ -1,3 +1,8 @@
+Wed Dec 30 22:59:51 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/datastructures.py: Add get_terms() method to get the terms
+	  in a given field in a ProcessedDocument.
+
 Wed Dec 30 19:26:52 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cache_search_results.py: Fix bug in accessing results

@@ -211,6 +211,29 @@ class ProcessedDocument(object):
             for pos in positions:
                 self._doc.add_posting(prefix + term, pos, 0)
 
+    def get_terms(self, field):
+        """Get the terms in a given field.
+
+        """
+        prefix = self._fieldmappings.get_prefix(field)
+        tl = self._doc.termlist()
+        item = tl.skip_to(prefix)
+        while True:
+            term = item.term
+            if not term.startswith(prefix):
+                break
+            ch = term[len(prefix)]
+            if ch.isupper():
+                continue
+            if ch == ':':
+                yield term[len(prefix) + 1:]
+            else:
+                yield term[len(prefix):]
+            try:
+                item = tl.next()
+            except StopIteration:
+                break
+
     def add_value(self, field, value, purpose=''):
         """Add a value to the document.
 
