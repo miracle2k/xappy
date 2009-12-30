@@ -1,3 +1,7 @@
+Wed Dec 30 15:37:32 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/unittests/testdata/chert_db/iamchert: Update chert format.
+
 Wed Dec 30 15:03:45 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/generic.py,xappy/cachemanager/xapian_manager.py,
