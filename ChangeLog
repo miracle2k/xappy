@@ -1,3 +1,9 @@
+Wed Dec 30 13:21:14 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: New xapian packages.  Includes performance
+	  improvement for replace_document() when few changes have been
+	  made to a document.
+
 Wed Dec 30 12:20:46 GMT 2009  Richard Boulton <richard@tartarus.org>
 
 	* utils/make_xappy_tarballs: Update branchpoints.
