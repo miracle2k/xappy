@@ -581,7 +581,7 @@ class SearchResults(object):
         """Reorder the results based on some clusters.
 
         """
-        return self._ordering._reorder_by_clusters(clusters)
+        self._ordering = self._ordering._reorder_by_clusters(clusters)
 
     def _reorder_by_similarity(self, count, maxcount, max_similarity,
                                fields=None):
