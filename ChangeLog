@@ -1,3 +1,9 @@
+Fri Jan 15 10:54:26 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Update for new
+	  version of xapian (main difference is that xapian-compact works
+	  with chert in this version).
+
 Mon Jan 04 16:56:05 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchresults.py: Fix to stop completely ignoring the
