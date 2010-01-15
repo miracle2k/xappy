@@ -1,3 +1,8 @@
+Fri Jan 15 10:56:33 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* external_posting_source/sortdatabase/sortdatabase.cc: Include
+	  cstdio to fix warning on pickier new compilers.
+
 Fri Jan 15 10:54:26 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* libs/get_xapian.py,utils/make_xappy_tarballs: Update for new

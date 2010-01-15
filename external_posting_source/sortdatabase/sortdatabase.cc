@@ -29,6 +29,7 @@
 
 #include <cerrno>
 #include <cmath> // For log10().
+#include <cstdio>
 #include <cstdlib> // For exit().
 #include <cstring> // For strcmp() and strrchr().
 #include <sys/types.h>
