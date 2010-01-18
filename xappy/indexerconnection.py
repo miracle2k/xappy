@@ -82,12 +82,14 @@ class IndexerConnection(object):
 
         """
         if dbtype is None:
-            dbtype = 'flint'
+            dbtype = 'chert'
         try:
             if dbtype == 'flint':
                 self._index = xapian.flint_open(indexpath, xapian.DB_CREATE_OR_OPEN)
             elif dbtype == 'chert':
                 self._index = xapian.chert_open(indexpath, xapian.DB_CREATE_OR_OPEN)
+            elif dbtype == 'brass':
+                self._index = xapian.brass_open(indexpath, xapian.DB_CREATE_OR_OPEN)
             else:
                 raise xapian.InvalidArgumentError("Database type '%s' not known" % dbtype)
         except xapian.DatabaseOpeningError:

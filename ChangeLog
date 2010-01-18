@@ -1,3 +1,8 @@
+Mon Jan 18 16:36:14 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/indexerconnection.py: Change default type for new databases
+	  to chert, and add brass as an option.
+
 Fri Jan 15 10:56:33 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* external_posting_source/sortdatabase/sortdatabase.cc: Include
