@@ -24,6 +24,7 @@ r"""query.py: Query representations.
 __docformat__ = "restructuredtext en"
 
 import _checkxapian
+import copy
 import xapian
 
 class Query(object):
@@ -59,7 +60,6 @@ class Query(object):
                 _serialised = 'Query()'
 
         # Set the default query parameters.
-        self.__checkatleast = 0
         self.__op = None
         self.__subqs = None
 
@@ -70,6 +70,7 @@ class Query(object):
             self.__ranges = _ranges
             self.__serialised = _serialised
             self.__cacheinfo = (_queryid, self)
+            self.__search_params = {}
         else:
             # Assume `query` is a xappy.Query() object.
             self.__query = query.__query
@@ -81,6 +82,7 @@ class Query(object):
             else:
                 self.__serialised = _serialised
             self.__cacheinfo = (_queryid, self)
+            self.__search_params = copy.deepcopy(query.__search_params)
             self.__merge_params(query)
 
     def empty(self):
@@ -94,6 +96,27 @@ class Query(object):
 
         """
         return self.__query.empty()
+
+    def is_composable(self):
+        """Test if the query can be composed with another query.
+
+        This will be True for most plain queries.  However, queries with some
+        parameters (such as those indicating desired facets), cannot be
+        composed with other queries.  An error will be raised if an attempt is
+        made to compose such queries.
+
+        """
+        if len(self.__search_params) != 0:
+            return False
+        return True
+
+    def _check_composable(self):
+        """Check that this subquery is composable with others, and raise an
+        error if it isn't.
+
+        """
+        if not self.is_composable():
+            raise ValueError("Can't compose this query with other queries.")
 
     def __merge_params(self, query):
         """Merge the parameters in this query with those in another query.
@@ -124,8 +147,14 @@ class Query(object):
         `queries` is any iterable which returns a list of queries (either
         xapian.Query or xappy.Query objects).
 
+        As a convenience, the list of queries may also contain entries which
+        are "None" - such entries will be filtered out and ignored.
+
+        If the list of queries is empty, this will return an empty Query; ie,
+        one which will match no documents.
+
         """
-        queries = tuple(queries)
+        queries = tuple(filter(lambda x: x is not None, queries))
 
         # Special cases for 0 or 1 subqueries - don't build pointless
         # combinations.
@@ -133,6 +162,11 @@ class Query(object):
             return Query()
         elif len(queries) == 1:
             return Query(queries[0])
+
+        # Check that the queries are ok to compose with others.
+        for q in queries:
+            if hasattr(q, '_check_composable'):
+                q._check_composable()
 
         # flatten the queries: any subqueries in the list which are also
         # combination queries with the same operator should be merged into this
@@ -193,6 +227,7 @@ class Query(object):
         """
         result = Query()
         result.__merge_params(self)
+        self._check_composable()
         if self.__serialised is not None:
             result.__serialised = '(' + self.__serialised + " * " + repr(multiplier) + ')'
         try:
@@ -255,9 +290,11 @@ class Query(object):
 
         """
         result = Query(self)
+        self._check_composable()
         if isinstance(other, xapian.Query):
             oquery = other
         elif isinstance(other, Query):
+            other._check_composable()
             oquery = other.__query
             result.__merge_params(other)
             if self.__serialised is not None and other.__serialised is not None:
@@ -472,3 +509,100 @@ class Query(object):
 
     def __repr__(self):
         return "<xappy.Query(%s)>" % str(self.__query)
+
+    def get_facet(self, fieldname, checkatleast=None,
+                  desired_num_of_categories=None):
+        """Mark a facet as wanted.
+
+         - `fieldname` is the name of the field to get facets from.
+         - `checkatleast` is the minimum number of potential matches to check
+           when counting for this facet.
+         - `desired_num_of_categories` is the ideal number of categories wanted
+           for this facet.
+
+        This will return a new Query, which returns the same documents as this
+        query, but will cause facets in the named field to be counted.  The
+        result of this counting can be obtained using the get_facets() method
+        on the SearchResult object.
+
+        The resulting Query can not be combined with other Queries.
+
+        An error will be raised, either immediately or when the search is
+        performed, if the specified fieldname is not indexed for faceting.
+
+        """
+        return get_facets((fieldname,), checkatleast,
+                          desired_num_of_categories)
+
+    def get_facets(self, fieldnames, checkatleast=None,
+                   desired_num_of_categories=None):
+        """Mark a set of fieldnames as wanted.
+
+         - `fieldnames` is an iterable of fieldnames.
+         - `checkatleast` is the minimum number of potential matches to check
+           when counting for this facet.
+         - `desired_num_of_categories` is the ideal number of categories wanted
+           for this facet.
+
+        This will return a new Query, which returns the same documents as this
+        query, but will cause facets in the named fields to be counted.  The
+        result of this counting can be obtained using the get_facets() method
+        on the SearchResult object.
+
+        The resulting Query can not be combined with other Queries.
+
+        An error will be raised, either immediately or when the search is
+        performed, if the specified fieldname is not indexed for faceting.
+
+        """
+        result = Query(self)
+        facets = result.__search_params.setdefault('facets', {'invert': False})
+        if facets['invert']:
+            raise ValueError("get_facets() called on Query for which "
+                             "get_facets_except() had already been called")
+
+        fields = facets.setdefault('fields', {})
+        fieldnames = tuple(fieldnames)
+        for fieldname in fieldnames:
+            fields[fieldname] = (checkatleast, desired_num_of_categories)
+
+        result.__serialised = ''.join(self.__serialised, '.get_facets(',
+                                      repr(fieldnames), ', ',
+                                      repr(checkatleast), ', ',
+                                      repr(desired_num_of_categories), ')')
+        return result
+
+    def get_facets_except(self, fieldnames, checkatleast=None,
+                          desired_num_of_categories=None):
+        """Mark a query as wanting all facets except those listed.
+
+         - `fieldnames` is an iterable of fieldnames.
+         - `checkatleast` is the minimum number of potential matches to check
+           when counting for this facet.
+         - `desired_num_of_categories` is the ideal number of categories wanted
+           for this facet.
+
+        This will return a new Query, which returns the same documents as this
+        query, but will cause facets in all facet fields apart from the named
+        fields to be counted.  The result of this counting can be obtained
+        using the get_facets() method on the SearchResult object.
+
+        The resulting Query can not be combined with other Queries.
+
+        An error will be raised, either immediately or when the search is
+        performed, if the specified fieldnames are not indexed for faceting.
+
+        """
+        result = Query(self)
+        facets = result.__search_params.setdefault('facets', {'invert': True})
+        if not facets['invert']:
+            raise ValueError("get_facets_except() called on Query for which "
+                             "get_facets() had already been called")
+        fields = facets.setdefault('fields', {})
+        fieldnames = tuple(fieldnames)
+        for fieldname in fieldnames:
+            fields[fieldname] = (None, None)
+
+        result.__serialised = ''.join(self.__serialised, '.get_facets(',
+                                      repr(fieldnames), ')')
+        return result

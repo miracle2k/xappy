@@ -1,3 +1,8 @@
+Wed Jan 20 17:01:58 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/query.py: Add support for requesting facets to the Query
+	  object: not yet hooked up.
+
 Wed Jan 20 16:56:53 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* docs/introduction.rst,xappy/unittests/db_type1.py,
