@@ -674,7 +674,7 @@ something like:
   >>> q_text_norm = q_text * 40.0 / maxwt
   >>> q = q_text_norm.adjust(q_price)
   >>> [(result.id, "%.2f" % result.weight) for result in conn.search(q, 0, 10)]
-  [('Bible2', '50.59'), ('0', '23.79'), ('Bible1', '17.46')]
+  [('Bible2', '52.25'), ('0', '23.94'), ('Bible1', '17.72')]
 
 Errors
 ======

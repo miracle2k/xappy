@@ -62,7 +62,7 @@ class TestWeightAction(TestCase):
         q1b = q1.norm()
         q = self.sconn.query_composite(self.sconn.OP_OR, (q1b, q2))
         r = self.sconn.search(q, 0, 10)
-        self.assertEqual([int(i.id) for i in r], [4, 3, 0, 2, 1])
+        self.assertEqual([int(i.id) for i in r], [4, 0, 3, 2, 1])
 
         # Normalise with a higher weight for the test query - the weight from
         # the text wins again.

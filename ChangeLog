@@ -1,3 +1,11 @@
+Wed Jan 20 16:56:53 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* docs/introduction.rst,xappy/unittests/db_type1.py,
+	  xappy/unittests/weight_action.py: Update for new default backend,
+	  and availability of brass backend.  (Percentage weights are
+	  slightly different with chert, because it stores more statistics
+	  which allow tighter bounds.)
+
 Mon Jan 18 16:36:14 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/indexerconnection.py: Change default type for new databases

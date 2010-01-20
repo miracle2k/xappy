@@ -24,6 +24,7 @@ class TestDbType(TestCase):
         self.indexpath = os.path.join(self.tempdir, 'db')
         self.indexpath_flint = os.path.join(self.tempdir, 'flint_db')
         self.indexpath_chert = os.path.join(self.tempdir, 'chert_db')
+        self.indexpath_brass = os.path.join(self.tempdir, 'brass_db')
 
     def test_unknown_type(self):
         """Check that specifying an unknown type raises the appropriate error.
@@ -36,8 +37,9 @@ class TestDbType(TestCase):
 
         """
         iconn = xappy.IndexerConnection(self.indexpath)
-        self.assertTrue(os.path.exists(os.path.join(self.indexpath, 'iamflint')))
-        self.assertFalse(os.path.exists(os.path.join(self.indexpath, 'iamchert')))
+        self.assertTrue(os.path.exists(os.path.join(self.indexpath, 'iamchert')))
+        self.assertFalse(os.path.exists(os.path.join(self.indexpath, 'iamflint')))
+        self.assertFalse(os.path.exists(os.path.join(self.indexpath, 'iambrass')))
         iconn.close()
 
     def test_flint_type(self):
@@ -47,6 +49,7 @@ class TestDbType(TestCase):
         iconn = xappy.IndexerConnection(self.indexpath_flint, dbtype="flint")
         self.assertTrue(os.path.exists(os.path.join(self.indexpath_flint, 'iamflint')))
         self.assertFalse(os.path.exists(os.path.join(self.indexpath_flint, 'iamchert')))
+        self.assertFalse(os.path.exists(os.path.join(self.indexpath_flint, 'iambrass')))
         iconn.close()
 
     def test_chert_type(self):
@@ -56,7 +59,19 @@ class TestDbType(TestCase):
         iconn = xappy.IndexerConnection(self.indexpath_chert, dbtype="chert")
         self.assertTrue(os.path.exists(os.path.join(self.indexpath_chert, 'iamchert')))
         self.assertFalse(os.path.exists(os.path.join(self.indexpath_chert, 'iamflint')))
+        self.assertFalse(os.path.exists(os.path.join(self.indexpath_chert, 'iambrass')))
         iconn.close()
+
+    def test_brass_type(self):
+        """Check that specifying the type as brass works.
+
+        """
+        iconn = xappy.IndexerConnection(self.indexpath_brass, dbtype="brass")
+        self.assertTrue(os.path.exists(os.path.join(self.indexpath_brass, 'iambrass')))
+        self.assertFalse(os.path.exists(os.path.join(self.indexpath_brass, 'iamflint')))
+        self.assertFalse(os.path.exists(os.path.join(self.indexpath_brass, 'iamchert')))
+        iconn.close()
+
 
 if __name__ == '__main__':
     main()
