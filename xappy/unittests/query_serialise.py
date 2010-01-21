@@ -88,6 +88,16 @@ class TestQuerySerialise(TestCase):
             self.assertEqual(repr(q), repr(q_unrepr))
             self.assertEqual(q_repr, q_repr2)
 
+    def test_empty_query_connected(self):
+        """Test that an empty query is connected when unserialised.
+
+        """
+        q1 = xappy.Query()
+        s1 = q1.evalable_repr()
+        self.assertEqual(s1, 'Query()')
+        q2 = self.sconn.query_from_evalable(s1)
+        r1 = q2.search(0, 10)
+        self.assertEqual(r1.endrank, 0)
 
     def test_query_compose_serialise(self):
         """Test serialising of composed queries.
