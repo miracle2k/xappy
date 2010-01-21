@@ -1694,7 +1694,7 @@ class SearchConnection(object):
         import xappy
         vars = {'conn': self, 'xappy': xappy, 'xapian': xapian,
                 'Query': xappy.Query}
-        return eval(serialised, vars)
+        return xappy.Query(eval(serialised, vars), _conn=self)
 
     def spell_correct(self, querystr, allow=None, deny=None, default_op=OP_AND,
                       default_allow=None, default_deny=None,

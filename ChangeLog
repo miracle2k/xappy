@@ -1,3 +1,8 @@
+Thu Jan 21 15:32:59 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Ensure that queries actually are
+	  connected to the SearchConnection that they're returned from.
+
 Thu Jan 21 15:32:06 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/unittests/query_serialise.py: Test that empty queries are
