@@ -1,3 +1,8 @@
+Thu Jan 21 16:15:28 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py: Add support for setting facets and
+	  stats individually and accumulating them.
+
 Thu Jan 21 15:32:59 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py: Ensure that queries actually are

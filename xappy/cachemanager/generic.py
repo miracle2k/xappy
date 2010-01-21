@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright (C) 2009 Richard Boulton
+# Copyright (C) 2009,2010 Richard Boulton
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -25,6 +25,7 @@ r"""generic.py: Base cachemanager classes.
 __docformat__ = "restructuredtext en"
 
 import cPickle
+import operator
 import UserDict
 try:
     from hashlib import md5
@@ -37,6 +38,21 @@ try:
 except ImportError:
     from inmemory_inverter import InMemoryInverterMixIn
     InverterMixIn = InMemoryInverterMixIn
+
+def sort_facets(facets):
+    """Sort an iterable of facets.
+
+    Returns a tuple, sorted by fieldname.  Also sorts the values into
+    descending frequency order.
+
+    """
+    if isinstance(facets, dict):
+        facets = facets.iteritems()
+    return tuple(sorted((fieldname,
+                         tuple(sorted(valfreqs.iteritems() if isinstance(valfreqs, dict) else valfreqs,
+                                      key=operator.itemgetter(1),
+                                      reverse=True)))
+                        for fieldname, valfreqs in facets))
 
 class CacheManager(object):
     """Base class for caches of precalculated results.
@@ -151,6 +167,38 @@ class CacheManager(object):
         """
         raise NotImplementedError
 
+    def set_stats(self, queryid,
+                  matches_lower_bound=None,
+                  matches_upper_bound=None,
+                  matches_estimated=None):
+        """Set the statistics on the numbers of matching documents for a query.
+
+        `queryid` is the numeric ID of the query to look up.
+
+        """
+        raise NotImplementedError
+
+    def add_stats(self, queryid,
+                  matches_lower_bound=None,
+                  matches_upper_bound=None,
+                  matches_estimated=None):
+        """Add to the statistics on the numbers of matching documents for a query.
+
+        `queryid` is the numeric ID of the query to look up.
+
+        Any statistics provided which are None are left unaltered.
+
+        """
+        raise NotImplementedError
+
+    def clear_stats(self, queryid):
+        """Clear the statistics for a query.
+
+        `queryid` is the numeric ID of the query to look up.
+
+        """
+        raise NotImplementedError
+
     def remove_hits(self, queryid, ranks_and_docids):
         """Remove the hits at given ranks from the cached entry for a query.
 
@@ -198,6 +246,19 @@ class CacheManager(object):
         """
         raise NotImplementedError
 
+    def add_facets(self, queryid, facets):
+        """Add to the facets matched by a query.
+
+        `queryid` and `facets` are as for `set_facets`.
+
+        This behaves like set_facets(), except that instead of overwriting the
+        existing facets, the new facet values are combined with the existing
+        ones, and where a facet occurs in both, the frequencies are added
+        together.
+
+        """
+        raise NotImplementedError
+
     def flush(self):
         """Ensure that all changes made to the cache are written to disk.
 
@@ -227,7 +288,7 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
      - encode()
      - decode()
 
-    or, individually: 
+    or, individually:
 
      - encode_int()
      - decode_int()
@@ -401,7 +462,7 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
                 endrank_in_chunk = min(len(chunkhits),
                                        endrank - chunk * self.chunksize)
                 hits.extend(chunkhits[startrank_in_chunk:endrank_in_chunk])
-            
+
             startrank_in_chunk = 0
             chunk += 1
 
@@ -418,8 +479,13 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
                  matches_upper_bound=None,
                  matches_estimated=None):
         self.set_hits_internal(queryid, docids, 0)
-        self.set_stats(queryid, matches_lower_bound,
-                       matches_upper_bound, matches_estimated)
+
+        # Backwards compatibility.
+        if (matches_lower_bound is not None or
+            matches_upper_bound is not None or
+            matches_estimated is not None):
+            self.set_stats(queryid, matches_lower_bound,
+                           matches_upper_bound, matches_estimated)
 
     def set_hits_internal(self, queryid, docids, chunk):
         """Internal implementation of set_hits.
@@ -452,23 +518,59 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
             del self[key]
             chunk += 1
 
-    def set_stats(self, queryid, 
-                  matches_lower_bound,
-                  matches_upper_bound,
-                  matches_estimated):
+    def set_stats(self, queryid,
+                  matches_lower_bound=None,
+                  matches_upper_bound=None,
+                  matches_estimated=None):
         """Set the statistics for this queryid.
 
         """
         key = 'T' + str(queryid)
-        if (matches_lower_bound is None and
-            matches_upper_bound is None and
-            matches_estimated is None):
-            del self[key]
-        else:
-            self[key] = self.encode((matches_lower_bound,
-                                     matches_upper_bound,
-                                     matches_estimated))
+        self[key] = self.encode((matches_lower_bound,
+                                 matches_upper_bound,
+                                 matches_estimated))
 
+    def add_stats(self, queryid,
+                  matches_lower_bound=None,
+                  matches_upper_bound=None,
+                  matches_estimated=None):
+        """Set the statistics for this queryid.
+
+        """
+        key = 'T' + str(queryid)
+
+        data = self[key]
+        if len(data) == 0:
+            data = (None, None, None)
+        else:
+            data = self.decode(data)
+
+        if matches_lower_bound is None:
+            matches_lower_bound = data[0]
+        elif data[0] is not None:
+            matches_lower_bound += data[0]
+
+        if matches_upper_bound is None:
+            matches_upper_bound = data[1]
+        elif data[1] is not None:
+            matches_upper_bound += data[1]
+
+        if matches_estimated is None:
+            matches_estimated = data[2]
+        elif data[2] is not None:
+            matches_estimated += data[2]
+
+        self[key] = self.encode((matches_lower_bound,
+                                 matches_upper_bound,
+                                 matches_estimated))
+
+    def clear_stats(self, queryid):
+        """Clear the statistics for a query.
+
+        `queryid` is the numeric ID of the query to look up.
+
+        """
+        del self['T' + str(queryid)]
 
     def remove_hits(self, queryid, ranks_and_docids):
         if len(ranks_and_docids) == 0:
@@ -528,13 +630,39 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
                 data[2] -= 1
             self['T' + str(queryid)] = self.encode(data)
 
-    def set_facets(self, queryid, facets):
-        # Flatten any iterators into tuples.
-        facets = tuple((item[0], tuple(item[1])) for item in facets)
-        self['F' + str(queryid)] = self.encode(facets)
-
     def get_facets(self, queryid):
         data = self['F' + str(queryid)]
         if len(data) == 0:
             return None
         return self.decode(data)
+
+    def set_facets(self, queryid, facets):
+        self['F' + str(queryid)] = self.encode(sort_facets(facets))
+
+    def add_facets(self, queryid, facets):
+        key = 'F' + str(queryid)
+        data = self[key]
+        if len(data) == 0:
+            self.set_facets(queryid, facets)
+            return
+        newfacets = dict(self.decode(data))
+        for fieldname, new_valuefreqs in facets:
+            try:
+                existing_valfreqs = newfacets[fieldname]
+            except KeyError:
+                newfacets[fieldname] = new_valfreqs
+                continue
+            # Merge existing_valfreqs with new_valfreqs
+            existing_valfreqs = dict(existing_valfreqs)
+            for value, freq in new_valfreqs:
+                try:
+                    freq += existing_valfreqs[value]
+                except KeyError:
+                    pass
+                existing_valfreqs[value] = tuple(freq.iteritems())
+            newfacets[fieldname] = tuple(existing_valfreqs.iteritems())
+
+        self[key] = self.encode(sort_facets(newfacets))
+
+    def clear_facets(self, queryid):
+        del self['F' + str(queryid)]
