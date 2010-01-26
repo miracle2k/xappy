@@ -95,15 +95,3 @@ class CacheResultOrdering(object):
 
     def get_endrank(self):
         return self.startrank + len(self.xapids)
-
-
-class CacheFacetResults(object):
-    """The result of counting facets.
-
-    """
-    def __init__(self, facets):
-        self.facets = facets
-
-    def get_suggested_facets(self, maxfacets,
-                             required_facets):
-        return self.facets

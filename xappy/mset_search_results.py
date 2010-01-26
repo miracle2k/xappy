@@ -471,12 +471,26 @@ class ReorderedMSetResultOrdering(object):
         return len(self.mset_order)
 
 
-class MSetFacetResults(object):
+class NoFacetResults(object):
+    """Stub used when no facet results asked for.
+
+    """
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def get_facets(self):
+        raise errors.SearchError("Facet selection wasn't enabled when the search was run")
+
+    def get_suggested_facets(self, maxfacets, required_facets):
+        raise errors.SearchError("Facet selection wasn't enabled when the search was run")
+
+
+class FacetResults(object):
     """The result of counting facets.
 
     """
     def __init__(self, facetspies, facetfields, facethierarchy, facetassocs,
-                 desired_num_of_categories):
+                 desired_num_of_categories, cache_facets):
         self.facetspies = facetspies
         self.facetfields = facetfields
         self.facethierarchy = facethierarchy
@@ -484,19 +498,24 @@ class MSetFacetResults(object):
 
         self.facetvalues = {}
         self.facetscore = {}
-        for field, slot, facettype in self.facetfields:
-            values, score = self.calc_facet_value(slot, facettype,
+        for field, slot, facettype in facetfields:
+            values, score = self._calc_facet_value(slot, facettype,
                                                   desired_num_of_categories)
             self.facetvalues[field] = values
             self.facetscore[field] = score
 
-    def calc_facet_value(self, slot, facettype, desired_num_of_categories):
+        if cache_facets is not None:
+            self.facetvalues.update(cache_facets)
+            self.facetscore.update((fieldname, 0)
+                                   for fieldname, _ in cache_facets)
+
+    def _calc_facet_value(self, slot, facettype, desired_num_of_categories):
         """Calculate the facet value for a given slot, and return it.
 
         """
-        facetspy = self.facetspies.get(slot)
+        facetspy = self.facetspies.get(slot, None)
         if facetspy is None:
-            return [], 0
+            return (), 0
         else:
             if facettype == 'float':
                 ranges = xapian.NumericRanges(facetspy.get_values(),
@@ -510,7 +529,7 @@ class MSetFacetResults(object):
                 score = xapian.score_evenness(facetspy,
                                               desired_num_of_categories)
                 values = facetspy.get_values_as_dict()
-            values = tuple(sorted(values.iteritems()))
+            values = tuple(sorted(values.iteritems(), key=lambda x: (-x[1], x[0])))
             return values, score
 
     def get_facets(self):
@@ -527,26 +546,22 @@ class MSetFacetResults(object):
         `SearchResults.get_suggested_facets()`.
 
         """
-        if self.facetspies is None:
-            raise errors.SearchError("Facet selection wasn't enabled when the search was run")
         if isinstance(required_facets, basestring):
             required_facets = [required_facets]
         scores = []
-        facettypes = {}
 
-        for field, slot, facettype in self.facetfields:
-            facettypes[field] = facettype
+        for field in self.facetvalues.iterkeys():
             score = self.facetscore[field] 
-            scores.append((score, field, slot))
+            scores.append((score, field))
 
         # Sort on whether facet is top-level ahead of score (use subfacets first),
         # and on whether facet is preferred for the query type ahead of anything else
         if self.facethierarchy:
-            # Note, tuple[-2] is the value of 'field' in a scores tuple
-            scores = [(tuple[-2] not in self.facethierarchy,) + tuple for tuple in scores]
+            # Note, tuple[-1] is the value of 'field' in a scores tuple
+            scores = [(tuple[-1] not in self.facethierarchy,) + tuple for tuple in scores]
         if self.facetassocs:
             preferred = IndexerConnection.FacetQueryType_Preferred
-            scores = [(self.facetassocs.get(tuple[-2]) != preferred,) + tuple for tuple in scores]
+            scores = [(self.facetassocs.get(tuple[-1]) != preferred,) + tuple for tuple in scores]
         scores.sort()
         if self.facethierarchy:
             index = 1
@@ -559,7 +574,7 @@ class MSetFacetResults(object):
 
         results = []
         required_results = []
-        for score, field, slot in scores:
+        for score, field in scores:
             # Check if the facet is required
             required = False
             if required_facets is not None:

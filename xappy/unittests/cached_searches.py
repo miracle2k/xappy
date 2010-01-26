@@ -55,6 +55,18 @@ class TestCachedSearches(TestCase):
         world_order = list(xrange(1, self.doccount + 1))
         random.shuffle(world_order)
         man.set_hits(man.get_or_make_queryid('world'), world_order)
+        man.set_stats(man.get_or_make_queryid('world'), 5)
+        man.add_stats(man.get_or_make_queryid('world'), 5)
+        man.set_facets(man.get_or_make_queryid('world'), {
+            'f1': (('0', 7),
+                   ('3', 6),
+                   ('4', 12)),
+        })
+        man.add_facets(man.get_or_make_queryid('world'), {
+            'f1': (('2', 12),
+                   ('3', 6),
+                  ),
+        })
 
         # Apply the cache to the index.
         iconn.set_cache_manager(man)
@@ -140,10 +152,10 @@ class TestCachedSearches(TestCase):
 
         # Try doing a search which is a pure cache hit.
         results = sconn.search(query_world.merge_with_cached(world_queryid), 0, 2)
-        self.assertEqual(results.matches_lower_bound, 59)
+        self.assertEqual(results.matches_lower_bound, 8)
         self.assertEqual(results.matches_estimated, 59)
         self.assertEqual(results.matches_upper_bound, 59)
-        self.assertEqual(results.matches_human_readable_estimate, 59)
+        self.assertEqual(results.matches_human_readable_estimate, 60)
         results = [int(result.id, 16) for result in results]
         self.assertEqual(results, [i - 1 for i in world_order[:2]])
 
@@ -160,62 +172,256 @@ class TestCachedSearches(TestCase):
         results = query_world.search(0, self.doccount, getfacets=True)
         resultids = [int(result.id, 16) for result in results]
         self.assertEqual(resultids, [i - 1 for i in uncached_world_order])
+        self.assertEqual(results.matches_lower_bound, 59)
+        self.assertEqual(results.matches_upper_bound, 59)
+        self.assertEqual(results.matches_estimated, 59)
         self.assertEqual(results.get_facets(), {
-            'f1': (('0', 11),
-                   ('1', 12),
+            'f1': (('1', 12),
                    ('2', 12),
                    ('3', 12),
-                   ('4', 12)),
+                   ('4', 12),
+                   ('0', 11),
+                  ),
             'f2': (((0.0, 0.0), 9),
+                   ((5.0, 5.0), 9),
+                   ((6.0, 6.0), 9),
                    ((1.0, 1.0), 8),
                    ((2.0, 2.0), 8),
                    ((3.0, 3.0), 8),
                    ((4.0, 4.0), 8),
-                   ((5.0, 5.0), 9),
-                   ((6.0, 6.0), 9))
+                  )
         })
+        self.assertEqual(results.get_suggested_facets(1),
+                         [('f2', (((0.0, 0.0), 9),
+                                  ((5.0, 5.0), 9),
+                                  ((6.0, 6.0), 9),
+                                  ((1.0, 1.0), 8),
+                                  ((2.0, 2.0), 8),
+                                  ((3.0, 3.0), 8),
+                                  ((4.0, 4.0), 8),
+                                 ))])
+        self.assertEqual(results.get_suggested_facets(2),
+                         [('f2', (((0.0, 0.0), 9),
+                                  ((5.0, 5.0), 9),
+                                  ((6.0, 6.0), 9),
+                                  ((1.0, 1.0), 8),
+                                  ((2.0, 2.0), 8),
+                                  ((3.0, 3.0), 8),
+                                  ((4.0, 4.0), 8),
+                                 )),
+                          ('f1', (('1', 12),
+                                  ('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 11),
+                                 ))])
+        self.assertEqual(results.get_suggested_facets(2,
+                                                required_facets=('f1', )),
+                         [('f2', (((0.0, 0.0), 9),
+                                  ((5.0, 5.0), 9),
+                                  ((6.0, 6.0), 9),
+                                  ((1.0, 1.0), 8),
+                                  ((2.0, 2.0), 8),
+                                  ((3.0, 3.0), 8),
+                                  ((4.0, 4.0), 8),
+                                 )),
+                          ('f1', (('1', 12),
+                                  ('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 11),
+                                 ))])
+        self.assertEqual(results.get_suggested_facets(1,
+                                                required_facets=('f1', )),
+                         [('f1', (('1', 12),
+                                  ('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 11),
+                                 ))])
 
         # Try getting some facet results for a cached search.
         results = query_world.merge_with_cached(world_queryid) \
                              .search(0, self.doccount, getfacets=True)
         resultids = [int(result.id, 16) for result in results]
         self.assertEqual(resultids, [i - 1 for i in world_order])
+        self.assertEqual(results.matches_lower_bound, 8)
+        self.assertEqual(results.matches_upper_bound, 118)
+        self.assertEqual(results.matches_estimated, 118)
         self.assertEqual(results.get_facets(), {
-            'f1': (('0', 22),
-                   ('1', 23),
-                   ('2', 24),
-                   ('3', 24),
-                   ('4', 23)),
+            'f1': (('2', 12),
+                   ('3', 12),
+                   ('4', 12),
+                   ('0', 7),
+                  ),
             'f2': (((0.0, 0.0), 17),
-                   ((1.0, 1.0), 16),
-                   ((2.0, 2.0), 16),
                    ((3.0, 3.0), 17),
                    ((4.0, 4.0), 17),
                    ((5.0, 5.0), 17),
-                   ((6.0, 6.0), 16))
+                   ((1.0, 1.0), 16),
+                   ((2.0, 2.0), 16),
+                   ((6.0, 6.0), 16),
+                  )
         })
+        self.assertEqual(results.get_suggested_facets(1),
+                         [('f1', (('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 7),
+                                 ))])
+        self.assertEqual(results.get_suggested_facets(2),
+                         [('f1', (('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 7),
+                                 )),
+                          ('f2', (((0.0, 0.0), 17),
+                                  ((3.0, 3.0), 17),
+                                  ((4.0, 4.0), 17),
+                                  ((5.0, 5.0), 17),
+                                  ((1.0, 1.0), 16),
+                                  ((2.0, 2.0), 16),
+                                  ((6.0, 6.0), 16),
+                                 ))])
+        self.assertEqual(results.get_suggested_facets(2,
+                                                required_facets=('f1', )),
+                         [('f1', (('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 7),
+                                 )),
+                          ('f2', (((0.0, 0.0), 17),
+                                  ((3.0, 3.0), 17),
+                                  ((4.0, 4.0), 17),
+                                  ((5.0, 5.0), 17),
+                                  ((1.0, 1.0), 16),
+                                  ((2.0, 2.0), 16),
+                                  ((6.0, 6.0), 16),
+                                 ))])
+        self.assertEqual(results.get_suggested_facets(1,
+                                                required_facets=('f1', )),
+                         [('f1', (('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 7),
+                                 ))])
 
-        # Try getting some facet results for a pure cache hit.
+        # Try getting some facet results for a pure cache hit,
+        # with some facets not in the cache.
         count = 2
         results = query_world.merge_with_cached(world_queryid) \
                              .search(0, count, getfacets=True,
                                      facet_checkatleast=2)
         resultids = [int(result.id, 16) for result in results]
         self.assertEqual(resultids, [i - 1 for i in world_order[:count]])
+        self.assertEqual(results.matches_lower_bound, 8)
+        self.assertEqual(results.matches_upper_bound, 59)
+        self.assertEqual(results.matches_estimated, 59)
         self.assertEqual(results.get_facets(), {
-            'f1': (('0', 11),
-                   ('1', 12),
-                   ('2', 12),
+            'f1': (('2', 12),
                    ('3', 12),
-                   ('4', 12)),
+                   ('4', 12),
+                   ('0', 7),
+                  ),
             'f2': (((0.0, 0.0), 9),
+                   ((5.0, 5.0), 9),
+                   ((6.0, 6.0), 9),
                    ((1.0, 1.0), 8),
                    ((2.0, 2.0), 8),
                    ((3.0, 3.0), 8),
                    ((4.0, 4.0), 8),
-                   ((5.0, 5.0), 9),
-                   ((6.0, 6.0), 9))
+                  )
         })
+        self.assertEqual(results.get_suggested_facets(1),
+                         [('f1', (('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 7),
+                                 ))])
+        self.assertEqual(results.get_suggested_facets(2),
+                         [('f1', (('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 7),
+                                 )),
+                          ('f2', (((0.0, 0.0), 9),
+                                  ((5.0, 5.0), 9),
+                                  ((6.0, 6.0), 9),
+                                  ((1.0, 1.0), 8),
+                                  ((2.0, 2.0), 8),
+                                  ((3.0, 3.0), 8),
+                                  ((4.0, 4.0), 8),
+                                 ))])
+        self.assertEqual(results.get_suggested_facets(2,
+                                                required_facets=('f1', )),
+                         [('f1', (('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 7),
+                                 )),
+                          ('f2', (((0.0, 0.0), 9),
+                                  ((5.0, 5.0), 9),
+                                  ((6.0, 6.0), 9),
+                                  ((1.0, 1.0), 8),
+                                  ((2.0, 2.0), 8),
+                                  ((3.0, 3.0), 8),
+                                  ((4.0, 4.0), 8),
+                                 ))])
+        self.assertEqual(results.get_suggested_facets(1,
+                                                required_facets=('f1', )),
+                         [('f1', (('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 7),
+                                 ))])
+
+        # Try getting some facet results for a pure cache hit,
+        # with all facets in the cache.
+        count = 2
+        results = query_world.merge_with_cached(world_queryid) \
+                             .search(0, count, getfacets=True,
+                                     allowfacets=['f1'],
+                                     facet_checkatleast=2)
+        resultids = [int(result.id, 16) for result in results]
+        self.assertEqual(resultids, [i - 1 for i in world_order[:count]])
+        self.assertEqual(results.matches_lower_bound, 8)
+        self.assertEqual(results.matches_upper_bound, 59)
+        self.assertEqual(results.matches_estimated, 59)
+        self.assertEqual(results.get_facets(), {
+            'f1': (('2', 12),
+                   ('3', 12),
+                   ('4', 12),
+                   ('0', 7),
+                  ),
+        })
+        self.assertEqual(results.get_suggested_facets(1),
+                         [('f1', (('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 7),
+                                 ))])
+        self.assertEqual(results.get_suggested_facets(2),
+                         [('f1', (('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 7),
+                                 )),
+                          ])
+        self.assertEqual(results.get_suggested_facets(2,
+                                                required_facets=('f1', )),
+                         [('f1', (('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 7),
+                                 )),
+                          ])
+        self.assertEqual(results.get_suggested_facets(1,
+                                                required_facets=('f1', )),
+                         [('f1', (('2', 12),
+                                  ('3', 12),
+                                  ('4', 12),
+                                  ('0', 7),
+                                 ))])
 
 if __name__ == '__main__':
     main()

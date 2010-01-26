@@ -1,3 +1,12 @@
+Tue Jan 26 09:43:01 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py,xappy/cachemanager/generic.py,
+	  xappy/doctests/searchconnection_doctest2.txt,
+	  xappy/mset_search_results.py,xappy/searchconnection.py,
+	  xappy/searchresults.py,xappy/unittests/cached_searches.py,
+	  xappy/unittests/facets.py: Finish implementing support for facets
+	  and stats served from the cache.
+
 Thu Jan 21 16:15:28 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/generic.py: Add support for setting facets and

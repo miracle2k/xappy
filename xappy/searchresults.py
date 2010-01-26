@@ -190,7 +190,10 @@ class SearchResult(ProcessedDocument):
         slots = {}
         for field in allow:
             p = []
-            actions = self._conn._field_actions[field]._actions
+            try:
+                actions = self._conn._field_actions[field]._actions
+            except KeyError:
+                continue
             is_ft = None
             for action, kwargslist in actions.iteritems():
                 if action == FieldActions.INDEX_FREETEXT:
@@ -753,6 +756,9 @@ class SearchResults(object):
     def get_suggested_facets(self, maxfacets=5, desired_num_of_categories=None,
                              required_facets=None):
         """Get a suggested set of facets, to present to the user.
+
+        `desired_num_of_categories` is a deprecated parameter, and is ignored,
+        and will be removed in the near future.  FIXME - remove it.
 
         This returns a list, in descending order of the usefulness of the
         facet, in which each item is a tuple holding:

@@ -43,15 +43,15 @@ def sort_facets(facets):
     """Sort an iterable of facets.
 
     Returns a tuple, sorted by fieldname.  Also sorts the values into
-    descending frequency order.
+    descending frequency order (and ascending order of key for equal
+    frequencies).
 
     """
     if isinstance(facets, dict):
         facets = facets.iteritems()
     return tuple(sorted((fieldname,
                          tuple(sorted(valfreqs.iteritems() if isinstance(valfreqs, dict) else valfreqs,
-                                      key=operator.itemgetter(1),
-                                      reverse=True)))
+                                      key=lambda x: (-x[1], x[0]))))
                         for fieldname, valfreqs in facets))
 
 class CacheManager(object):
@@ -621,7 +621,7 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
 
         data = self['T' + str(queryid)]
         if len(data) != 0:
-            data = self.decode(data)
+            data = list(self.decode(data))
             if data[0] is not None:
                 data[0] -= 1
             if data[1] is not None:
@@ -646,7 +646,7 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
             self.set_facets(queryid, facets)
             return
         newfacets = dict(self.decode(data))
-        for fieldname, new_valuefreqs in facets:
+        for fieldname, new_valfreqs in facets.iteritems():
             try:
                 existing_valfreqs = newfacets[fieldname]
             except KeyError:
@@ -659,7 +659,7 @@ class KeyValueStoreCacheManager(InverterMixIn, UserDict.DictMixin,
                     freq += existing_valfreqs[value]
                 except KeyError:
                     pass
-                existing_valfreqs[value] = tuple(freq.iteritems())
+                existing_valfreqs[value] = freq
             newfacets[fieldname] = tuple(existing_valfreqs.iteritems())
 
         self[key] = self.encode(sort_facets(newfacets))

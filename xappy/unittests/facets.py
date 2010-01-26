@@ -95,8 +95,8 @@ class TestFacets(TestCase):
                             'colour': (('black', 1), ('blue', 1), ('brown', 1), ('green', 1), ('red', 1)),
                             'strings': (((4.0, 4.0), 1), ((5.0, 5.0), 1)),
                             'species': (),
-                            'type': (('accessories', 1), ('bass guitar', 2), ('drums', 2)),
-                            'make': (('gretsch', 1), ('musicman', 1), ('stagg', 1), ('yamaha', 2))
+                            'type': (('bass guitar', 2), ('drums', 2), ('accessories', 1)),
+                            'make': (('yamaha', 2), ('gretsch', 1), ('musicman', 1), ('stagg', 1))
                          }
                         )
 

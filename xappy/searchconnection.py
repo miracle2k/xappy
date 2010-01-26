@@ -32,7 +32,7 @@ import inspect
 import itertools
 
 import xapian
-from cache_search_results import CacheResultOrdering, CacheFacetResults
+from cache_search_results import CacheResultOrdering
 from datastructures import UnprocessedDocument, ProcessedDocument
 from fieldactions import ActionContext, FieldActions, \
          ActionSet, SortableMarshaller, convert_range_to_term, \
@@ -43,7 +43,7 @@ from indexerconnection import IndexerConnection, PrefixedTermIter, \
          DocumentIter, SynonymIter, _allocate_id
 from query import Query
 from searchresults import SearchResults, SearchResultContext
-from mset_search_results import MSetFacetResults, \
+from mset_search_results import FacetResults, NoFacetResults, \
          MSetResultOrdering, ResultStats, MSetTermWeightGetter
 
 class ExternalWeightSource(object):
@@ -1957,14 +1957,9 @@ class SearchConnection(object):
                 return fieldtype
         return 'string'
 
-    def _make_facet_matchspies(self, query, allowfacets, denyfacets,
+    def _calc_facet_fields(self, query, allowfacets, denyfacets,
                                usesubfacets, query_type):
-        # Set facetspies to {}, even if no facet fields are found, to
-        # distinguish from no facet calculation being performed.  (This
-        # will prevent an error being thrown when the list of suggested
-        # facets is requested - instead, an empty list will be returned.)
-        facetspies = {}
-        facetfields = []
+        facetfieldnames = []
 
         if allowfacets is not None and denyfacets is not None:
             raise errors.SearchError("Cannot specify both `allowfacets` and `denyfacets`")
@@ -2004,6 +1999,24 @@ class SearchConnection(object):
                     # filter out facets that should never be returned for the query type
                     if self._facet_query_never(field, query_type):
                         continue
+                    facetfieldnames.append(field)
+        return facetfieldnames
+
+    def _make_facet_matchspies(self, facetfieldnames):
+        # Set facetspies to {}, even if no facet fields are found, to
+        # distinguish from no facet calculation being performed.  (This
+        # will prevent an error being thrown when the list of suggested
+        # facets is requested - instead, an empty list will be returned.)
+        facetspies = {}
+        facetfields = []
+
+        for field in facetfieldnames:
+            try:
+                actions = self._field_actions[field]._actions
+            except KeyError:
+                continue
+            for action, kwargslist in actions.iteritems():
+                if action == FieldActions.FACET:
                     slot = self._field_mappings.get_slot(field, 'facet')
                     facettype = self._field_type_from_kwargslist(kwargslist)
                     if facettype == 'string':
@@ -2135,13 +2148,6 @@ class SearchConnection(object):
         if self._index is None:
             raise errors.SearchError("SearchConnection has been closed")
 
-        if 'facets' in _checkxapian.missing_features:
-            if getfacets is not None or \
-               allowfacets is not None or \
-               denyfacets is not None or \
-               usesubfacets is not None or \
-               query_type is not None:
-                raise errors.SearchError("Facets unsupported with this release of xapian")
         if checkatleast == -1:
             checkatleast = self._index.get_doccount()
         if stats_checkatleast == -1:
@@ -2159,10 +2165,12 @@ class SearchConnection(object):
 
         # Prepare the facet spies.
         if getfacets:
-            facetspies, facetfields = self._make_facet_matchspies(uncached_query,
-                allowfacets, denyfacets, usesubfacets, query_type)
+            if 'facets' in _checkxapian.missing_features:
+                raise errors.SearchError("Facets unsupported with this release of xapian")
+            facetfieldnames = set(self._calc_facet_fields(query,
+                allowfacets, denyfacets, usesubfacets, query_type))
         else:
-            facetspies, facetfields = None, []
+            facetfieldnames = set()
 
         # Get whatever information we can from the cache.
         cache_hits, cache_stats, cache_facets = None, (None, None, None), None
@@ -2181,9 +2189,16 @@ class SearchConnection(object):
                 cache_stats = self.cache_manager.get_stats(queryid)
 
                 # Get the stored facet values.
-                if len(facetfields) != 0:
+                if len(facetfieldnames) != 0:
                     cache_facets = self.cache_manager.get_facets(queryid)
+                    for fieldname, valfreqs in cache_facets:
+                        facetfieldnames.remove(fieldname)
 
+        if getfacets:
+            facetspies, facetfields = \
+                self._make_facet_matchspies(facetfieldnames)
+        else:
+            facetspies, facetfields = None, []
 
         # Work out how many results we need.
         real_maxitems = 0
@@ -2210,12 +2225,8 @@ class SearchConnection(object):
             checkatleast = max(checkatleast, stats_checkatleast)
 
         if len(facetfields) != 0:
-            # FIXME - check if the facets requested were available - if not all
-            # available, set cache_facets to None.
-
-            if cache_facets is None:
-                checkatleast = max(checkatleast, facet_checkatleast)
-                need_to_search = True
+            checkatleast = max(checkatleast, facet_checkatleast)
+            need_to_search = True
 
         # FIXME - we currently always need to search to get an mset object for
         # getting term weights
@@ -2253,18 +2264,18 @@ class SearchConnection(object):
         else:
             mset = None
 
-
         # Build the search results:
-        if cache_facets is None:
+        if getfacets:
             # The facet results don't depend on anything else.
             facet_hierarchy = None
             if usesubfacets:
                 facet_hierarchy = self._facet_hierarchy
-            facets = MSetFacetResults(facetspies, facetfields, facet_hierarchy,
-                                      self._facet_query_table.get(query_type),
-                                      facet_desired_num_of_categories)
+            facets = FacetResults(facetspies, facetfields, facet_hierarchy,
+                                  self._facet_query_table.get(query_type),
+                                  facet_desired_num_of_categories,
+                                  cache_facets)
         else:
-            facets = CacheFacetResults(cache_facets)
+            facets = NoFacetResults()
 
         if need_to_search:
             weightgetter = MSetTermWeightGetter(mset)
