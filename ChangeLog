@@ -1,3 +1,9 @@
+Tue Jan 26 14:01:01 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/doctests/searchconnection_doctest2.txt,
+	  xappy/unittests/facets.py: Fix a couple of facet testcases which
+	  got missed.
+
 Tue Jan 26 13:36:59 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py: Handle case where there are no cached
