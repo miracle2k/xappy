@@ -1,3 +1,12 @@
+Tue Jan 26 13:04:49 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py,xappy/mset_search_results.py,
+	  xappy/unittests/cached_searches.py: Revert sort order of facet
+	  values to be by ascending order of key - putting them in
+	  frequency order wasn't particularly helpful, and some external
+	  code might depend on the order.  Also makes it easier to merge
+	  facet values from multiple databases.
+
 Tue Jan 26 10:51:36 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/generic.py: Add clear_facets method to base

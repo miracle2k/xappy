@@ -176,68 +176,72 @@ class TestCachedSearches(TestCase):
         self.assertEqual(results.matches_upper_bound, 59)
         self.assertEqual(results.matches_estimated, 59)
         self.assertEqual(results.get_facets(), {
-            'f1': (('1', 12),
+            'f1': (
+                   ('0', 11),
+                   ('1', 12),
                    ('2', 12),
                    ('3', 12),
                    ('4', 12),
-                   ('0', 11),
                   ),
             'f2': (((0.0, 0.0), 9),
-                   ((5.0, 5.0), 9),
-                   ((6.0, 6.0), 9),
                    ((1.0, 1.0), 8),
                    ((2.0, 2.0), 8),
                    ((3.0, 3.0), 8),
                    ((4.0, 4.0), 8),
+                   ((5.0, 5.0), 9),
+                   ((6.0, 6.0), 9),
                   )
         })
         self.assertEqual(results.get_suggested_facets(1),
                          [('f2', (((0.0, 0.0), 9),
-                                  ((5.0, 5.0), 9),
-                                  ((6.0, 6.0), 9),
                                   ((1.0, 1.0), 8),
                                   ((2.0, 2.0), 8),
                                   ((3.0, 3.0), 8),
                                   ((4.0, 4.0), 8),
+                                  ((5.0, 5.0), 9),
+                                  ((6.0, 6.0), 9),
                                  ))])
         self.assertEqual(results.get_suggested_facets(2),
                          [('f2', (((0.0, 0.0), 9),
-                                  ((5.0, 5.0), 9),
-                                  ((6.0, 6.0), 9),
                                   ((1.0, 1.0), 8),
                                   ((2.0, 2.0), 8),
                                   ((3.0, 3.0), 8),
                                   ((4.0, 4.0), 8),
+                                  ((5.0, 5.0), 9),
+                                  ((6.0, 6.0), 9),
                                  )),
-                          ('f1', (('1', 12),
+                          ('f1', (
+                                  ('0', 11),
+                                  ('1', 12),
                                   ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 11),
                                  ))])
         self.assertEqual(results.get_suggested_facets(2,
                                                 required_facets=('f1', )),
                          [('f2', (((0.0, 0.0), 9),
-                                  ((5.0, 5.0), 9),
-                                  ((6.0, 6.0), 9),
                                   ((1.0, 1.0), 8),
                                   ((2.0, 2.0), 8),
                                   ((3.0, 3.0), 8),
                                   ((4.0, 4.0), 8),
+                                  ((5.0, 5.0), 9),
+                                  ((6.0, 6.0), 9),
                                  )),
-                          ('f1', (('1', 12),
+                          ('f1', (
+                                  ('0', 11),
+                                  ('1', 12),
                                   ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 11),
                                  ))])
         self.assertEqual(results.get_suggested_facets(1,
                                                 required_facets=('f1', )),
-                         [('f1', (('1', 12),
+                         [('f1', (
+                                  ('0', 11),
+                                  ('1', 12),
                                   ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 11),
                                  ))])
 
         # Try getting some facet results for a cached search.
@@ -249,61 +253,66 @@ class TestCachedSearches(TestCase):
         self.assertEqual(results.matches_upper_bound, 118)
         self.assertEqual(results.matches_estimated, 118)
         self.assertEqual(results.get_facets(), {
-            'f1': (('2', 12),
+            'f1': (
+                   ('0', 7),
+                   ('2', 12),
                    ('3', 12),
                    ('4', 12),
-                   ('0', 7),
                   ),
             'f2': (((0.0, 0.0), 17),
+                   ((1.0, 1.0), 16),
+                   ((2.0, 2.0), 16),
                    ((3.0, 3.0), 17),
                    ((4.0, 4.0), 17),
                    ((5.0, 5.0), 17),
-                   ((1.0, 1.0), 16),
-                   ((2.0, 2.0), 16),
                    ((6.0, 6.0), 16),
                   )
         })
         self.assertEqual(results.get_suggested_facets(1),
-                         [('f1', (('2', 12),
+                         [('f1', (
+                                  ('0', 7),
+                                  ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 7),
                                  ))])
         self.assertEqual(results.get_suggested_facets(2),
-                         [('f1', (('2', 12),
+                         [('f1', (
+                                  ('0', 7),
+                                  ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 7),
                                  )),
                           ('f2', (((0.0, 0.0), 17),
+                                  ((1.0, 1.0), 16),
+                                  ((2.0, 2.0), 16),
                                   ((3.0, 3.0), 17),
                                   ((4.0, 4.0), 17),
                                   ((5.0, 5.0), 17),
-                                  ((1.0, 1.0), 16),
-                                  ((2.0, 2.0), 16),
                                   ((6.0, 6.0), 16),
                                  ))])
         self.assertEqual(results.get_suggested_facets(2,
                                                 required_facets=('f1', )),
-                         [('f1', (('2', 12),
+                         [('f1', (
+                                  ('0', 7),
+                                  ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 7),
                                  )),
                           ('f2', (((0.0, 0.0), 17),
+                                  ((1.0, 1.0), 16),
+                                  ((2.0, 2.0), 16),
                                   ((3.0, 3.0), 17),
                                   ((4.0, 4.0), 17),
                                   ((5.0, 5.0), 17),
-                                  ((1.0, 1.0), 16),
-                                  ((2.0, 2.0), 16),
                                   ((6.0, 6.0), 16),
                                  ))])
         self.assertEqual(results.get_suggested_facets(1,
                                                 required_facets=('f1', )),
-                         [('f1', (('2', 12),
+                         [('f1', (
+                                  ('0', 7),
+                                  ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 7),
                                  ))])
 
         # Try getting some facet results for a pure cache hit,
@@ -318,61 +327,66 @@ class TestCachedSearches(TestCase):
         self.assertEqual(results.matches_upper_bound, 59)
         self.assertEqual(results.matches_estimated, 59)
         self.assertEqual(results.get_facets(), {
-            'f1': (('2', 12),
+            'f1': (
+                   ('0', 7),
+                   ('2', 12),
                    ('3', 12),
                    ('4', 12),
-                   ('0', 7),
                   ),
             'f2': (((0.0, 0.0), 9),
-                   ((5.0, 5.0), 9),
-                   ((6.0, 6.0), 9),
                    ((1.0, 1.0), 8),
                    ((2.0, 2.0), 8),
                    ((3.0, 3.0), 8),
                    ((4.0, 4.0), 8),
+                   ((5.0, 5.0), 9),
+                   ((6.0, 6.0), 9),
                   )
         })
         self.assertEqual(results.get_suggested_facets(1),
-                         [('f1', (('2', 12),
+                         [('f1', (
+                                  ('0', 7),
+                                  ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 7),
                                  ))])
         self.assertEqual(results.get_suggested_facets(2),
-                         [('f1', (('2', 12),
+                         [('f1', (
+                                  ('0', 7),
+                                  ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 7),
                                  )),
                           ('f2', (((0.0, 0.0), 9),
-                                  ((5.0, 5.0), 9),
-                                  ((6.0, 6.0), 9),
                                   ((1.0, 1.0), 8),
                                   ((2.0, 2.0), 8),
                                   ((3.0, 3.0), 8),
                                   ((4.0, 4.0), 8),
+                                  ((5.0, 5.0), 9),
+                                  ((6.0, 6.0), 9),
                                  ))])
         self.assertEqual(results.get_suggested_facets(2,
                                                 required_facets=('f1', )),
-                         [('f1', (('2', 12),
+                         [('f1', (
+                                  ('0', 7),
+                                  ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 7),
                                  )),
                           ('f2', (((0.0, 0.0), 9),
-                                  ((5.0, 5.0), 9),
-                                  ((6.0, 6.0), 9),
                                   ((1.0, 1.0), 8),
                                   ((2.0, 2.0), 8),
                                   ((3.0, 3.0), 8),
                                   ((4.0, 4.0), 8),
+                                  ((5.0, 5.0), 9),
+                                  ((6.0, 6.0), 9),
                                  ))])
         self.assertEqual(results.get_suggested_facets(1,
                                                 required_facets=('f1', )),
-                         [('f1', (('2', 12),
+                         [('f1', (
+                                  ('0', 7),
+                                  ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 7),
                                  ))])
 
         # Try getting some facet results for a pure cache hit,
@@ -388,39 +402,44 @@ class TestCachedSearches(TestCase):
         self.assertEqual(results.matches_upper_bound, 59)
         self.assertEqual(results.matches_estimated, 59)
         self.assertEqual(results.get_facets(), {
-            'f1': (('2', 12),
+            'f1': (
+                   ('0', 7),
+                   ('2', 12),
                    ('3', 12),
                    ('4', 12),
-                   ('0', 7),
                   ),
         })
         self.assertEqual(results.get_suggested_facets(1),
-                         [('f1', (('2', 12),
+                         [('f1', (
+                                  ('0', 7),
+                                  ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 7),
                                  ))])
         self.assertEqual(results.get_suggested_facets(2),
-                         [('f1', (('2', 12),
+                         [('f1', (
+                                  ('0', 7),
+                                  ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 7),
                                  )),
                           ])
         self.assertEqual(results.get_suggested_facets(2,
                                                 required_facets=('f1', )),
-                         [('f1', (('2', 12),
+                         [('f1', (
+                                  ('0', 7),
+                                  ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 7),
                                  )),
                           ])
         self.assertEqual(results.get_suggested_facets(1,
                                                 required_facets=('f1', )),
-                         [('f1', (('2', 12),
+                         [('f1', (
+                                  ('0', 7),
+                                  ('2', 12),
                                   ('3', 12),
                                   ('4', 12),
-                                  ('0', 7),
                                  ))])
 
 if __name__ == '__main__':

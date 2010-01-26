@@ -529,7 +529,7 @@ class FacetResults(object):
                 score = xapian.score_evenness(facetspy,
                                               desired_num_of_categories)
                 values = facetspy.get_values_as_dict()
-            values = tuple(sorted(values.iteritems(), key=lambda x: (-x[1], x[0])))
+            values = tuple(sorted(values.iteritems()))
             return values, score
 
     def get_facets(self):

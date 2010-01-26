@@ -43,15 +43,13 @@ def sort_facets(facets):
     """Sort an iterable of facets.
 
     Returns a tuple, sorted by fieldname.  Also sorts the values into
-    descending frequency order (and ascending order of key for equal
-    frequencies).
+    ascending order of key.
 
     """
     if isinstance(facets, dict):
         facets = facets.iteritems()
     return tuple(sorted((fieldname,
-                         tuple(sorted(valfreqs.iteritems() if isinstance(valfreqs, dict) else valfreqs,
-                                      key=lambda x: (-x[1], x[0]))))
+                         tuple(sorted(valfreqs.iteritems() if isinstance(valfreqs, dict) else valfreqs)))
                         for fieldname, valfreqs in facets))
 
 class CacheManager(object):
