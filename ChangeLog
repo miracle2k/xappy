@@ -1,3 +1,8 @@
+Tue Jan 26 10:51:36 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py: Add clear_facets method to base
+	  class.
+
 Tue Jan 26 09:43:01 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cache_search_results.py,xappy/cachemanager/generic.py,

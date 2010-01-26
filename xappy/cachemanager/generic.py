@@ -259,6 +259,14 @@ class CacheManager(object):
         """
         raise NotImplementedError
 
+    def clear_facets(self, queryid):
+        """Clear the facets for a query.
+
+        `queryid` is the numeric ID of the query to look up.
+
+        """
+        raise NotImplementedError
+
     def flush(self):
         """Ensure that all changes made to the cache are written to disk.
 
