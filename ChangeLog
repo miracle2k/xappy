@@ -1,3 +1,9 @@
+Tue Jan 26 13:36:59 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Handle case where there are no cached
+	  facets for a query, but facets are requested.  Need to add a
+	  test for this.
+
 Tue Jan 26 13:04:49 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/cachemanager/generic.py,xappy/mset_search_results.py,

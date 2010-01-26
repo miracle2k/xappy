@@ -2191,8 +2191,9 @@ class SearchConnection(object):
                 # Get the stored facet values.
                 if len(facetfieldnames) != 0:
                     cache_facets = self.cache_manager.get_facets(queryid)
-                    for fieldname, valfreqs in cache_facets:
-                        facetfieldnames.remove(fieldname)
+                    if cache_facets is not None:
+                        for fieldname, valfreqs in cache_facets:
+                            facetfieldnames.remove(fieldname)
 
         if getfacets:
             facetspies, facetfields = \
