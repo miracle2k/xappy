@@ -122,6 +122,27 @@ class TestCachedSearches(TestCase):
         self.assertEqual(results[:11], expected2)
         self.assertEqual(list(sorted(results)), expected)
 
+        # Try a search asking for facets (when none are cached).
+        results = query_hello.merge_with_cached(cached_id).\
+            search(0, self.doccount, getfacets=True)
+        self.assertEqual(results.get_facets(), {
+            'f1': (('0', 22),
+                   ('1', 23),
+                   ('2', 24),
+                   ('3', 24),
+                   ('4', 23)),
+            'f2': (((0.0, 0.0), 17),
+                   ((1.0, 1.0), 16),
+                   ((2.0, 2.0), 16),
+                   ((3.0, 3.0), 17),
+                   ((4.0, 4.0), 17),
+                   ((5.0, 5.0), 17),
+                   ((6.0, 6.0), 16)),
+        })
+        results = [int(result.id, 16) for result in results]
+        self.assertEqual(results[:11], expected2)
+        self.assertEqual(list(sorted(results)), expected)
+
         # Try searches for each of the sub ranges.
         expected2_full = expected2 + sorted(set(expected) - set(expected2))
         for i in xrange(len(expected) + 10):
