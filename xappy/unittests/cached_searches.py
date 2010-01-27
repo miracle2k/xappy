@@ -72,9 +72,24 @@ class TestCachedSearches(TestCase):
         iconn.set_cache_manager(man)
         iconn.apply_cached_items()
         iconn.flush()
+        iconn.close()
+
+        # Test that we get an error when trying to delete a document if the
+        # cache manager is not set.
+        iconn = xappy.IndexerConnection(self.dbpath)
+        self.assertRaises(xappy.IndexerError, iconn.delete, '10')
+        iconn.set_cache_manager(man)
 
         iconn.delete('10')
         iconn.flush()
+
+        # Now, try making the cache internal, opening a new indexer connection
+        # to check that that's remembered, and doing another delete.
+        iconn.make_internal_cache()
+        iconn.flush()
+        iconn.close()
+
+        iconn = xappy.IndexerConnection(self.dbpath)
         iconn.delete(xapid=50)
 
         doc = xappy.UnprocessedDocument()
@@ -87,7 +102,7 @@ class TestCachedSearches(TestCase):
 
         # Try a plain search.
         sconn = xappy.SearchConnection(self.dbpath)
-        sconn.set_cache_manager(man)
+        self.assertNotEqual(sconn.cache_manager, None)
 
         query_hello = sconn.query_parse('hello')
         query_world = sconn.query_parse('world')

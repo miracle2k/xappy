@@ -27,11 +27,13 @@ import _checkxapian
 import cPickle
 import xapian
 
+import cachemanager
 from datastructures import *
 import errors
 from fieldactions import ActionContext, FieldActions, ActionSet
 import fieldmappings
 import memutils
+import os
 
 def _allocate_id(index, next_docid):
     """Allocate a new ID.
@@ -94,7 +96,7 @@ class IndexerConnection(object):
                 raise xapian.InvalidArgumentError("Database type '%s' not known" % dbtype)
         except xapian.DatabaseOpeningError:
             self._index = xapian.WritableDatabase(indexpath, xapian.DB_OPEN)
-        self._indexpath = indexpath
+        self._indexpath = os.path.realpath(os.path.abspath(indexpath))
 
         # Set no cache manager.
         self.cache_manager = None
@@ -223,6 +225,10 @@ class IndexerConnection(object):
         self._field_mappings = fieldmappings.FieldMappings(mappings)
 
         self._config_modified = False
+
+        # Open the cachemanager if there is an internal one.
+        if self._index.get_metadata('_xappy_hasintcache'):
+            self._open_internal_cache()
 
     def add_field_action(self, fieldname, fieldtype, **kwargs):
         """Add an action to be performed on a field.
@@ -406,7 +412,7 @@ class IndexerConnection(object):
 
         xapdoc = document.prepare()
 
-        if self.cache_manager is not None:
+        if self._index.get_metadata('_xappy_hascache'):
             # Copy any cached query items over to the new document.
             olddoc, olddocid = self._get_xapdoc(id, xapid)
             if olddoc is not None:
@@ -650,6 +656,10 @@ class IndexerConnection(object):
         The document may be specified by xappy docid, or by xapian document id.
 
         """
+        if self.cache_manager is None:
+            raise errors.IndexerError("CacheManager has been applied to this "
+                                      "index, but is not currently set.")
+
         doc, xapid = self._get_xapdoc(docid, xapid)
         if doc is None:
             return
@@ -679,7 +689,7 @@ class IndexerConnection(object):
             raise errors.IndexerError("IndexerConnection has been closed")
 
         # Remove any cached items from the cache.
-        if self.cache_manager is not None:
+        if self._index.get_metadata('_xappy_hascache'):
             self._remove_cached_items(id, xapid)
 
         # Now, remove the actual document.
@@ -718,6 +728,11 @@ class IndexerConnection(object):
         if self.cache_manager is None:
             raise RuntimeError("Need to set a cache manager before calling "
                                "apply_cached_items()")
+
+        # Remember that a cache manager has been applied in the metadata, so
+        # errors can be raised if it's not set during future modifications.
+        self._index.set_metadata('_xappy_hascache', '1')
+
         myiter = self.cache_manager.iter_by_docid()
         for xapid, items in myiter:
             try:
@@ -731,6 +746,45 @@ class IndexerConnection(object):
                     xapian.sortable_serialise(self._cache_manager_max_hits -
                                               rank))
             self._index.replace_document(xapid, xapdoc)
+
+    def make_internal_cache(self):
+        """Copies all items from the current cache manager into this index.
+
+        This makes the internal cache into a full copy of the currently applied
+        cache_manager, and sets the stored cache_manager to use the newly
+        copied internal cache.
+
+        This also stores a property which causes the internal cache to be used
+        automatically when new IndexerConnection or SearchConnection objects
+        are created.
+
+        The cache_manager supplied must currently be an instance (or subclass)
+        of KeyValueStoreCacheManager.
+
+        """
+        if self._index is None:
+            raise errors.IndexerError("IndexerConnection has been closed")
+        if self.cache_manager is None:
+            raise RuntimeError("Need to set a cache manager before calling "
+                               "make_internal_cache()")
+
+        assert isinstance(self.cache_manager,
+                          cachemanager.KeyValueStoreCacheManager)
+
+        for k in self.cache_manager.keys():
+            self._index.set_metadata(k, self.cache_manager[k])
+        self._index.set_metadata('_xappy_hasintcache', '1')
+        self._open_internal_cache()
+
+    def _open_internal_cache(self):
+        """Open an internal cache, passing the current index to it.
+
+        """
+        self.cache_manager = cachemanager.XapianCacheManager(self._indexpath)
+        # Make the cache manager use the same index connection as this
+        # index, since it's subordinate to it.
+        self.cache_manager.db = self._index
+        self.cache_manager.writable = True
 
     def flush(self):
         """Apply recent changes to the database.

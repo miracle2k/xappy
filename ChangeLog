@@ -1,3 +1,13 @@
+Wed Jan 27 15:20:15 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/indexerconnection.py,xappy/searchconnection.py,
+	  xappy/unittests/cached_searches.py: Add ability to copy a cache
+	  into the main xapian index.  When this has been done, open the
+	  cache automatically, both in future IndexerConnections and in
+	  SearchConnections.  Also, complain if an IndexerConnection which
+	  has had a cache applied doesn't have a cache connected when a
+	  deletion is performed.
+
 Tue Jan 26 14:12:56 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/unittests/cached_searches.py: Test asking for facets with a

@@ -33,6 +33,7 @@ import itertools
 
 import xapian
 from cache_search_results import CacheResultOrdering
+import cachemanager
 from datastructures import UnprocessedDocument, ProcessedDocument
 from fieldactions import ActionContext, FieldActions, \
          ActionSet, SortableMarshaller, convert_range_to_term, \
@@ -200,6 +201,13 @@ class SearchConnection(object):
             self._facet_hierarchy = {}
             self._facet_query_table = {}
         self._field_mappings = fieldmappings.FieldMappings(mappings)
+
+        if self._index.get_metadata('_xappy_hasintcache'):
+            self.cache_manager = cachemanager.XapianCacheManager(self._indexpath)
+            # Make the cache manager use the same index connection as this
+            # index, since it's subordinate to it.
+            self.cache_manager.db = self._index
+            self.cache_manager.writable = False
 
     def reopen(self):
         """Reopen the connection.
