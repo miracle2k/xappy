@@ -202,7 +202,7 @@ class SearchConnection(object):
             self._facet_query_table = {}
         self._field_mappings = fieldmappings.FieldMappings(mappings)
 
-        if self._index.get_metadata('_xappy_hasintcache'):
+        if self._index.get_metadata('_xappy_hascache'):
             self.cache_manager = cachemanager.XapianCacheManager(self._indexpath)
             # Make the cache manager use the same index connection as this
             # index, since it's subordinate to it.
