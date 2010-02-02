@@ -1,3 +1,9 @@
+Tue Feb 02 16:48:19 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* utils/make_xappy_tarballs: Update branchpoint.
+	* xappy/mset_search_results.py: Use UnbiasedNumericRanges instead
+	  of NumericRanges if it's available.
+
 Mon Feb 01 11:19:12 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py: Check for the correct metadata key.

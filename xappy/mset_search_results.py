@@ -518,8 +518,12 @@ class FacetResults(object):
             return (), 0
         else:
             if facettype == 'float':
-                ranges = xapian.NumericRanges(facetspy.get_values(),
-                                              desired_num_of_categories)
+                if hasattr(xapian, 'UnbiasedNumericRanges'):
+                    ranges = xapian.UnbiasedNumericRanges(
+                        facetspy.get_values(), desired_num_of_categories)
+                else:
+                    ranges = xapian.NumericRanges(facetspy.get_values(),
+                                                  desired_num_of_categories)
 
                 score = xapian.score_evenness(ranges.get_ranges(),
                                               ranges.get_values_seen(),
