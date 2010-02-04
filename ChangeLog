@@ -1,3 +1,7 @@
+Thu Feb 04 15:24:01 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* research/expand_prefixes.py: Add a little research script.
+
 Tue Feb 02 16:48:19 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* utils/make_xappy_tarballs: Update branchpoint.
