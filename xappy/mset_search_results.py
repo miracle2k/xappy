@@ -29,6 +29,7 @@ import _checkxapian
 import errors
 from fieldactions import FieldActions
 from indexerconnection import IndexerConnection
+import math
 import re
 from searchresults import SearchResult
 import xapian
@@ -524,16 +525,13 @@ class FacetResults(object):
                 else:
                     ranges = xapian.NumericRanges(facetspy.get_values(),
                                                   desired_num_of_categories)
-
-                score = xapian.score_evenness(ranges.get_ranges(),
-                                              ranges.get_values_seen(),
-                                              desired_num_of_categories)
                 values = ranges.get_ranges_as_dict()
             else:
-                score = xapian.score_evenness(facetspy,
-                                              desired_num_of_categories)
                 values = facetspy.get_values_as_dict()
             values = tuple(sorted(values.iteritems()))
+            score = math.fabs(len(values) - desired_num_of_categories)
+            if len(values) <= 1:
+                score = 1000
             return values, score
 
     def get_facets(self):

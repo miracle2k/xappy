@@ -180,24 +180,24 @@ Get a list of the facets relevant for the search
 [191, 179, 167, 155, 143, 131, 119, 107, 95, 83, 71, 59, 47, 35, 23, 11, 190, 178, 166, 154, 142, 130, 118, 106, 94, 82, 70, 58, 46, 34]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=10)]
-[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('facet9', 4), ('price', 4), ('facet8', 2), ('facet3', 17), ('category', 20), ('facet5', 40)]
+[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('facet7', 4), ('facet9', 4), ('price', 4), ('facet8', 2), ('facet3', 17), ('category', 20)]
 >>> [(facet[0], facet[1]) for facet in results2.get_suggested_facets(maxfacets=5)]
-[('price3', (((0.0, 194.30000000000001), 30), ((201.0, 395.30000000000001), 30), ((402.0, 596.29999999999995), 30), ((603.0, 797.29999999999995), 30), ((804.0, 998.29999999999995), 30), ((1005.0, 1199.3), 30), ((1206.0, 1333.3), 20))), ('facet1', (('0', 40), ('1', 40), ('2', 40), ('3', 40), ('4', 40))), ('facet4', (((0.0, 4.0), 40), ((5.0, 9.0), 40), ((10.0, 14.0), 40), ((15.0, 19.0), 40), ((20.0, 24.0), 40))), ('facet2', (('0', 20), ('1', 20), ('2', 20), ('3', 20), ('4', 20), ('5', 20), ('6', 20), ('7', 20), ('8', 20), ('9', 20))), ('facet9', (((0.0, 9.0), 50), ((10.0, 19.0), 50), ((20.0, 29.0), 50), ((30.0, 39.0), 50)))]
+[('price3', (((0.0, 194.30000000000001), 30), ((201.0, 395.30000000000001), 30), ((402.0, 596.29999999999995), 30), ((603.0, 797.29999999999995), 30), ((804.0, 998.29999999999995), 30), ((1005.0, 1199.3), 30), ((1206.0, 1333.3), 20))), ('facet1', (('0', 40), ('1', 40), ('2', 40), ('3', 40), ('4', 40))), ('facet4', (((0.0, 4.0), 40), ((5.0, 9.0), 40), ((10.0, 14.0), 40), ((15.0, 19.0), 40), ((20.0, 24.0), 40))), ('facet2', (('0', 20), ('1', 20), ('2', 20), ('3', 20), ('4', 20), ('5', 20), ('6', 20), ('7', 20), ('8', 20), ('9', 20))), ('facet7', (('0', 100), ('1', 100), ('2000', 200), ('2001', 200)))]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets='price3')]
-[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('facet9', 4)]
+[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('facet7', 4)]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets='facet8')]
 [('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('facet8', 2)]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets=('facet8', 'price', 'facet7'))]
-[('price3', 7), ('facet1', 5), ('price', 4), ('facet8', 2), ('facet7', 4)]
+[('price3', 7), ('facet1', 5), ('facet7', 4), ('price', 4), ('facet8', 2)]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets=('facet8', 'price', 'facet7', 'price3', 'facet1'))]
-[('price3', 7), ('facet1', 5), ('price', 4), ('facet8', 2), ('facet7', 4)]
+[('price3', 7), ('facet1', 5), ('facet7', 4), ('price', 4), ('facet8', 2)]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets=('facet8', 'price', 'facet7', 'price3', 'facet1', 'facet4'))]
-[('price3', 7), ('facet1', 5), ('facet4', 5), ('price', 4), ('facet8', 2), ('facet7', 4)]
+[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet7', 4), ('price', 4), ('facet8', 2)]
 
 
 We can use a facet to restrict the search results:
@@ -216,12 +216,12 @@ Getting the list of facets when there is a facet restriction in place will
 return a different selection (based on the documents satisfying the
 restriction):
 
->>> [(facet[0], len(facet[1])) for facet in results3.get_suggested_facets(maxfacets=5)]
-[('facet5', 6), ('facet9', 6), ('price', 5), ('price3', 4), ('facet4', 4)]
+>>> [(facet[0], len(facet[1])) for facet in results3.get_suggested_facets(maxfacets=6)]
+[('facet5', 6), ('facet9', 6), ('price', 5), ('facet4', 4), ('facet7', 4), ('price3', 4)]
 
 The suggestions for the facet we've already restricted by are for sub-values
 within the range:
->>> results3.get_suggested_facets(maxfacets=5)[3]
+>>> results3.get_suggested_facets(maxfacets=6)[5]
 ('price3', (((0.0, 46.899999999999999), 8), ((53.600000000000001, 93.799999999999997), 7), ((100.5, 147.40000000000001), 8), ((154.09999999999999, 194.30000000000001), 7)))
 
 
@@ -251,7 +251,7 @@ will be stored).  Therefore, we expect facet8 to _not_ include the 2000 and
 ...                         checkatleast=200, getfacets=True,
 ...                         allowfacets=('facet7', 'facet8'))
 >>> results3.get_suggested_facets()
-[('facet8', (((0.0, 0.0), 100), ((1.0, 1.0), 100))), ('facet7', (('0', 100), ('1', 100), ('2000', 200), ('2001', 200)))]
+[('facet7', (('0', 100), ('1', 100), ('2000', 200), ('2001', 200))), ('facet8', (((0.0, 0.0), 100), ((1.0, 1.0), 100)))]
 
 
 Even if the database doesn't contain any facets, getting the list of suggested
