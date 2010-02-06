@@ -531,8 +531,8 @@ class Query(object):
         performed, if the specified fieldname is not indexed for faceting.
 
         """
-        return get_facets((fieldname,), checkatleast,
-                          desired_num_of_categories)
+        return self.get_facets((fieldname,), checkatleast,
+                               desired_num_of_categories)
 
     def get_facets(self, fieldnames, checkatleast=None,
                    desired_num_of_categories=None):
@@ -566,10 +566,10 @@ class Query(object):
         for fieldname in fieldnames:
             fields[fieldname] = (checkatleast, desired_num_of_categories)
 
-        result.__serialised = ''.join(self.__serialised, '.get_facets(',
+        result.__serialised = ''.join((self.__serialised, '.get_facets(',
                                       repr(fieldnames), ', ',
                                       repr(checkatleast), ', ',
-                                      repr(desired_num_of_categories), ')')
+                                      repr(desired_num_of_categories), ')'))
         return result
 
     def get_facets_except(self, fieldnames, checkatleast=None,
