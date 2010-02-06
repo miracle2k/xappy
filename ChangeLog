@@ -1,3 +1,7 @@
+Sat Feb 06 11:20:27 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* utils/make_xappy_tarballs: Update branchpoints.
+
 Sat Feb 06 11:19:18 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/query.py: Basic fixes to the Query.get_facet{,s} code.  No
