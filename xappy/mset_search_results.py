@@ -520,15 +520,25 @@ class FacetResults(object):
         else:
             if facettype == 'float':
                 if hasattr(xapian, 'UnbiasedNumericRanges'):
-                    ranges = xapian.UnbiasedNumericRanges(
-                        facetspy.get_values(), desired_num_of_categories)
+                    try:
+                        # backwards compatibility
+                        ranges = xapian.UnbiasedNumericRanges(
+                            facetspy.get_values(), desired_num_of_categories)
+                    except AttributeError:
+                        ranges = xapian.UnbiasedNumericRanges(
+                            facetspy, desired_num_of_categories)
                 else:
                     ranges = xapian.NumericRanges(facetspy.get_values(),
                                                   desired_num_of_categories)
-                values = ranges.get_ranges_as_dict()
+                values = tuple(sorted(ranges.get_ranges_as_dict().iteritems()))
             else:
-                values = facetspy.get_values_as_dict()
-            values = tuple(sorted(values.iteritems()))
+                try:
+                    values = tuple((item.term, item.termfreq)
+                                   for item in facetspy.values())
+                except AttributeError:
+                    # backwards compatibility
+                    values = facetspy.get_values_as_dict()
+                    values = tuple(sorted(values.iteritems()))
             score = math.fabs(len(values) - desired_num_of_categories)
             if len(values) <= 1:
                 score = 1000
