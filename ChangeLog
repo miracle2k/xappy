@@ -1,3 +1,9 @@
+Mon Feb 22 23:14:54 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: Update to latest versions of xapian (now
+	  taken directly from the "xappy" branch in Xapian SVN, rather than
+	  from combining all the feature branches).
+
 Sat Feb 06 11:20:27 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* utils/make_xappy_tarballs: Update branchpoints.
