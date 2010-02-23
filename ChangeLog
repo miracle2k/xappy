@@ -1,3 +1,8 @@
+Tue Feb 23 00:17:14 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py,xappy/unittests/sort.py: Sort document
+	  with missing values in the slots to the end.
+
 Mon Feb 22 23:38:17 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/mset_search_results.py: Support both the old and new xapian

@@ -1,6 +1,7 @@
 # vim: set fileencoding=utf-8 :
 #
 # Copyright (C) 2008 Michael Elsdörfer
+# Copyright (C) 2010 Richard Boulton
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,10 +26,11 @@ class TestSortBy(TestCase):
         iconn.add_field_action('name', xappy.FieldActions.INDEX_FREETEXT)
         iconn.add_field_action('name', xappy.FieldActions.SORTABLE)
         iconn.add_field_action('date', xappy.FieldActions.SORTABLE, type='date')
+        iconn.add_field_action('d2', xappy.FieldActions.SORTABLE, type='date')
 
         data =\
-            [{'name': 'a', 'date': date(2008, 1, 1)},
-             {'name': 'c', 'date': date(2008, 6, 1)},
+            [{'name': 'a', 'date': date(2008, 1, 1), 'd2': date(2008, 1, 1)},
+             {'name': 'c', 'date': date(2008, 6, 1), 'd2': date(2008, 6, 1)},
              {'name': 'b', 'date': date(2008, 6, 1)}]
         for row in data:
             doc = xappy.UnprocessedDocument()
@@ -67,6 +69,13 @@ class TestSortBy(TestCase):
         self.assertEqual(self._search(('-date', 'name')), [2,1,0])
         self.assertEqual(self._search(('-date', '+name')), [2,1,0])
         self.assertEqual(self._search(('-date', '-name')), [1,2,0])
+
+    def test_missing(self):
+        """Test that sorting always puts missing values to the end.
+
+        """
+        self.assertEqual(self._search('d2'), [0,1,2])
+        self.assertEqual(self._search('-d2'), [1,0,2])
 
 if __name__ == '__main__':
     main()

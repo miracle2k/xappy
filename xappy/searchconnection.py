@@ -1921,7 +1921,16 @@ class SearchConnection(object):
         # words, it considers "ascending" to mean return results in
         # descending order.  See xapian bug #311
         # (http://trac.xapian.org/ticket/311)
-        return slotnum, not asc
+        result = [slotnum, not asc]
+
+        if asc:
+            # Add default value
+            try:
+                ubound = self._index.get_value_upper_bound(slotnum) + '\xff'
+            except xapian.UnimplementedError:
+                ubound = '\xff' * 256
+            result.append(ubound)
+        return result
 
     class SortByGeolocation(object):
         def __init__(self, fieldname, centre):
@@ -2047,9 +2056,12 @@ class SearchConnection(object):
 
     def _apply_sort_parameters(self, enq, sortby):
         if isinstance(sortby, basestring):
-            enq.set_sort_by_value_then_relevance(
-                *self._get_sort_slot_and_dir(sortby))
-        elif isinstance(sortby, self.SortByGeolocation):
+            params = self._get_sort_slot_and_dir(sortby)
+            if len(params) == 2:
+                enq.set_sort_by_value_then_relevance(*params)
+                return
+            sortby = [sortby]
+        if isinstance(sortby, self.SortByGeolocation):
             # Get the slot
             try:
                 slot = self._field_mappings.get_slot(sortby.fieldname, 'loc')
@@ -2073,7 +2085,13 @@ class SearchConnection(object):
         else:
             keymaker = xapian.MultiValueKeyMaker()
             for field in sortby:
-                keymaker.add_value(*self._get_sort_slot_and_dir(field))
+                params = self._get_sort_slot_and_dir(field)
+                try:
+                    keymaker.add_value(*params)
+                except TypeError:
+                    # backwards compatibility
+                    params = params[:2]
+                    keymaker.add_value(*params)
             enq.set_sort_by_key_then_relevance(keymaker, False)
             enq._keymaker = keymaker
 
