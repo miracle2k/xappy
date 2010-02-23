@@ -2088,7 +2088,7 @@ class SearchConnection(object):
                 params = self._get_sort_slot_and_dir(field)
                 try:
                     keymaker.add_value(*params)
-                except TypeError:
+                except NotImplementedError:
                     # backwards compatibility
                     params = params[:2]
                     keymaker.add_value(*params)

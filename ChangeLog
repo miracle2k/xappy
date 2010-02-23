@@ -1,3 +1,9 @@
+Tue Feb 23 00:35:35 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Fix the backwards compatibility
+	  fallback for setting keymaker parameters to catch the correct
+	  exception type.
+
 Tue Feb 23 00:17:14 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py,xappy/unittests/sort.py: Sort document
