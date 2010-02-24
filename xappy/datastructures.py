@@ -211,6 +211,41 @@ class ProcessedDocument(object):
             for pos in positions:
                 self._doc.add_posting(prefix + term, pos, 0)
 
+    def remove_term(self, field, term):
+        """Completely remove a term from the document.
+
+        - `field` is the field to add the term to.
+        - `term` is the term to add.
+
+        """
+        prefix = self._fieldmappings.get_prefix(field)
+        if len(term) > 0:
+            # We use the following check, rather than "isupper()" to ensure
+            # that we match the check performed by the queryparser, regardless
+            # of our locale.
+            if ord(term[0]) >= ord('A') and ord(term[0]) <= ord('Z'):
+                prefix = prefix + ':'
+
+        # Note - xapian currently restricts term lengths to about 248
+        # characters - except that zero bytes are encoded in two bytes, so
+        # in practice a term of length 125 characters could be too long.
+        # Xapian will give an error when commit() is called after such
+        # documents have been added to the database.
+        # As a simple workaround, we give an error here for terms over 220
+        # characters, which will catch most occurrences of the error early.
+        #
+        # In future, it might be good to change to a hashing scheme in this
+        # situation (or for terms over, say, 64 characters), where the
+        # characters after position 64 are hashed (we obviously need to do this
+        # hashing at search time, too).
+        if len(prefix + term) > 220:
+            raise errors.IndexerError("Field %r is too long: maximum length "
+                                       "220 - was %d (%r)" %
+                                       (field, len(prefix + term),
+                                        prefix + term))
+
+        self._doc.remove_term(prefix + term)
+
     def get_terms(self, field):
         """Get the terms in a given field.
 

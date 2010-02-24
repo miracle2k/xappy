@@ -45,10 +45,15 @@ class TestCalcHash(TestCase):
         doc.id = "2"
         pdoc4 = self.iconn.process(doc)
 
+        pdoc5 = self.iconn.process(doc)
+        pdoc5.add_term('a', 'some', 1)
+        pdoc5.remove_term('a', 'some')
+
         self.assertEqual(len(pdoc1.calc_hash()), 40)
         self.assertEqual(pdoc1.calc_hash(), pdoc2.calc_hash())
         self.assertNotEqual(pdoc1.calc_hash(), pdoc3.calc_hash())
         self.assertNotEqual(pdoc1.calc_hash(), pdoc4.calc_hash())
+        self.assertEqual(pdoc4.calc_hash(), pdoc5.calc_hash())
 
     def test_calc_hash_2(self):
         doc = xappy.UnprocessedDocument("1")

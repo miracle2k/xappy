@@ -1,3 +1,8 @@
+Wed Feb 24 10:26:38 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/datastructures.py,xappy/unittests/calc_hash.py: Add a
+	  ProcessedDocument.remove_term() method, and a brief test of it.
+
 Tue Feb 23 00:35:35 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/searchconnection.py: Fix the backwards compatibility
