@@ -1,3 +1,9 @@
+Thu Mar 04 18:07:38 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* utils/verify_cache.py: Move cache verifier into
+	  xappy.cachemanager.verify_cache, so that it'll be available in
+	  installed versions of xappy.
+
 Thu Mar 04 18:06:34 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* utils/verify_cache.py: Expand verification routine to check the
