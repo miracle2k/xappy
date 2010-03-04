@@ -1,3 +1,8 @@
+Thu Mar 04 18:06:34 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* utils/verify_cache.py: Expand verification routine to check the
+	  cache much more thoroughly, and report errors more clearly.
+
 Thu Mar 04 16:39:51 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* utils/verify_cache.py: Add a utility to verify the integrity of a
