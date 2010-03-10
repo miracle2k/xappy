@@ -1,3 +1,7 @@
+Wed Mar 10 15:15:41 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: Link to new version of xapian.
+
 Thu Mar 04 18:07:38 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* utils/verify_cache.py: Move cache verifier into
