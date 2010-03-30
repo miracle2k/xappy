@@ -80,7 +80,12 @@ class TestCachedSearches(TestCase):
         self.assertRaises(xappy.IndexerError, iconn.delete, '10')
         iconn.set_cache_manager(man)
 
-        iconn.delete('10')
+        doc = xappy.UnprocessedDocument()
+        doc.append('text', 'hello')
+        doc.append('f1', str(16 % 5))
+        doc.append('f2', 16 % 7)
+        doc.id = '10'
+        iconn.replace(doc, store_only=True)
         iconn.flush()
 
         # Now, try making the cache internal, opening a new indexer connection

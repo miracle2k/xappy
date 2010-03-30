@@ -1,3 +1,9 @@
+Tue Mar 30 17:16:10 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/unittests/cached_searches.py: Test that replacing a
+	  document when using store_only=True drops the document from
+	  cached queries.
+
 Tue Mar 30 17:08:58 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/indexerconnection.py: If a document is replaced with
