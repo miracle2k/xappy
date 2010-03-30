@@ -413,13 +413,18 @@ class IndexerConnection(object):
         xapdoc = document.prepare()
 
         if self._index.get_metadata('_xappy_hascache'):
-            # Copy any cached query items over to the new document.
-            olddoc, olddocid = self._get_xapdoc(id, xapid)
-            if olddoc is not None:
-                for value in olddoc.values():
-                    if value.num < self._cache_manager_slot_start:
-                        continue
-                    xapdoc.add_value(value.num, value.value)
+            if store_only:
+                # Remove any cached items from the cache - the document is no
+                # longer wanted in search results.
+                self._remove_cached_items(id, xapid)
+            else:
+                # Copy any cached query items over to the new document.
+                olddoc, olddocid = self._get_xapdoc(id, xapid)
+                if olddoc is not None:
+                    for value in olddoc.values():
+                        if value.num < self._cache_manager_slot_start:
+                            continue
+                        xapdoc.add_value(value.num, value.value)
 
         if xapid is None:
             self._index.replace_document('Q' + id, xapdoc)

@@ -1,3 +1,8 @@
+Tue Mar 30 17:08:58 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/indexerconnection.py: If a document is replaced with
+	  store_only set, remove it from the cache.
+
 Tue Mar 30 16:40:31 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/unittests/spell_correct_1.py: Enable an old test for a bug
