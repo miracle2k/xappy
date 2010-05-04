@@ -1,3 +1,8 @@
+Tue May 04 21:54:06 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: Use new xapian archives - in particular,
+	  these fix a replication bug.
+
 Tue Mar 30 17:16:10 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* xappy/unittests/cached_searches.py: Test that replacing a
