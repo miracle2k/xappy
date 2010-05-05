@@ -17,16 +17,16 @@ make
 make install
 
 cd ../xapian-bindings
-../../xapian-bindings/configure --with-python --prefix=$instdir XAPIAN_CONFIG="$instdir/bin/xapian-config-1.1" PYTHON="$PYTHON" PYTHON_LIB="$instdir/lib/python$pythonver/site-packages"
+../../xapian-bindings/configure --with-python --prefix=$instdir XAPIAN_CONFIG="$instdir/bin/xapian-config" PYTHON="$PYTHON" PYTHON_LIB="$instdir/lib/python$pythonver/site-packages"
 make
 make install
 
 cd ../xapian-extras
-../../xapian-extras/configure --prefix=$instdir XAPIAN_CONFIG="$instdir/bin/xapian-config-1.1"
+../../xapian-extras/configure --prefix=$instdir XAPIAN_CONFIG="$instdir/bin/xapian-config"
 make
 make install
 
 cd ../xapian-extras-bindings
-../../xapian-extras-bindings/configure --with-python --prefix=$instdir XAPIAN_CONFIG="$instdir/bin/xapian-config-1.1" PYTHON="$PYTHON" PYTHON_LIB="$instdir/lib/python$pythonver/site-packages"
+../../xapian-extras-bindings/configure --with-python --prefix=$instdir XAPIAN_CONFIG="$instdir/bin/xapian-config" PYTHON="$PYTHON" PYTHON_LIB="$instdir/lib/python$pythonver/site-packages"
 make
 make install
