@@ -1,3 +1,9 @@
+Thu May 06 13:17:09 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* external_posting_source/sortdatabase/Makefile: Fix to work with
+	  latest xapian packages, by dropping the -1.1 suffix to
+	  xapian-config.  Thanks to Shane Evans for pointing it out.
+
 Wed May 05 09:26:11 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* libs/build_xapian.sh: Use xapian-config not xapian-config-1.1,
