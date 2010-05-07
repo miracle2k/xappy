@@ -1,3 +1,8 @@
+Fri May 07 02:44:00 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: Updated packages - should give considerably
+	  better performance for range queries.
+
 Thu May 06 13:17:09 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* external_posting_source/sortdatabase/Makefile: Fix to work with
