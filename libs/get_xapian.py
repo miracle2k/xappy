@@ -45,9 +45,9 @@ except ImportError:
 #  - SHA1 sum of package
 archives = [
     ('Xapian core',
-     'http://xappy.googlecode.com/files/xapian-core-14516.tgz',
+     'http://xappy.googlecode.com/files/xapian-core-14516-p1.tgz',
      'xapian-core.tgz',
-     '157d8ad0baa8b77387eaa8a224858f544ba25560',
+     '3db415780e8ee3e1a71461c521f2f2e191baaf00',
      'xapian-core',
     ),
     ('Xapian bindings',

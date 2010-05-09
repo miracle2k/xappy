@@ -1,3 +1,8 @@
+Sun May 09 09:45:53 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: New packages, patched to avoid a segfault
+	  with ValueGePostList.
+
 Fri May 07 02:44:00 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* libs/get_xapian.py: Updated packages - should give considerably
