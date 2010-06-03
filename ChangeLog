@@ -1,3 +1,10 @@
+Thu Jun 03 18:20:47 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Updated tarballs
+	  and branchpoints.  New xapian packages include a bug fix for the
+	  matcher which was occasionally causing documents to be missed
+	  from the result set.
+
 Sun May 09 09:45:53 GMT 2010  Richard Boulton <richard@tartarus.org>
 
 	* libs/get_xapian.py: New packages, patched to avoid a segfault
