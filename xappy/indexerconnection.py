@@ -244,7 +244,7 @@ class IndexerConnection(object):
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
-        return self._field_actions.keys()
+        return self._field_actions.actions.keys()
 
     def process(self, document):
         """Process an UnprocessedDocument with the settings in this database.
