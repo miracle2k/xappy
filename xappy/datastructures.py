@@ -1,27 +1,33 @@
-#!/usr/bin/env python
+# Copyright (C) 2007,2008,2009 Lemur Consulting Ltd
 #
-# Copyright (C) 2007 Lemur Consulting Ltd
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 r"""datastructures.py: Datastructures for search engine core.
 
 """
 __docformat__ = "restructuredtext en"
 
+try:
+    # hashlib is only in 2.5 onwards
+    from hashlib import sha1 as hashlib_sha1
+except ImportError:
+    from sha import sha as hashlib_sha1
 import errors
-from replaylog import log
 from fields import Field, FieldGroup
 import xapian
 import cPickle
@@ -94,22 +100,24 @@ class UnprocessedDocument(object):
         self.fields.append(Field(*args, **kwargs))
 
     def extend(self, fields):
-        """Append a sequence or iterable of fields or grous to the document.
+        """Append a sequence or iterable of fields or groups to the document.
 
-        This is simply a shortcut for adding several Field objects to the
-        document, by calling `append` with each item in the list of fields
-        supplied.
+        This is simply a shortcut for adding several Field or FieldGroup
+        objects to the document, by calling `append` with each item in the list
+        of fields supplied.
 
         `fields` should be a sequence containing items which are either Field
-        objects, or sequences of parameters for creating Field objects, or
-        FieldGroups.
+        objects or FieldGroup objects, or sequences of parameters for creating
+        Field objects or FieldGroup objects.
 
         """
         for field in fields:
-            if isinstance(field, Field):
+            if isinstance(field, (Field, FieldGroup)):
                 self.fields.append(field)
-            else:
+            elif isinstance(field[0], basestring):
                 self.fields.append(Field(*field))
+            else:
+                self.fields.append(FieldGroup(field))
 
 class ProcessedDocument(object):
     """A processed document, as stored in the index.
@@ -119,7 +127,12 @@ class ProcessedDocument(object):
 
     """
 
-    __slots__ = '_doc', '_fieldmappings', '_data', '_assocs', '_groups'
+    __slots__ = ('_doc',
+                 '_fieldmappings',
+                 '_data',
+                 '_assocs',
+                 '_groups',
+                 '_grouped_data')
     def __init__(self, fieldmappings, xapdoc=None):
         """Create a ProcessedDocument.
 
@@ -131,7 +144,7 @@ class ProcessedDocument(object):
 
         """
         if xapdoc is None:
-            self._doc = log(xapian.Document)
+            self._doc = xapian.Document()
         else:
             self._doc = xapdoc
         self._fieldmappings = fieldmappings
@@ -141,6 +154,9 @@ class ProcessedDocument(object):
         self._assocs = None
         # List of lists of (fieldname, offset) position.
         self._groups = None
+
+        # Cache of data, in grouped form.
+        self._grouped_data = None
 
     def add_term(self, field, term, wdfinc=1, positions=None):
         """Add a term to the document.
@@ -195,6 +211,64 @@ class ProcessedDocument(object):
             for pos in positions:
                 self._doc.add_posting(prefix + term, pos, 0)
 
+    def remove_term(self, field, term):
+        """Completely remove a term from the document.
+
+        - `field` is the field to add the term to.
+        - `term` is the term to add.
+
+        """
+        prefix = self._fieldmappings.get_prefix(field)
+        if len(term) > 0:
+            # We use the following check, rather than "isupper()" to ensure
+            # that we match the check performed by the queryparser, regardless
+            # of our locale.
+            if ord(term[0]) >= ord('A') and ord(term[0]) <= ord('Z'):
+                prefix = prefix + ':'
+
+        # Note - xapian currently restricts term lengths to about 248
+        # characters - except that zero bytes are encoded in two bytes, so
+        # in practice a term of length 125 characters could be too long.
+        # Xapian will give an error when commit() is called after such
+        # documents have been added to the database.
+        # As a simple workaround, we give an error here for terms over 220
+        # characters, which will catch most occurrences of the error early.
+        #
+        # In future, it might be good to change to a hashing scheme in this
+        # situation (or for terms over, say, 64 characters), where the
+        # characters after position 64 are hashed (we obviously need to do this
+        # hashing at search time, too).
+        if len(prefix + term) > 220:
+            raise errors.IndexerError("Field %r is too long: maximum length "
+                                       "220 - was %d (%r)" %
+                                       (field, len(prefix + term),
+                                        prefix + term))
+
+        self._doc.remove_term(prefix + term)
+
+    def get_terms(self, field):
+        """Get the terms in a given field.
+
+        """
+        prefix = self._fieldmappings.get_prefix(field)
+        tl = self._doc.termlist()
+        item = tl.skip_to(prefix)
+        while True:
+            term = item.term
+            if not term.startswith(prefix):
+                break
+            ch = term[len(prefix)]
+            if ch.isupper():
+                continue
+            if ch == ':':
+                yield term[len(prefix) + 1:]
+            else:
+                yield term[len(prefix):]
+            try:
+                item = tl.next()
+            except StopIteration:
+                break
+
     def add_value(self, field, value, purpose=''):
         """Add a value to the document.
 
@@ -242,6 +316,7 @@ class ProcessedDocument(object):
             self._data = None
             self._assocs = None
             self._groups = None
+            self._grouped_data = None
         return self._doc
 
     def _unpack_data(self):
@@ -268,10 +343,12 @@ class ProcessedDocument(object):
         data, assocs, groups = self._unpack_data()
         if self._data is None:
             self._data = data
+            self._grouped_data = None
         if self._assocs is None:
             self._assocs = assocs
         if self._groups is None:
             self._groups = groups
+            self._grouped_data = None
 
     def _get_data(self):
         self._set_from_unpacked_data()
@@ -287,6 +364,95 @@ class ProcessedDocument(object):
     value is a list of strings.
 
     """)
+
+    def _calc_group_lookup(self):
+        """Calculate a lookup for the group data, if not already done.
+
+        """
+        grouplu = {}
+        count = 0
+        for group in self._get_groups():
+            for field, offset in group:
+                grouplu.setdefault((field, offset), []).append(count)
+            count += 1
+        return grouplu
+
+    def _get_grouped_data(self):
+        """Return all the data, organised by group.
+
+        Returns a tuple of two items: the first is a dictionary (from field to
+        list of values) of all ungrouped data, and the second is a list of the
+        groups of data, in which each item is a dictionary (from field to list
+        of values).
+
+        """
+        if self._grouped_data is not None:
+            return self._grouped_data
+        grouplu = self._calc_group_lookup()
+
+        ungrouped = {}
+        groups = {}
+
+        for field, vals in self.data.iteritems():
+            for offset in xrange(len(vals)):
+                groupnums = grouplu.get((field, offset), None)
+                if groupnums is None:
+                    ungrouped.setdefault(field, []).append(vals[offset])
+                else:
+                    for gn in groupnums:
+                        groups.setdefault(gn, {}).setdefault(field, []).append(vals[offset])
+        groupnums = list(groups.iterkeys())
+        groupnums.sort()
+        sortedgroups = []
+        for groupnum in groupnums:
+            sortedgroups.append(groups[groupnum])
+
+        self._grouped_data = (ungrouped, sortedgroups)
+        return self._grouped_data
+    grouped_data = property(_get_grouped_data, doc=
+    """The data stored in this processed document, organised by group.
+
+    This is a tuple of two items: the first is a dictionary (from field to
+    list of values) of all ungrouped data, and the second is a list of the
+    groups of data, in which each item is a dictionary (from field to list
+    of values).
+
+    """)
+
+    def _get_groupdict(self):
+        ungrouped, groups = self.grouped_data
+        groupdict = dict(enumerate(groups))
+        groupdict[None] = ungrouped
+        return groupdict
+    groupdict = property(_get_groupdict, doc=
+    """A dict containing the grouped data stored in this processed document
+    where the keys are the group numbers (starting from zero) and the values are
+    dicts with the data for each group. Ungrouped data is also contained in
+    this dict on key=`None`.
+    """)
+
+    def calc_hash(self):
+        """Return a (40 hex char) hash of this document calculated from:
+
+            * the document ID 
+            * the stored data (including group associations)
+            * the terms and wdfs
+            * the values and slots
+
+        This is a unique hash based on the document contents which can be used
+        to avoid indexing duplicate data.
+
+        """
+        self.prepare()
+        sha1 = hashlib_sha1()
+        if hasattr(self._doc, 'serialise'):
+            sha1.update(self._doc.serialise())
+        else:
+            sha1.update(self.id)
+            sha1.update(self._doc.get_data())
+            sha1.update("\0".join("%s\0%s" % (t.term, t.wdf) for t in self._doc.termlist()))
+            sha1.update("\0".join("%d\0%s" % (v.num, v.value) for v in self._doc.values()))
+        return sha1.hexdigest()
 
     def _get_assocs(self):
         """Get the field associations for this document.
@@ -320,7 +486,38 @@ class ProcessedDocument(object):
         """
         self._set_from_unpacked_data()
         return self._groups
-#
+
+    def get_distance(self, field, location):
+        """Get the distance between this document and a location, in metres.
+
+        If the location is another document, the distance between the locations
+        stored in the specified field in each document is returned.
+
+        Otherwise, the location may be a string holding a latlong coordinate to
+        find the distance from a point, or a list of strings holding latlong
+        coordinates to find the distance to the closest of the points.
+
+        The field must have been processed with the GEOSPATIAL action.
+
+        """
+        if isinstance(location, ProcessedDocument):
+            location = location.get_value(field, purpose='loc')
+            location = xapian.LatLongCoords.unserialise(location)
+        else:
+            coords = xapian.LatLongCoords()
+            if isinstance(location, basestring):
+                coords.insert(xapian.LatLongCoord.parse_latlong(location))
+            else:
+                for coord in location:
+                    coords.insert(xapian.LatLongCoord.parse_latlong(coord))
+            location = coords
+
+        doccoords = self.get_value(field, purpose='loc')
+        doccoords = xapian.LatLongCoords.unserialise(doccoords)
+
+        metric = xapian.GreatCircleMetric()
+        return metric(doccoords, location)
+
     def _get_id(self):
         tl = self._doc.termlist()
         try:
@@ -347,7 +544,3 @@ class ProcessedDocument(object):
 
     def __repr__(self):
         return '<ProcessedDocument(%r)>' % (self.id)
-
-if __name__ == '__main__':
-    import doctest, sys
-    doctest.testmod (sys.modules[__name__])

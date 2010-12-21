@@ -7,3 +7,4 @@ include xappy/*.py
 include docs/api/*
 include docs/introduction.html
 include docs/introduction.rst
+include xappy/cachemanager

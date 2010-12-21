@@ -281,9 +281,12 @@ def make_suite(modnames, other_files, use_coverage, specific_mods):
     loader = unittest.TestLoader()
     for testpath in find_unittests(os.path.join(topdir, "xappy", "unittests")):
         modpath = "xappy.unittests." + testpath.replace('/', '.')[:-3]
-        mod = __import__(modpath, None, None, [''])
-        test = loader.loadTestsFromModule(mod)
-        suite.addTest(test)
+        try:
+            mod = __import__(modpath, None, None, [''])
+            test = loader.loadTestsFromModule(mod)
+            suite.addTest(test)
+        except ImportError, e:
+            print "Skipping test module %s (%s)" % (modpath, str(e))
 
     return modules, suite
 

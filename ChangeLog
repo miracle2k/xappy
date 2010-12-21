@@ -1,3 +1,1461 @@
+Thu Jun 03 18:20:47 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Updated tarballs
+	  and branchpoints.  New xapian packages include a bug fix for the
+	  matcher which was occasionally causing documents to be missed
+	  from the result set.
+
+Sun May 09 09:45:53 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: New packages, patched to avoid a segfault
+	  with ValueGePostList.
+
+Fri May 07 02:44:00 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: Updated packages - should give considerably
+	  better performance for range queries.
+
+Thu May 06 13:17:09 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* external_posting_source/sortdatabase/Makefile: Fix to work with
+	  latest xapian packages, by dropping the -1.1 suffix to
+	  xapian-config.  Thanks to Shane Evans for pointing it out.
+
+Wed May 05 09:26:11 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/build_xapian.sh: Use xapian-config not xapian-config-1.1,
+	  now we're using packages based on 1.2.x
+
+Tue May 04 21:54:06 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: Use new xapian archives - in particular,
+	  these fix a replication bug.
+
+Tue Mar 30 17:16:10 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/unittests/cached_searches.py: Test that replacing a
+	  document when using store_only=True drops the document from
+	  cached queries.
+
+Tue Mar 30 17:08:58 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/indexerconnection.py: If a document is replaced with
+	  store_only set, remove it from the cache.
+
+Tue Mar 30 16:40:31 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/unittests/spell_correct_1.py: Enable an old test for a bug
+	  which has long been fixed.
+
+Wed Mar 10 15:15:41 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: Link to new version of xapian.
+
+Thu Mar 04 18:07:38 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* utils/verify_cache.py: Move cache verifier into
+	  xappy.cachemanager.verify_cache, so that it'll be available in
+	  installed versions of xappy.
+
+Thu Mar 04 18:06:34 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* utils/verify_cache.py: Expand verification routine to check the
+	  cache much more thoroughly, and report errors more clearly.
+
+Thu Mar 04 16:39:51 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* utils/verify_cache.py: Add a utility to verify the integrity of a
+	  cache.
+
+Wed Feb 24 10:26:38 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/datastructures.py,xappy/unittests/calc_hash.py: Add a
+	  ProcessedDocument.remove_term() method, and a brief test of it.
+
+Tue Feb 23 00:35:35 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Fix the backwards compatibility
+	  fallback for setting keymaker parameters to catch the correct
+	  exception type.
+
+Tue Feb 23 00:17:14 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py,xappy/unittests/sort.py: Sort document
+	  with missing values in the slots to the end.
+
+Mon Feb 22 23:38:17 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/mset_search_results.py: Support both the old and new xapian
+	  APIs for getting facet values.
+
+Mon Feb 22 23:14:54 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: Update to latest versions of xapian (now
+	  taken directly from the "xappy" branch in Xapian SVN, rather than
+	  from combining all the feature branches).
+
+Sat Feb 06 11:20:27 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* utils/make_xappy_tarballs: Update branchpoints.
+
+Sat Feb 06 11:19:18 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/query.py: Basic fixes to the Query.get_facet{,s} code.  No
+	  tests for this yet, since it's not actually hooked in to running
+	  tests.
+
+Fri Feb 05 09:34:08 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/doctests/searchconnection_doctest2.txt,
+	  xappy/mset_search_results.py: Remove use of score_evenness(): use
+	  a much simpler algorithm instead.  Testing with real-world data
+	  shows that score_evenness() doesn't return a particularly useful
+	  value anyway, so it'll be being removed from Xapian soon.  We're
+	  likely to remove get_suggested_facets() at some point soonish,
+	  too.
+
+Thu Feb 04 15:24:01 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* research/expand_prefixes.py: Add a little research script.
+
+Tue Feb 02 16:48:19 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* utils/make_xappy_tarballs: Update branchpoint.
+	* xappy/mset_search_results.py: Use UnbiasedNumericRanges instead
+	  of NumericRanges if it's available.
+
+Mon Feb 01 11:19:12 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Check for the correct metadata key.
+
+Wed Jan 27 15:20:15 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/indexerconnection.py,xappy/searchconnection.py,
+	  xappy/unittests/cached_searches.py: Add ability to copy a cache
+	  into the main xapian index.  When this has been done, open the
+	  cache automatically, both in future IndexerConnections and in
+	  SearchConnections.  Also, complain if an IndexerConnection which
+	  has had a cache applied doesn't have a cache connected when a
+	  deletion is performed.
+
+Tue Jan 26 14:12:56 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/unittests/cached_searches.py: Test asking for facets with a
+	  cached query id, when none are cached.
+
+Tue Jan 26 14:01:01 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/doctests/searchconnection_doctest2.txt,
+	  xappy/unittests/facets.py: Fix a couple of facet testcases which
+	  got missed.
+
+Tue Jan 26 13:36:59 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Handle case where there are no cached
+	  facets for a query, but facets are requested.  Need to add a
+	  test for this.
+
+Tue Jan 26 13:04:49 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py,xappy/mset_search_results.py,
+	  xappy/unittests/cached_searches.py: Revert sort order of facet
+	  values to be by ascending order of key - putting them in
+	  frequency order wasn't particularly helpful, and some external
+	  code might depend on the order.  Also makes it easier to merge
+	  facet values from multiple databases.
+
+Tue Jan 26 10:51:36 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py: Add clear_facets method to base
+	  class.
+
+Tue Jan 26 09:43:01 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py,xappy/cachemanager/generic.py,
+	  xappy/doctests/searchconnection_doctest2.txt,
+	  xappy/mset_search_results.py,xappy/searchconnection.py,
+	  xappy/searchresults.py,xappy/unittests/cached_searches.py,
+	  xappy/unittests/facets.py: Finish implementing support for facets
+	  and stats served from the cache.
+
+Thu Jan 21 16:15:28 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py: Add support for setting facets and
+	  stats individually and accumulating them.
+
+Thu Jan 21 15:32:59 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Ensure that queries actually are
+	  connected to the SearchConnection that they're returned from.
+
+Thu Jan 21 15:32:06 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/unittests/query_serialise.py: Test that empty queries are
+	  connected when unserialised.
+
+Wed Jan 20 17:01:58 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/query.py: Add support for requesting facets to the Query
+	  object: not yet hooked up.
+
+Wed Jan 20 16:56:53 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* docs/introduction.rst,xappy/unittests/db_type1.py,
+	  xappy/unittests/weight_action.py: Update for new default backend,
+	  and availability of brass backend.  (Percentage weights are
+	  slightly different with chert, because it stores more statistics
+	  which allow tighter bounds.)
+
+Mon Jan 18 16:36:14 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/indexerconnection.py: Change default type for new databases
+	  to chert, and add brass as an option.
+
+Fri Jan 15 10:56:33 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* external_posting_source/sortdatabase/sortdatabase.cc: Include
+	  cstdio to fix warning on pickier new compilers.
+
+Fri Jan 15 10:54:26 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Update for new
+	  version of xapian (main difference is that xapian-compact works
+	  with chert in this version).
+
+Mon Jan 04 16:56:05 GMT 2010  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchresults.py: Fix to stop completely ignoring the
+	  results of _reorder_by_clusters().
+
+Wed Dec 30 22:59:51 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/datastructures.py: Add get_terms() method to get the terms
+	  in a given field in a ProcessedDocument.
+
+Wed Dec 30 19:26:52 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py: Fix bug in accessing results
+	  directly by index.
+
+Wed Dec 30 19:26:18 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/unittests/cached_searches.py: Check accesses to search
+	  results which didn't start with 0.
+
+Wed Dec 30 15:37:32 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/unittests/testdata/chert_db/iamchert: Update chert format.
+
+Wed Dec 30 15:03:45 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py,xappy/cachemanager/xapian_manager.py,
+	  xappy/unittests/cachemanager.py: Add a "clear()" method to
+	  CacheManager to delete all the items in the cache.
+
+Wed Dec 30 13:21:14 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: New xapian packages.  Includes performance
+	  improvement for replace_document() when few changes have been
+	  made to a document.
+
+Wed Dec 30 12:20:46 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* utils/make_xappy_tarballs: Update branchpoints.
+
+Tue Dec 15 18:42:13 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py: Fix bug with facets for search
+	  with cached hits - was always trying to use cached facets, too.
+
+Tue Dec 15 18:40:42 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/unittests/cached_searches.py: Add tests of getting facets
+	  from cached searches.
+
+Tue Dec 15 16:42:10 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py: Remove old parameter from
+	  get_suggested_facets().
+
+Tue Dec 15 16:09:04 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py,xappy/mset_search_results.py,
+	  xappy/searchconnection.py: Remove CacheResultStats and
+	  MSetResultStats - replace them with a generic ResultStats which
+	  takes both the mset and the cached value, and returns the cached
+	  values if not None, and reads the mset otherwise.  Adjust the
+	  search code to perform the search if any of the cached values are
+	  None.
+	* xappy/unittests/cached_searches.py: Minimal test for stats return
+	  values.
+
+Tue Dec 15 16:08:23 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py: Revert previous fix to stats
+	  storage, but also don't store anything if all stats are None.
+
+Tue Dec 15 14:14:27 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py: Return None if no stats, instead
+	  of (None, None, None).
+
+Tue Dec 15 14:12:03 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Update a couple of comments.
+
+Tue Dec 15 09:56:56 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/mset_search_results.py,xappy/searchresults.py,
+	  xappy/unittests/facets.py: Add SearchResults.get_facets() which
+	  returns all the facets.  Refactor the facet calculation to store
+	  results in a more useful form for returning this.
+
+Tue Dec 15 08:55:49 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* setup.py,xappy/__init__.py: Bump version to 0.6.0 - release won't
+	  be for a little while yet, but this allows me to test the version
+	  for backward compatibility.
+
+Tue Dec 15 08:43:24 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/mset_search_results.py,xappy/searchconnection.py,
+	  xappy/searchresults.py: Refactor facet calculation.  Scoring now
+	  happens immediately, rather than when get_suggested_facets() is
+	  called.  This requires adding a "facet_desired_num_of_categories"
+	  parameter to SearchConnection.search().  I'm likely to remove
+	  get_suggested_facets() entirely soon, since experience has shown
+	  that the facet suggestion algorithm it uses isn't of much
+	  practical use: it's probably better to just return all the valid
+	  facets for now, and allow higher layers to choose them, until we
+	  know a better algorithm.
+	* docs/introduction.rst,xappy/doctests/searchconnection_doctest2.txt:
+	  Update to expect range facets values in a tuple rather than a
+	  list.
+
+Mon Dec 14 18:44:00 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/mset_search_results.py,xappy/searchconnection.py: Pass the
+	  field types through to the facet results directly, instead of the
+	  kwargs from the action.
+
+Mon Dec 14 13:58:19 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/unittests/query_id.py: Test query_id for correct
+	  serialisation.
+
+Mon Dec 14 13:54:51 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Fix argument serialisation for query
+	  constructors which have no default arguments: fixes
+	  evalable_repr() for queries created with query_id().
+
+Mon Dec 14 13:47:26 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py,xappy/searchconnection.py: Tie in
+	  facets and stats from the cache.
+
+Mon Dec 14 13:45:31 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py: Implement get_facets() properly.
+
+Mon Dec 14 11:41:35 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py: Add storage of statistics and
+	  facets to the cache.
+
+Thu Dec 10 11:34:07 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/highlight.py: Use thread local storage correctly - make the
+	  "stemmers" dict on demand in each thread.
+
+Thu Dec 10 11:28:01 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/highlight.py: Cache the stemmers, and the results of the
+	  stemmers, in thread local storage, to allow the cache to be
+	  reused across uses of the Highlighter.  Based on a patch from
+	  Bruno Rezende.
+
+Wed Dec 09 13:09:35 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Add stats_checkatleast, to allow the
+	  value of checkatleast when calculating stats to be set.
+
+Wed Dec 09 12:05:31 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py,xappy/mset_search_results.py,
+	  xappy/searchresults.py: Get the start and end rank from the
+	  ordering instead of the stats; makes a lot more sense this way.
+
+Wed Dec 09 03:24:52 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/utils.py: Add missing import of "math".
+
+Wed Dec 09 03:20:51 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py,xappy/searchresults.py,
+	  xappy/unittests/cached_searches.py: Refactor searchresults to use
+	  the cache automatically if the query is appropriate.
+
+Wed Dec 09 03:19:39 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cache_search_results.py: Add a preliminary set of classes
+	  for representing the results of reading the cache in a form
+	  suitable for use in search results.
+
+Wed Dec 09 03:18:39 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/query.py: Add support for storing the queryid for a cached
+	  query in the Query object.
+
+Wed Dec 09 01:04:03 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/doctests/searchconnection_doctest2.txt: Be less susceptible
+	  to garbage collection timing.
+
+Tue Dec 08 12:29:52 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/doctests/searchconnection_doctest2.txt,
+	  xappy/mset_search_results.py,xappy/searchconnection.py,
+	  xappy/searchresults.py: Pull out the mset-specific code for
+	  search results into mset_search_results.py
+
+Tue Dec 08 11:49:10 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py,xappy/searchresults.py: Factor out
+	  facet information to a MSetFacetResults object.
+
+Tue Dec 08 11:17:20 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py,xappy/searchresults.py: Refactor
+	  getting result stats into a separate object.
+
+Tue Dec 08 10:54:27 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py,xappy/searchresults.py,xappy/utils.py:
+	  Move add_to_dict_of_dicts() into utils.py.  Add
+	  SearchResultContext, used to bundle up all the resources that a
+	  SearchResult object might need.
+
+Tue Dec 08 09:25:54 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/: Split get_significant_digits into separate utility
+	  function, in new "utils.py" file.  Refactor SearchResults
+	  reordering stuff to use a MSetResultOrdering or
+	  ReorderedMSetResultOrdering object to control get_hits and iter:
+	  removes the _mset_order member from SearchResults.  Working
+	  towards removing the _mset member, too.
+
+Tue Dec 08 00:06:31 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/: Backport licenses from the xappy2 repository at
+	  http://code.google.com/p/xappy2/.  Also, some minor tidying up of
+	  inline calls to doctest - these are no longer required since the
+	  top level test script can be used instead.  Also, fix
+	  documentation comment for query.py which had been cut-and-pasted
+	  from searchconnection.py.
+
+Mon Dec 07 20:18:51 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/: Split the inverters into separate files, and
+	  fallback to inmemory if numpy is not available.  Various other
+	  code tidyups.
+
+Mon Dec 07 14:15:03 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py,xappy/searchresults.py: Split the
+	  SearchResults and SearchResult classes out of
+	  searchconnection.py, as a first step to making the code a bit
+	  more readable.  Also, minimise the number of imported symbols,
+	  get rid of the "*" in "from foo import *", and use the proper
+	  names of various imports rather than prefixing them with an
+	  underscore.
+
+Sat Dec 05 23:50:15 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/doctests/indexerconnection_doctest1.txt: Be less fussy
+	  about required text in exception message (it's changed with
+	  latest Xapian).
+
+Sat Dec 05 23:37:58 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Link to packages
+	  built with new version of xapian.
+
+Wed Dec 02 01:16:00 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py,
+	  xappy/cachemanager/xapian_manager.py: Use the hash of query
+	  strings, rather than the raw strings, to avoid problems with key
+	  length limits in xapian.  Store the raw string additionally, so
+	  we can report a cache miss in the event of a collision, and so we
+	  can iterate through the stored query strings.
+
+Tue Dec 01 23:54:39 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/query.py,xappy/unittests/query_serialise.py: Improve
+	  serialisation functions: flatten nested combinations into lists,
+	  and improved the serialised representations of these too.  Unify
+	  representation of queries joined with .compose(OP_AND) and those
+	  joined with &, and similarly for OP_OR and |.
+
+Tue Dec 01 23:53:22 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Add 'Query' to the unserialisation
+	  context.  Fix an incorrect return type if a field was specified
+	  for geolocation sorting which hadn't been indexed appropriately.
+
+Tue Dec 01 12:42:35 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* MANIFEST.in,setup.py: Add xappy.cachemanger to distribution.
+
+Tue Dec 01 11:47:46 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/query.py: Improve the serialisation of the result of
+	  norm().
+
+Mon Nov 30 12:10:19 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/searchconnection.py: Check that only one of docid and xapid
+	  are set in get_document() before entering the while loop.  This
+	  fixes a bug where the xapid got set later in the loop, so when a
+	  DatabaseModifiedException error happened, the xapid was set the
+	  next time around, triggering the error.
+
+Thu Nov 26 17:29:47 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/query.py,xappy/unittests/cached_searches.py: Add
+	  Query.merge_with_cached() to make applying a cached query easier.
+	  Add a test for this.
+
+Thu Nov 26 12:58:38 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/query.py,xappy/unittests/weight_action.py: Allow norm() to
+	  take a maxweight parameter.  Update tests to check this works.
+
+Thu Nov 26 12:54:33 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* utils/make_xappy_tarballs: Update revision numbers.
+
+Thu Nov 26 01:32:29 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py,xappy/cachemanager/xapian_manager.py,
+	  xappy/unittests/cachemanager.py: Add a new iter_query_strs()
+	  method.
+
+Thu Nov 26 00:17:57 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/generic.py,xappy/cachemanager/queryinvert.py:
+	  Fully integrate the numpy-based inversion - caching its results
+	  for faster application to many subdatabases, and factoring it out
+	  as a MixIn.
+
+Wed Nov 25 10:59:19 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/__init__.py,xappy/cachemanager/generic.py,
+	  xappy/cachemanager/xapian_manager.py: Release these files under
+	  the MIT/X license.
+
+Wed Nov 25 10:52:12 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/cachemanager/queryinvert.py: Some fairly efficient code to
+	  invert lists of docids for queries, thanks to Shane for the
+	  original implementation.
+
+Tue Nov 24 11:23:02 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Update for new
+	  version of Xapian; main difference is a considerable improvement
+	  in speed with the chert backend.  WARNING: there appears to be a
+	  compiler bug in GCC 4.2 which can cause searches using chert to
+	  fail.  If using GCC, I recommend using GCC 4.3 or later to avoid
+	  this bug.
+
+Tue Nov 24 10:16:31 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* xappy/indexerconnection.py: Ignore missing docids when applying
+	  the cached items to a database - this is likely to be deliberate.
+
+Fri Nov 20 11:16:27 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py: New version of xapian - should have improved
+	  performance for chert when values are in use.
+
+Thu Nov 19 15:41:50 GMT 2009  Richard Boulton <richard@tartarus.org>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs,
+	  xappy/searchconnection.py: Link to new xapian packages.  These
+	  packages have a slightly different API for doing sorting, so
+	  update searchconnection.py accordingly: this does mean that the
+	  latest version of xapian is required to perform custom sorting,
+	  so xapian and xappy need to be upgraded together here.
+
+Mon Nov 09 04:45:55 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/cachedresults.rst: Tweak final phrase.
+
+Mon Nov 09 04:35:22 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/cachedresults.rst: Documentation, and lots of analysis.
+
+Mon Nov 09 04:09:28 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/perftest/cachemanager.py: Improve log messages marginally.
+
+Mon Nov 09 03:05:36 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/perftest/cachemanager.py: Performance test which includes
+	  search tests, and is more careful with some of the other tests.
+
+Mon Nov 09 03:05:05 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py: Turn off debugging print.
+
+Mon Nov 09 03:04:30 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/cachemanager/generic.py: Turn off debugging print.
+
+Mon Nov 09 01:58:19 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/perftest/harness.py: Fix some bugs in the timers.
+
+Sun Nov 08 11:27:35 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/cached_searches.py: Update test for new search
+	  interface.
+
+Sun Nov 08 11:21:28 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Implement query_cached() to return a
+	  query which returns the cached items for a given queryid, instead
+	  of the additional cached_query_str() parameter to search() - much
+	  more flexible.
+
+Sun Nov 08 11:20:27 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/cachemanager/__init__.py,xappy/cachemanager/xapian_manager.py:
+	  Add CacheManager implementation which uses a secondary Xapian
+	  database to perform the inversion.
+
+Sun Nov 08 11:17:11 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/perftest/cachemanager.py,xappy/perftest/harness.py: Add
+	  performance test harness, and a test for the cachemanager
+	  performance.
+
+Sun Nov 08 11:09:09 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py: Update to pass the docids as well as
+	  the rank estimates to the cache.
+
+Sun Nov 08 11:07:14 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/cachemanager/generic.py: Pull out the preparations for
+	  iter_by_docid to a separate method, and fix remove_hits to allow
+	  the supplied ranks to be mis-estimates.
+
+Sun Nov 08 11:06:15 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/cachemanager.py: Extend test to check what
+	  happens when the supplied ranks are over estimates.
+
+Sat Nov 07 21:37:52 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/cachemanager.py: Allow iter_by_docid() to return
+	  the query ids as something other than a list.
+
+Mon Nov 02 17:53:59 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/cachemanager/generic.py,xappy/cachemanager/xapian_manager.py,
+	  xappy/unittests/cachemanager.py: Modify the
+	  KeyValueStoreCacheManager to be a UserDict.DictMixin subclass,
+	  and use the standard __getitem__, etc, accessors.  It doesn't
+	  quite match the API contract of DictMixin because all keys are
+	  always present as far as getitem and delitem are concerned: their
+	  value is '' if they haven't already been assigned to, and
+	  deleting just sets the value to ''.  However, it's close enough
+	  that this is useful for debugging purposes.
+
+Mon Nov 02 17:15:08 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/cachemanager.py,xappy/cachemanager/__init__.py,
+	  xappy/cachemanager/generic.py,xappy/cachemanager/xapian_manager.py:
+	  Refactor cachemanager into a submodule, and separate the
+	  xapian-based cache into a separate file, so we can do a
+	  conditional import of it, handling the caes of Xapian not being
+	  installed more cleanly.
+
+Mon Nov 02 03:28:35 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Pass the xappy.Query to the
+	  SearchResults object, not the xapian Query.
+
+Mon Nov 02 03:14:55 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/cachemanager.py,xappy/indexerconnection.py,
+	  xappy/searchconnection.py: Initial implementation of pre-cached
+	  searches.  Uses the value slots to hold information about the
+	  ranks assigned by the pre-cached searches, which is relatively
+	  inefficient on flint.
+	* xappy/unittests/cachemanager.py: Test of the cachemanager
+	  implemetnation.
+	* xappy/unittests/cached_searches.py: Test that searches using the
+	  cachemanager work correctly.
+
+Sun Nov 01 21:10:10 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py,xappy/unittests/docids.py: Allow a
+	  Xapian document ID to be specified to the add(), replace(), and
+	  delete() methods. 
+
+Sun Nov 01 21:07:32 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* test.py: Skip test modules which depend on missing modules,
+	  displaying an appropriate message. 
+
+Sun Nov 01 21:01:54 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update branchpoint revision numbers.
+
+Mon Sep 07 08:13:30 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Fix wildcard support; was omitting
+	  a "self" when looking for the wildcard flags.
+
+Fri Sep 04 14:04:00 GMT 2009  Charlie Hull <charlie@flax.co.uk>
+
+	* libs/build_xapian_win32.bat: new file to assist building under
+	  Win32.
+
+Thu Sep 03 12:05:34 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Fix
+	  SearchConnection._get_freetext_fields - not sure we want to keep
+	  this (it's not public, or called from anywhere), but might as
+	  well make it work while we decide.
+
+Tue Sep 01 13:53:06 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Updated packages with fixed windows build
+	  system (hopefully).
+
+Wed Aug 26 08:42:59 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: New packages with fixes for windows.
+
+Mon Aug 24 16:02:34 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update branchpoint for windows
+	  compilable tarballs.
+	* xappy/fieldactions.py: Fix for document.fields being an iterator.
+
+Mon Aug 24 12:16:23 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Updated tarballs -
+	  should build for windows.
+
+Fri Aug 21 12:17:29 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/colour.py: Add iter_buckets_rgb() to iterate through all
+	  the buckets.  This can be used to generate a target palette for
+	  quantization.
+
+Fri Aug 21 09:00:41 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/colour.py: Some more utility functions for colour
+	  conversion, to let us get back from a bucket or from lab coords
+	  to an rgb value for display.
+
+Fri Aug 21 07:46:32 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Update to get new packages.
+
+Fri Aug 21 06:47:58 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/colour.py: import xapian-dependent stuff lazily, to make it
+	  easier to use this module standalone.
+
+Fri Aug 21 06:44:53 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* README: Note that scipy 0.7 or later is needed.
+	* xappy/colour.py,xappy/unittests/colour.py: Fix off-by-one
+	  error for buckets at the top end of the range.
+
+Wed Aug 19 11:06:35 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Apply untested patch for wildcards.
+
+Mon Aug 17 23:44:38 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* AUTHORS: Update license of majority of code to MIT (but note that
+	  it's still effectively GPL for now).
+
+Mon Aug 17 18:13:02 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs,xappy/_checkxapian.py,
+	  xappy/searchconnection.py,xappy/unittests/general1.py: Update for
+	  new facet support interface in xapian (now in trunk).
+
+Fri Aug 14 09:58:37 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update version numbers of
+	  branchpoints.
+
+Wed Aug 05 05:50:57 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* README: Mention where to get colormath from.
+
+Wed Aug 05 05:40:39 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/colour_data.py: Fix not to use defaultdict.
+
+Wed Aug 05 05:40:17 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fieldactions.py: Fix to work with FieldGroups again.
+
+Wed Aug 05 01:29:36 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/colour.py: Uncomment needed imports (which I'm not
+	  currently sure how to satisfy).
+
+Wed Aug 05 01:28:51 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/colour.py: Various updates and fixes.
+
+Wed Aug 05 05:50:57 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* README: Mention where to get colormath from.
+
+Wed Aug 05 05:40:39 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/colour_data.py: Fix not to use defaultdict.
+
+Wed Aug 05 05:40:17 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fieldactions.py: Fix to work with FieldGroups again.
+
+Wed Aug 05 01:29:36 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/colour.py: Uncomment needed imports (which I'm not
+	  currently sure how to satisfy).
+
+Wed Aug 05 01:28:51 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/colour.py: Various updates and fixes.
+
+Wed Aug 05 00:18:25 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* AUTHORS,docs/image.rst,xappy/colour.py,xappy/fieldactions.py,
+	  xappy/searchconnection.py,xappy/unittests/colour.py: Merge in
+	  changes from colour branch.
+
+Tue Aug 04 21:39:23 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update revision numbers, and add
+	  coloursim branch.
+
+Tue Jul 28 17:16:32 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: remove postingsources branch - now
+	  merged to trunk.
+
+Sun Jul 19 15:46:43 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/: Remove replaylog functionality - it never fully worked,
+	  and it's better to either use python's trace functions, or a
+	  debug logging build of xapian.
+
+Sun Jul 19 15:37:19 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/introduction.rst,utils/make_xappy_tarballs,
+	  xappy/_checkxapian.py,xappy/doctests/searchconnection_doctest2.txt,
+	  xappy/doctests/searchconnection_doctest3.txt,xappy/fieldactions.py,
+	  xappy/searchconnection.py,xappy/unittests/: Remove TAG feature -
+	  it can be implemented (and more efficiently) using FACET.
+
+Sun Jul 19 10:23:05 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py,xappy/searchconnection.py: Apply
+	  trimming of the terms in PrefixedTermIterator after removing the
+	  prefix, instead of before.  Allows the special handling for
+	  colons to work correctly.
+
+Fri Jun 19 11:14:51 BST 2009  Tom Mortimer <tom@flax.co.uk>
+
+	* xappy/indexerconnection.py: Allow PrefixedTermIter to take an
+	  explicit trim length (for removing prefix).
+	* xappy/searchconnection.py: Added optional starts_with parameter
+	  to iter_terms_for_field().
+
+Tue May 26 07:54:48 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Don't recalculate all the potentials
+	  each time - just update the one which has changed.  About 50%
+	  faster in my tests.
+
+Mon May 25 00:39:18 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py,xappy/searchconnection.py: Display
+	  docid in error messages.
+
+Sat May 23 08:29:08 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Estimate the initial utilities only on
+	  the basis of the top 100 results, so that paging through the
+	  results further doesn't result in an unstable ordering.
+
+Fri May 22 13:16:30 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py,xappy/unittests/diversity.py: Add
+	  support for "collapse_max" parameter to search, to allow more
+	  than 1 hit to be returned in each collapse category.  Also, add a
+	  new "reorder_by_collapse" to reorder the results to acheive
+	  maximum diversity based on the hits returned.
+
+Thu May 21 06:39:33 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/build_xapian.sh,libs/get_xapian.py: Update xapian packages.
+
+Thu May 14 19:18:52 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/datastructures.py: Fallback to importing sha instead of
+	  hashlib, for python 2.4 compatibility.
+
+Mon May 11 10:49:56 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: New branchpoint and
+	  new tarballs.
+
+Fri May 08 08:37:09 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: New xapian tarballs.
+
+Fri May 08 08:22:47 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: More updates to branchpoints.
+
+Thu May 07 23:14:23 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update branchpoints, and remove the
+	  old opsynonym branch, which has now been merged to trunk.
+
+Wed May 06 11:20:13 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/query_all.py: Add test of new weight parameter
+	  for query all.
+
+Wed May 06 11:11:48 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Fix serialisation of query_difference
+	  queries, and add an optional "weight" parameter to query_all().
+
+Mon Apr 20 12:54:07 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fieldactions.py,xappy/unittests/field_associations.py: Add
+	  "link_associations" parameter to STORE_CONTENT.  Defaults to
+	  True, but if False this stops associated field data being stored
+	  as an extra item in the document contents.  Use this if you don't
+	  want to use relevant_data() with simple=False.
+
+Wed Apr 15 13:06:41 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/highlight.py: Remove unneccessary use of enumerate - thanks
+	  to Shane Evans for spotting it.
+
+Wed Apr 15 10:12:35 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Improve calculation of range terms to
+	  use to use a tighter bound when it can.
+
+Wed Apr 15 10:02:00 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/highlight.py: Add internal function to highlighter to count
+	  the number of words.
+
+Tue Apr 07 10:13:59 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Use ranges from FACET action in
+	  query_range(), if they're not available from the
+	  SORT_AND_COLLAPSE action.
+
+Tue Apr 07 10:02:31 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/range_accel.py,xappy/unittests/range_speed.py:
+	  Update to test the new range acceleration implementation.
+
+Tue Apr 07 10:00:47 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Improvements to the range
+	  acceleration; use a superset of terms covering the range if
+	  possible, and AND this with the range restriction.  Also, if the
+	  terms cover the range exactly, don't bother with the VALUE_RANGE
+	  part.
+
+Thu Apr 02 17:54:23 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/highlight.py: Add a simple cache for stemming in
+	  highlighters - improves performance noticeably in some cases (I
+	  measured about a 20% improvement in highlighting speed for a
+	  database in which the documents are produce descriptions,
+	  compared to a 50% improvement if I turn stemming in highlighting
+	  off completely).
+
+Thu Apr 02 17:25:33 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/highlight.py: Avoid parsing the query into terms repeatedly
+	  when highlight is called for multiple fields with the same query.
+
+Thu Apr 02 15:47:31 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Implement the allow and deny
+	  parameters for relevant_data()
+
+Wed Apr 01 11:07:25 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py,utils/make_xappy_tarballs: Update with new
+	  branchpoints and tarballs.
+
+Fri Mar 27 13:41:17 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Update xapian-extras packages.
+
+Fri Mar 27 12:49:36 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/doctests/indexerconnection_doctest2.txt: Explicitly access
+	  the hit data when trying to trigger DatabaseModifiedError - data
+	  is now read lazily, so the test was failing with the new
+	  tarballs.
+
+Fri Mar 27 12:37:10 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Update reset() to init() in posting
+	  source, and handle missing field action in _get_approx_params.
+
+Fri Mar 27 12:31:26 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add "assume_single_value" parameter to
+	  _cluster(), to let it know that all fields in use are
+	  single-valued.  Also, add support for doing range acceleration
+	  searches using terms and values where the terms cover the range,
+	  and the values are used to do a second-pass restriction.
+
+Fri Mar 27 10:06:16 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Update with new tarballs.
+
+Fri Mar 27 10:04:59 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/build_xapian.sh: Set program-suffix to empty when building:
+	  possibly we should use a special xappy suffix by default, but
+	  we're installing locally in this script, anyway.
+
+Fri Mar 27 09:29:29 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add support for new clustering method
+	  for single-valued single fields, reading from a value slot; use
+	  it automatically if index strategy makes this possible.
+
+Fri Mar 27 09:26:34 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/cluster.py: Add test for clustering.
+
+Fri Mar 27 08:29:08 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Stop chasing a moving target - set the
+	  trunk_revision to build tarballs for explicitly.
+
+Tue Mar 24 14:48:12 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Catch DatabaseModifiedError in
+	  _load_config() call to get_metadata(), too.
+
+Tue Mar 24 14:44:07 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Catch DatabaseModifiedError in
+	  get_metadata(), and reopen and retry.
+
+Wed Mar 11 15:28:38 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/introduction.rst,xappy/unittests/general1.py,
+	  xappy/unittests/testdata/chert_db/iamchert,
+	  xappy/unittests/weight_action.py: Update expected weights in
+	  remaining tests, and the format of the sample chert database, to
+	  work with new tarballs.  Allows removal of a hacky "2.0" in the
+	  weight_action test.
+
+Wed Mar 11 15:20:44 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/queries.rst: Update with value of
+	  get_max_possible_weight() returned by new xapian tarballs; these
+	  provide tighter bounds.
+
+Wed Mar 11 15:20:12 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Avoid using deprecated form of
+	  set_sort_by_key_then_relevance.
+
+Wed Mar 11 13:52:19 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Update with new packages (core and bindings,
+	  old extras packages should be compatible).
+
+Wed Mar 11 11:37:00 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update branchpoint numbers.
+
+Fri Mar 06 05:48:28 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/build_xapian.sh,libs/get_xapian.py: Update with new
+	  tarballs, and add script to build and install (locally) all the
+	  tarballs.
+
+Thu Mar 05 16:20:01 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/distance.py: Fix completely broken distance test.
+
+Thu Mar 05 16:10:02 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/doctests/searchconnection_doctest2.txt,
+	  xappy/unittests/general1.py: Update for new tarballs, and move
+	  some tests from doctest to unittest so they can be handled more
+	  neatly.
+
+Thu Mar 05 16:09:44 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Update for new xappy tarballs.
+
+Thu Mar 05 10:43:36 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: More updates to base revisions.
+
+Thu Mar 05 10:26:02 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Fix base revision for postingsources.
+
+Thu Mar 05 08:29:02 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Add postingsources branch.
+
+Wed Mar 04 16:35:16 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/imgseek.py: Add buckets parameter, and some
+	  useful commented out debug prints.
+
+Wed Mar 04 16:34:22 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fieldactions.py: add "buckets" parameter to IMGSEEK action,
+	  to allow the number of buckets to be controlled.
+
+Wed Mar 04 14:59:16 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/imgseek.py: Add (commented out) debugging prints.
+
+Tue Mar 03 17:10:16 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fieldactions.py,
+	  xappy/indexerconnection.py,xappy/searchconnection.py,
+	  xappy/unittests/imgseek.py: Add an alternate, approximate but
+	  much faster, method of doing the image similarity searches.
+	* perftest/imgidx.py,perftest/imgsearch.py: Add some simple
+	  performance tests for image searches.
+
+Tue Mar 03 15:48:30 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* docs/image.rst: Documentation for the imgseek feature.
+
+Mon Mar 02 13:48:01 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update branchpoints, and remove
+	  valuemapsource branch which has been merged to trunk.
+
+Fri Feb 27 14:23:26 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/_checkxapian.py,xappy/fieldactions.py,
+	  xappy/searchconnection.py,xappy/unittests/imgseek.py: Add new
+	  IMGSEEK field action, and corresponding query_image_similarity()
+	  method.  Also add test case.  All requires a new set of xapian
+	  pacakges, which are not yet available other than from SVN - this
+	  feature is still under heavy development.
+
+Fri Feb 27 13:05:03 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/testdata/sampleimages/candle.jpg,
+	  xappy/unittests/testdata/sampleimages/cat.jpg,
+	  xappy/unittests/testdata/sampleimages/looroll.jpg: Add some
+	  sample data for testing image search.
+
+Fri Feb 20 10:39:36 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/datastructures.py,xappy/unittests/calc_hash.py: Add
+	  calc_hash() method to ProcessedDocument, returning a hash to use
+	  to avoid reindexing documents which have not changed.  Patch from
+	  Pablo.
+
+Fri Feb 20 10:21:03 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fieldactions.py,xappy/indexerconnection.py,
+	  xappy/unittests/store_only.py: Patch from Pablo, with minor
+	  tweaks from me, to add a store_only parameter to the methods
+	  which process documents which only runs the STORE_CONTENT
+	  actions.
+
+Wed Feb 18 04:55:16 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py,xappy/unittests/field_groups.py: Fix to
+	  previous patch (thanks to Pablo, again).
+
+Tue Feb 17 19:21:53 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py,xappy/unittests/field_groups.py:
+	  Another patch from Pablo: this one replaces the old, not very
+	  handy, "group" parameter to relevant_data() with a
+	  "groupnumbers" parameter, which returns the group number for each
+	  bit of returned data.
+
+Tue Feb 17 19:16:00 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/doctests/indexerconnection_doctest1.txt: Update doctest to
+	  work with previous patch.
+
+Tue Feb 17 19:13:25 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/errors.py,xappy/indexerconnection.py,
+	  xappy/unittests/indexer_errors.py: Another patch from Pablo
+	  Hoffman, this time to add a specific error type for reporting
+	  that an ID has already been used.
+
+Tue Feb 17 15:31:39 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/datastructures.py,xappy/unittests/field_groups.py: Patch
+	  from Pablo Hoffman to return a dictionary of the groups, keyed by
+	  group number.
+
+Fri Feb 13 23:17:42 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* AUTHORS,xappy/datastructures.py,xappy/searchconnection.py,
+	  xappy/unittests/field_groups.py: Patch and unittest for bug with
+	  field groups which contain duplicated data.  Thanks to Pablo
+	  Hoffman for the fix and test.
+
+Fri Feb 13 10:31:04 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/distance.py: Extend unittest to cover
+	  max_range parameter.
+
+Thu Feb 12 09:37:57 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* external_posting_source/sortdatabase/README: Fix typo.
+
+Wed Feb 11 23:08:17 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Update version of packages to get.
+
+Wed Feb 11 22:35:21 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* external_posting_source/sortdatabase/README: Document the
+	  "reversed" parameter to make_order.py
+
+Wed Feb 11 21:23:55 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* external_posting_source/sortdatabase/README: Add instructions for
+	  sortdatabase.
+
+Wed Feb 11 18:59:17 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* external_posting_source/sortdatabase/Makefile,
+	  external_posting_source/sortdatabase/make_order.py,
+	  external_posting_source/sortdatabase/sortdatabase.cc: Much faster
+	  sortdatabase code.  Reads documents in order, in big batches,
+	  writes the documents to batch files, then reads each batch file,
+	  sorts it, and writes the documents in it.
+
+Fri Feb 06 11:55:51 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* external_posting_source/sortdatabase/sortdatabase.cc: Separate
+	  reading the documents from writing them, in the hope of a
+	  performance boost.  Doesn't seem to help much, but committing the
+	  code in case I'm missing something.
+
+Tue Jan 20 10:18:28 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/field_associations.py: Add test for relevant_data
+	  when allow_field_specific is False.
+
+Mon Jan 19 17:45:02 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* external_posting_source/sortdatabase/Makefile,
+	  external_posting_source/sortdatabase/sortdatabase.cc,
+	  external_posting_source/sortdatabase/test_sortdatabase.py: Add
+	  sortdatabase command, to sort a database by an external list of
+	  orders.
+
+Mon Jan 19 14:18:37 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Update versions of xapian packages.
+
+Mon Jan 19 14:17:02 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* coverage.py: Update coverage version.
+
+Tue Jan 13 17:10:47 GMT 2009  Tom Mortimer <tom@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Switched to using SORTABLE action for
+	  query_valuemap, avoiding format problems of FACET.
+	* xappy/tests/valuemapsource_1: Added test cases for simple queries
+	  with and without default weights
+
+Tue Jan 13 14:58:00 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Don't forget to build SWIG before
+	  using it!
+
+Tue Jan 13 14:39:35 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Replace accidentally removed line.
+
+Tue Jan 13 14:35:39 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Use $HOME/src/xappy if $HOME/xappy
+	  doesn't exist, to please Tom.  Include the branchpoint revision
+	  numbers in patches to avoid confusion when those change.  Make
+	  xappylibdir if it doesn't already exist.
+
+Tue Jan 13 13:20:23 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update package build script to use the
+	  last-changed revision number on each branch for the branch diffs
+	  file, to avoid having to refetch all of them on any commit
+	  anywhere in the xapian tree.
+
+Tue Jan 13 13:03:38 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Remove trailing whitespace, and tidy
+	  some documentation comment formatting.  Validate the weights
+	  passed to query_valuemap(), and return a xappy.Query() object
+	  instead of a xapian.Query() object from it, to keep a reference
+	  to the postingsource alive, and also to enable query
+	  serialisation and combination syntax.
+
+Tue Jan 13 12:55:58 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: In _get_eterms with an non-indexed
+	  document, ensure that the document ID is set back to its original
+	  value even if an exception happens in doc.prepare().
+
+Mon Jan 12 15:08:09 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Include swig in the export.  Remove
+	  search-xapian and xapian-applications from the export, since
+	  they're not needed for xappy.
+
+Mon Jan 12 14:55:46 GMT 2009  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Updated script, which doesn't require
+	  lots of pre-existing checkouts.
+
+Fri Dec 26 15:48:27 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/indexerconnection.py,xappy/searchconnection.py: Update to
+	  use the close() method on xapian databases, when this is finally
+	  implemented (it's just been added to xapian trunk, but not yet
+	  made its way into packages).
+
+Tue Dec 23 00:06:15 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/query_id.py,xappy/unittests/query_id_test.py:
+	  Rename to query_id.py, and test cases where only a single ID is
+	  supplied.
+
+Tue Dec 23 00:04:15 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add query_id() function to search for
+	  documents with a particular ID.
+	* xappy/unittests/query_id_test.py: Add test of query_id().
+
+Mon Dec 22 20:06:09 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/datastructures.py: Add ProcessedDocument.get_distance() to
+	  get the distance from a document to a point, or to another
+	  document.
+	* xappy/searchconnection.py: Add SearchConnection.calc_distance()
+	  to get the distance between two points.  This is a static method,
+	  because there's nothing particular to a SearchConnection used in
+	  it, but it seems like the most natural place for it to go at
+	  present.
+
+Mon Dec 22 19:27:12 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/unittests/field_associations.py: Add test that
+	  grouped_data[0] is the same as data, when there are no groups.
+
+Mon Dec 22 19:06:31 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/datastructures.py,xappy/searchconnection.py,
+	  xappy/unittests/field_groups.py: Move grouped_data into
+	  ProcessedDocument, and change it into a property, to match data.
+
+Mon Dec 22 18:50:51 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add doccomment for query_distance().
+
+Mon Dec 22 17:43:35 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fieldactions.py,xappy/searchconnection.py,
+	  xappy/unittests/field_groups.py: Add SearchResult.grouped_data()
+	  method, to return data grouped by FieldGroup.
+
+Mon Dec 22 15:20:13 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* libs/get_xapian.py: Use new xapian packages, which include
+	  geospatial stuff.
+	* docs/introduction.rst,xappy/doctests/searchconnection_doctest2.txt:
+	  Fix various tests to cover fixes in the similarity search
+	  algorithms in xapian core - various terms which didn't really
+	  contribute to the similarity are no longer produced by it.
+	* xappy/searchconnection.py: Change sort-by-distance to sort in
+	  increasing distance order, rather than decreasing, and keep
+	  references to the bits used by the DistancePostingSource.
+	* xappy/unittests/distance.py: Enable test of query_distance().
+
+Mon Dec 22 14:16:07 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* utils/make_xappy_tarballs: Update branchpoints, and add
+	  geospatial branch.
+
+Mon Dec 22 14:14:44 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fieldactions.py: Note a potential performance problem.
+
+Sat Dec 06 18:28:43 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/searchconnection.py: Add "group" option to relevant data,
+	  which causes all data in a group which is partly relevant to be
+	  returned.
+	* xappy/unittests/field_associations.py: Test new syntax for
+	  building up documents.
+	* xappy/unittests/field_groups.py: Test group option for
+	  relevant_data().
+
+Sat Dec 06 18:01:20 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/datastructures.py: Allow a FieldGroup, or a set of
+	  parameters for making a FieldGroup, to be passed to extend().
+
+Sat Dec 06 18:00:44 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* xappy/fields.py: Correct a typo in a comment.
+
+Fri Dec 05 11:39:41 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
+
+	* setup.py: Bump version to 0.5.1, since it's significantly changed
+	  since 0.5, and we should probably make a release soon.
+	* xappy/: Add GEOLOCATION action, for storing latitude-longitude
+	  coordinates, and allowing ranking based on distance.  Add sort by
+	  distance method.
+	* xappy/unittests/difference.py,xappy/unittests/distance.py:
+	  Move distance.py to difference.py, and add new tests for
+	  geolocation, field groups, and convenience methods on
+	  UnprocessedDocument.
+
 Fri Nov 21 10:09:32 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 
 	* xappy/unittests/field_groups.py: Missed this file from previous
@@ -633,7 +2091,7 @@ Mon May 12 19:58:34 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
 	  float before storing them.
 
 Mon May 12 18:32:14 GMT 2008  Richard Boulton <richard@lemurconsulting.com>
- 
+
 	* xappy/fieldactions.py: Fix typo.
 	* xappy/searchconnection.py: Add support for ranking search results
 	  using weight fields. Also, add get_max_possible_weight(query) to

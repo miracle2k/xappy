@@ -54,7 +54,7 @@ coverage.py -a [-d dir] [-o dir1,dir2,...] FILE1 FILE2 ...
 Coverage data is saved in the file .coverage by default.  Set the
 COVERAGE_FILE environment variable to save it somewhere else."""
 
-__version__ = "2.78.20070930"    # see detailed history at the end of this file.
+__version__ = "2.85.20080914"    # see detailed history at the end of this file.
 
 import compiler
 import compiler.visitor
@@ -67,6 +67,7 @@ import sys
 import threading
 import token
 import types
+import zipimport
 from socket import gethostname
 
 # Python version compatibility
@@ -305,7 +306,8 @@ class StatementFindingAstVisitor(compiler.visitor.ASTVisitor):
 
 the_coverage = None
 
-class CoverageException(Exception): pass
+class CoverageException(Exception):
+    pass
 
 class coverage:
     # Name of the cache file (unless environment variable is set).
@@ -563,6 +565,32 @@ class coverage:
         for line_number in new_data.keys():
             if not cache_data.has_key(line_number):
                 cache_data[line_number] = new_data[line_number]
+
+    def abs_file(self, filename):
+        """ Helper function to turn a filename into an absolute normalized
+            filename.
+        """
+        return os.path.normcase(os.path.abspath(os.path.realpath(filename)))
+
+    def get_zip_data(self, filename):
+        """ Get data from `filename` if it is a zip file path, or return None
+            if it is not.
+        """
+        markers = ['.zip'+os.sep, '.egg'+os.sep]
+        for marker in markers:
+            if marker in filename:
+                parts = filename.split(marker)
+                try:
+                    zi = zipimport.zipimporter(parts[0]+marker[:-1])
+                except zipimport.ZipImportError:
+                    continue
+                try:
+                    data = zi.get_data(parts[1])
+                except IOError:
+                    continue
+                return data
+        return None
+
 
     # canonical_filename(filename).  Return a canonical filename for the
     # file (that is, an absolute path with no redundant components and

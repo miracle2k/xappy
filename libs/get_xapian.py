@@ -43,26 +43,38 @@ except ImportError:
 #  - URL to download
 #  - Filename to store downloaded package as
 #  - SHA1 sum of package
-archives = (
+archives = [
     ('Xapian core',
-     'http://xappy.googlecode.com/files/xapian-core-11600.tgz',
+     'http://xappy.googlecode.com/files/xapian-core-14622.tar.gz',
      'xapian-core.tgz',
-     '0f63e36f68efe8fe28b67a497e6545505a538c5c',
-     '',
+     '2e8950bc9c103e34c3c56d925a55a8fc2789afb1',
+     'xapian-core',
     ),
     ('Xapian bindings',
-     'http://xappy.googlecode.com/files/xapian-bindings-11600.tgz',
+     'http://xappy.googlecode.com/files/xapian-bindings-14622.tar.gz',
      'xapian-bindings.tgz',
-     'b8a1b4fcdb4f4ad186b2e09ef1999747e9374ce8',
-     '',
+     '7a31fc93d5b6ea4d4e134e58a0a778c3b28e918e',
+     'xapian-bindings',
     ),
     ('Xapian win32 build system',
-     'http://xappy.googlecode.com/files/win32msvc-11600.tgz',
+     'http://xappy.googlecode.com/files/win32msvc-14486.tgz',
      'win32msvc.tgz',
-     '46a3e5a5f924980a17afc9942c71421bb510b095',
+     'c10e2cc62170d2a88ef125d19bc9f6e9bb003d26',
      'xapian-core/win32',
     ),
-)
+    ('Xapian extras',
+     'http://xappy.googlecode.com/files/xapian-extras-12302.tgz',
+     'xapian-extras.tgz',
+     '3e2ef5fcf83eb3eae1ac6e99436e40ca501dddae',
+     '',
+    ),
+    ('Xapian extras bindings',
+     'http://xappy.googlecode.com/files/xapian-extras-bindings-12302.tgz',
+     'xapian-extras-bindings.tgz',
+     '20806b9c47753fbc5c7c99356ed617fa06f81afb',
+     '',
+    ),
+]
 
 def get_script_dir():
     """Get the path of the directory containing this script.

@@ -1,4 +1,4 @@
-# Copyright (C) 2008 Lemur Consulting Ltd
+# Copyright (C) 2009 Lemur Consulting Ltd
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,20 +15,13 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 from xappytest import *
 
-class TestQuerySerialise(TestCase):
+class TestQueryAll(TestCase):
     def pre_test(self):
         self.indexpath = os.path.join(self.tempdir, 'foo')
+        self.dbsize = 32
         iconn = xappy.IndexerConnection(self.indexpath)
-        for fieldnum in xrange(30):
-            iconn.add_field_action('a%d' % fieldnum, xappy.FieldActions.TAG)
-        iconn.add_field_action('s', xappy.FieldActions.INDEX_FREETEXT)
-
-        doc = xappy.UnprocessedDocument()
-        for fieldnum in xrange(30):
-            doc.fields.append(xappy.Field('a%d' % fieldnum, 'Hello'))
-        doc.fields.append(xappy.Field('s', 'Hello'))
-        iconn.add(doc)
-
+        for i in xrange(self.dbsize):
+            iconn.add(xappy.UnprocessedDocument())
         iconn.flush()
         iconn.close()
         self.sconn = xappy.SearchConnection(self.indexpath)
@@ -36,18 +29,23 @@ class TestQuerySerialise(TestCase):
     def post_test(self):
         self.sconn.close()
 
-    def test_tag_prefix(self):
-        """Test that getting the list of tags returns the right set.
-
-        This is a regression test - in previous versions, a second tag would
-        be returned: "Ahello", due to one of the other fields sharing a common
-        prefix.
+    def test_query_all(self):
+        """Test queries produced by query_all.
 
         """
-        q = self.sconn.query_parse('Hello')
-        r = q.search(0, 10, gettags='a0')
-        t = r.get_top_tags('a0', 10)
-        self.assertEqual(tuple(t), (('hello', 1),))
+        for wt in (None, 0.0, 1.1, -2):
+            if wt is None:
+                results = self.sconn.query_all().search(0, 100)
+            else:
+                results = self.sconn.query_all(wt).search(0, 100)
+            if wt is None or wt < 0: wt = 0.0
+            self.assertEqual(len(results), self.dbsize)
+            self.assertEqual(results.startrank, 0)
+            self.assertEqual(results.endrank, self.dbsize)
+            for i in xrange(self.dbsize):
+                self.assertEqual(results[i]._doc.get_docid(), i + 1)
+                self.assertEqual(results[i].rank, i)
+                self.assertEqual(results[i].weight, wt)
 
 if __name__ == '__main__':
     main()

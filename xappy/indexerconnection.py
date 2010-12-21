@@ -1,20 +1,23 @@
-#!/usr/bin/env python
+# Copyright (C) 2007,2008,2009 Lemur Consulting Ltd
+# Copyright (C) 2009 Richard Boulton
 #
-# Copyright (C) 2007 Lemur Consulting Ltd
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 r"""indexerconnection.py: A connection to the search engine for indexing.
 
 """
@@ -24,12 +27,13 @@ import _checkxapian
 import cPickle
 import xapian
 
+import cachemanager
 from datastructures import *
 import errors
 from fieldactions import ActionContext, FieldActions, ActionSet
 import fieldmappings
 import memutils
-from replaylog import log
+import os
 
 def _allocate_id(index, next_docid):
     """Allocate a new ID.
@@ -54,6 +58,15 @@ class IndexerConnection(object):
 
     _index = None
 
+    # Slots after this number are used for the cache manager.
+    # FIXME - don't hard-code this - put it in the settings instead?
+    _cache_manager_slot_start = 10000
+
+    # Maximum number of hits ever stored in a cache for a single query.
+    # This is just used to calculate an appropriate value to store for the
+    # weight for this item.
+    _cache_manager_max_hits = 1000000
+
     def __init__(self, indexpath, dbtype=None):
         """Create a new connection to the index.
 
@@ -71,17 +84,22 @@ class IndexerConnection(object):
 
         """
         if dbtype is None:
-            dbtype = 'flint'
+            dbtype = 'chert'
         try:
             if dbtype == 'flint':
-                self._index = log(xapian.flint_open, indexpath, xapian.DB_CREATE_OR_OPEN)
+                self._index = xapian.flint_open(indexpath, xapian.DB_CREATE_OR_OPEN)
             elif dbtype == 'chert':
-                self._index = log(xapian.chert_open, indexpath, xapian.DB_CREATE_OR_OPEN)
+                self._index = xapian.chert_open(indexpath, xapian.DB_CREATE_OR_OPEN)
+            elif dbtype == 'brass':
+                self._index = xapian.brass_open(indexpath, xapian.DB_CREATE_OR_OPEN)
             else:
                 raise xapian.InvalidArgumentError("Database type '%s' not known" % dbtype)
         except xapian.DatabaseOpeningError:
-            self._index = log(xapian.WritableDatabase, indexpath, xapian.DB_OPEN)
-        self._indexpath = indexpath
+            self._index = xapian.WritableDatabase(indexpath, xapian.DB_OPEN)
+        self._indexpath = os.path.realpath(os.path.abspath(indexpath))
+
+        # Set no cache manager.
+        self.cache_manager = None
 
         # Read existing actions.
         self._field_actions = ActionSet()
@@ -89,10 +107,13 @@ class IndexerConnection(object):
         self._facet_hierarchy = {}
         self._facet_query_table = {}
         self._next_docid = 0
+        self._imgterms_cache = {}
         self._config_modified = False
         try:
             self._load_config()
         except:
+            if hasattr(self._index, 'close'):
+                self._index.close()
             self._index = None
             raise
 
@@ -164,7 +185,7 @@ class IndexerConnection(object):
                                      self._facet_query_table,
                                      self._next_docid,
                                     ), 2)
-        log(self._index.set_metadata, '_xappy_config', config_str)
+        self._index.set_metadata('_xappy_config', config_str)
 
         self._config_modified = False
 
@@ -174,7 +195,7 @@ class IndexerConnection(object):
         """
         assert self._index is not None
 
-        config_str = log(self._index.get_metadata, '_xappy_config')
+        config_str = self._index.get_metadata('_xappy_config')
         if len(config_str) == 0:
             return
 
@@ -204,6 +225,10 @@ class IndexerConnection(object):
         self._field_mappings = fieldmappings.FieldMappings(mappings)
 
         self._config_modified = False
+
+        # Open the cachemanager if there is an internal one.
+        if self._index.get_metadata('_xappy_hasintcache'):
+            self._open_internal_cache()
 
     def add_field_action(self, fieldname, fieldtype, **kwargs):
         """Add an action to be performed on a field.
@@ -246,7 +271,7 @@ class IndexerConnection(object):
             raise errors.IndexerError("IndexerConnection has been closed")
         return self._field_actions.actions.keys()
 
-    def process(self, document):
+    def process(self, document, store_only=False):
         """Process an UnprocessedDocument with the settings in this database.
 
         The resulting ProcessedDocument is returned.
@@ -259,14 +284,23 @@ class IndexerConnection(object):
         you want to split processing of documents from adding documents to the
         database for performance reasons.
 
+        If `store_only` is `True` only the STORE_CONTENT action will be
+        processed for the document, which means that the document data will be
+        stored but not searchable.  If this is used, the document is only
+        accessible by using get_document(), or by iterating through all the
+        documents.  Note that some queries, such as those produced by
+        SearchConnection.query_all(), work by iterating through all the
+        documents, so will still return documents indexed with `store_only` set
+        to True.
+
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
         result = ProcessedDocument(self._field_mappings)
         result.id = document.id
-        context = ActionContext(self._index)
+        context = ActionContext(self)
 
-        self._field_actions.perform(result, document, context)
+        self._field_actions.perform(result, document, context, store_only)
 
         return result
 
@@ -290,7 +324,7 @@ class IndexerConnection(object):
         # the above calculation predicts is used for buffering in practice.
         return count * 5
 
-    def add(self, document):
+    def add(self, document, store_only=False):
         """Add a new document to the search engine index.
 
         If the document has a id set, and the id already exists in
@@ -303,12 +337,16 @@ class IndexerConnection(object):
         The supplied document may be an instance of UnprocessedDocument, or an
         instance of ProcessedDocument.
 
+        If `store_only` is `True` the document will only be stored but not
+        indexed for searching. See process() method for more info about this
+        argument.
+
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
         if not hasattr(document, '_doc'):
             # It's not a processed document.
-            document = self.process(document)
+            document = self.process(document, store_only)
 
         # Ensure that we have a id
         orig_id = document.id
@@ -320,7 +358,7 @@ class IndexerConnection(object):
         else:
             id = orig_id
             if self._index.term_exists('Q' + id):
-                raise errors.IndexerError("Document ID of document supplied to add() is not unique.")
+                raise errors.DuplicatedIdError("Document ID of document supplied to add() is not unique.")
 
         # Add the document.
         xapdoc = document.prepare()
@@ -335,7 +373,7 @@ class IndexerConnection(object):
             document.id = orig_id
         return id
 
-    def replace(self, document):
+    def replace(self, document, store_only=False, xapid=None):
         """Replace a document in the search engine index.
 
         If the document does not have a id set, an exception will be
@@ -344,20 +382,54 @@ class IndexerConnection(object):
         If the document has a id set, and the id does not already
         exist in the database, this method will have the same effect as add().
 
+        If `store_only` is `True` the document will only be stored but not
+        indexed for searching. See process() method for more info about this
+        argument.
+
+        If `xapid` is not None, the specified (integer) value will be used as
+        the Xapian document ID to replace.  In this case, the Xappy document ID
+        will be not be checked.
+
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
-        if not hasattr(document, '_doc'):
-            # It's not a processed document.
-            document = self.process(document)
 
         # Ensure that we have a id
         id = document.id
         if id is None:
-            raise errors.IndexerError("No document ID set for document supplied to replace().")
+            if xapid is None:
+                raise errors.IndexerError("No document ID set for document supplied to replace().")
+            else:
+                id, self._next_docid = _allocate_id(self._index,
+                                                    self._next_docid)
+                self._config_modified = True
+                document.id = id
+
+        # Process the document if we havn't already.
+        if not hasattr(document, '_doc'):
+            # It's not a processed document.
+            document = self.process(document, store_only)
 
         xapdoc = document.prepare()
-        self._index.replace_document('Q' + id, xapdoc)
+
+        if self._index.get_metadata('_xappy_hascache'):
+            if store_only:
+                # Remove any cached items from the cache - the document is no
+                # longer wanted in search results.
+                self._remove_cached_items(id, xapid)
+            else:
+                # Copy any cached query items over to the new document.
+                olddoc, olddocid = self._get_xapdoc(id, xapid)
+                if olddoc is not None:
+                    for value in olddoc.values():
+                        if value.num < self._cache_manager_slot_start:
+                            continue
+                        xapdoc.add_value(value.num, value.value)
+
+        if xapid is None:
+            self._index.replace_document('Q' + id, xapdoc)
+        else:
+            self._index.replace_document(int(xapid), xapdoc)
 
         if self._max_mem is not None:
             self._mem_buffered += self._get_bytes_used_by_doc_terms(xapdoc)
@@ -552,7 +624,7 @@ class IndexerConnection(object):
             raise errors.IndexerError("IndexerConnection has been closed")
         if not hasattr(self._index, 'set_metadata'):
             raise errors.IndexerError("Version of xapian in use does not support metadata")
-        log(self._index.set_metadata, key, value)
+        self._index.set_metadata(key, value)
 
     def get_metadata(self, key):
         """Get an item of metadata stored in the connection.
@@ -566,18 +638,158 @@ class IndexerConnection(object):
             raise errors.IndexerError("IndexerConnection has been closed")
         if not hasattr(self._index, 'get_metadata'):
             raise errors.IndexerError("Version of xapian in use does not support metadata")
-        return log(self._index.get_metadata, key)
+        return self._index.get_metadata(key)
 
-    def delete(self, id):
+    def _get_xapdoc(self, docid=None, xapid=None):
+        """Get the xapian document and docid for a given xappy or xapian docid.
+
+        """
+        if xapid is None:
+            postlist = self._index.postlist('Q' + docid)
+            try:
+                plitem = postlist.next()
+            except StopIteration:
+                return None, None
+            return self._index.get_document(plitem.docid), plitem.docid
+        else:
+            xapid = int(xapid)
+            return self._index.get_document(xapid), xapid
+
+    def _remove_cached_items(self, docid=None, xapid=None):
+        """Remove from the cache any items for the specified document.
+
+        The document may be specified by xappy docid, or by xapian document id.
+
+        """
+        if self.cache_manager is None:
+            raise errors.IndexerError("CacheManager has been applied to this "
+                                      "index, but is not currently set.")
+
+        doc, xapid = self._get_xapdoc(docid, xapid)
+        if doc is None:
+            return
+
+        #print "Removing docid=%d" % xapid
+        for value in doc.values():
+            if value.num < self._cache_manager_slot_start:
+                continue
+            rank = int(self._cache_manager_max_hits -
+                       xapian.sortable_unserialise(value.value))
+            self.cache_manager.remove_hits(
+                value.num - self._cache_manager_slot_start,
+                ((rank, xapid),))
+
+    def delete(self, id=None, xapid=None):
         """Delete a document from the search engine index.
 
         If the id does not already exist in the database, this method
         will have no effect (and will not report an error).
 
+        If `xapid` is not None, the specified (integer) value will be used as
+        the Xapian document ID to delete.  In this case, the Xappy document ID
+        will be not be checked.
+
         """
         if self._index is None:
             raise errors.IndexerError("IndexerConnection has been closed")
-        self._index.delete_document('Q' + id)
+
+        # Remove any cached items from the cache.
+        if self._index.get_metadata('_xappy_hascache'):
+            self._remove_cached_items(id, xapid)
+
+        # Now, remove the actual document.
+        if xapid is None:
+            assert id is not None
+            self._index.delete_document('Q' + id)
+        else:
+            self._index.delete_document(int(xapid))
+
+    def set_cache_manager(self, cache_manager):
+        """Set the cache manager.
+
+        To remove the cache manager, pass None as the cache_manager parameter.
+
+        Once the cache manager has been set, the items held in the cache can be
+        applied to the database using apply_cached_items().
+
+        """
+        self.cache_manager = cache_manager
+
+    def apply_cached_items(self):
+        """Update the index with references to cached items.
+        
+        This reads all the cached items from the cache manager, and applies
+        them to the index.  This allows efficient lookup of the cached ranks
+        when performing a search, and when deleting items from the the
+        database.
+
+        If any documents in the cache are not present in this index, they are
+        silently ignored: the assumption is that in this case, the index is a
+        subset of the cached database.
+
+        """
+        if self._index is None:
+            raise errors.IndexerError("IndexerConnection has been closed")
+        if self.cache_manager is None:
+            raise RuntimeError("Need to set a cache manager before calling "
+                               "apply_cached_items()")
+
+        # Remember that a cache manager has been applied in the metadata, so
+        # errors can be raised if it's not set during future modifications.
+        self._index.set_metadata('_xappy_hascache', '1')
+
+        myiter = self.cache_manager.iter_by_docid()
+        for xapid, items in myiter:
+            try:
+                xapdoc = self._index.get_document(xapid)
+            except xapian.DocNotFoundError:
+                # Ignore the document if not found, to allow a global cache to
+                # be applied to a subdatabase.
+                continue
+            for queryid, rank in items:
+                xapdoc.add_value(self._cache_manager_slot_start + queryid,
+                    xapian.sortable_serialise(self._cache_manager_max_hits -
+                                              rank))
+            self._index.replace_document(xapid, xapdoc)
+
+    def make_internal_cache(self):
+        """Copies all items from the current cache manager into this index.
+
+        This makes the internal cache into a full copy of the currently applied
+        cache_manager, and sets the stored cache_manager to use the newly
+        copied internal cache.
+
+        This also stores a property which causes the internal cache to be used
+        automatically when new IndexerConnection or SearchConnection objects
+        are created.
+
+        The cache_manager supplied must currently be an instance (or subclass)
+        of KeyValueStoreCacheManager.
+
+        """
+        if self._index is None:
+            raise errors.IndexerError("IndexerConnection has been closed")
+        if self.cache_manager is None:
+            raise RuntimeError("Need to set a cache manager before calling "
+                               "make_internal_cache()")
+
+        assert isinstance(self.cache_manager,
+                          cachemanager.KeyValueStoreCacheManager)
+
+        for k in self.cache_manager.keys():
+            self._index.set_metadata(k, self.cache_manager[k])
+        self._index.set_metadata('_xappy_hasintcache', '1')
+        self._open_internal_cache()
+
+    def _open_internal_cache(self):
+        """Open an internal cache, passing the current index to it.
+
+        """
+        self.cache_manager = cachemanager.XapianCacheManager(self._indexpath)
+        # Make the cache manager use the same index connection as this
+        # index, since it's subordinate to it.
+        self.cache_manager.db = self._index
+        self.cache_manager.writable = True
 
     def flush(self):
         """Apply recent changes to the database.
@@ -592,6 +804,8 @@ class IndexerConnection(object):
             self._store_config()
         self._index.flush()
         self._mem_buffered = 0
+        if self.cache_manager is not None:
+            self.cache_manager.flush()
 
     def close(self):
         """Close the connection to the database.
@@ -613,20 +827,26 @@ class IndexerConnection(object):
             return
         try:
             self.flush()
+            try:
+                self._index.close()
+            except AttributeError:
+                # Xapian versions earlier than 1.1.0 didn't have a close()
+                # method, so we just had to rely on the garbage collector to
+                # clean up.  Ignore the exception that occurs if we're using
+                # 1.0.x.
+                # FIXME - remove this special case when we no longer support
+                # the 1.0.x release series.  Also remove the equivalent special
+                # case in __init__.
+                pass
         finally:
-            # There is currently no "close()" method for xapian databases, so
-            # we have to rely on the garbage collector.  Since we never copy
-            # the _index property out of this class, there should be no cycles,
-            # so the standard python implementation should garbage collect
-            # _index straight away.  A close() method is planned to be added to
-            # xapian at some point - when it is, we should call it here to make
-            # the code more robust.
-            # FIXME - add a call to xapian's close method (and also do that in
-            # the exception handler in __init__)
             self._index = None
             self._indexpath = None
             self._field_actions = None
+            self._field_mappings = None
             self._config_modified = False
+
+        if self.cache_manager is not None:
+            self.cache_manager.close()
 
     def get_doccount(self):
         """Count the number of documents in the database.
@@ -668,7 +888,7 @@ class IndexerConnection(object):
         try:
             postlist.next()
             raise errors.IndexerError("Multiple documents " #pragma: no cover
-                                       "found with same unique ID")
+                                       "found with same unique ID: %r"% id)
         except StopIteration:
             # Only one instance of the unique ID found, as it should be.
             pass
@@ -767,17 +987,19 @@ class PrefixedTermIter(object):
     """Iterate through all the terms with a given prefix.
 
     """
-    def __init__(self, prefix, termiter):
+    def __init__(self, prefix, termiter, trimlen=0):
         """Initialise the prefixed term iterator.
 
         - `prefix` is the prefix to return terms for.
         - `termiter` is a xapian TermIterator, which should be at its start.
+        - `trimlen` is the length to trim from the term.
 
         """
         self._started = False
         self._prefix = prefix
         self._prefixlen = len(prefix)
         self._termiter = termiter
+        self._trimlen = trimlen
 
     def __iter__(self):
         return self
@@ -800,13 +1022,14 @@ class PrefixedTermIter(object):
                 term = self._termiter.next().term
         if len(term) < self._prefixlen or term[:self._prefixlen] != self._prefix:
             raise StopIteration
+
         if self._prefixlen > 1 and \
            len(term) > self._prefixlen and \
            term[self._prefixlen] == ':':
             # If the term starts with a colon, it's a prefix separator, so
             # remove it.
-            return term[self._prefixlen + 1:]
-        return term[self._prefixlen:]
+            return term[self._prefixlen + 1 + self._trimlen:]
+        return term[self._prefixlen + self._trimlen:]
 
 class DocumentIter(object):
     """Iterate through all the documents returned by a postlist.
@@ -901,7 +1124,3 @@ class FacetQueryTypeIter(object):
         if len(facet_list) == 0:
             return self.next()
         return (query_type, set(facet_list))
-
-if __name__ == '__main__':
-    import doctest, sys
-    doctest.testmod (sys.modules[__name__])

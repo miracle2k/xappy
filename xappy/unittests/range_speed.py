@@ -53,17 +53,20 @@ class RangeTest(TestCase):
     def test_timings(self):
         self.sconn = xappy.SearchConnection(self.dbpath)
         self.target_price = 50
-        self.range_bottom = 40
-        self.range_top = 60
+        self.range_bottom = 39
+        self.range_top = 61
 
-        # These queries should both return all the documents with the target
+        # These queries should all return all the documents with the target
         # price.
         range_q = self.sconn.query_range('price',
             self.target_price - 0.5, self.target_price + 0.5)
         text_q = self.sconn.query_field('price_text', conv(self.target_price))
         accel_range_q = self.sconn.query_range('price_ranges',
             self.target_price - 0.5, self.target_price + 0.5)
+        accel_range_q_cons = self.sconn.query_range('price_ranges',
+            self.target_price - 0.5, self.target_price + 0.5, conservative=True)
 
+        # These queries should all return all the document in the target range.
         range_rangeq = self.sconn.query_range('price_ranges',
             self.range_bottom, self.range_top, accelerate=False)
 
@@ -73,32 +76,44 @@ class RangeTest(TestCase):
 
         accel_range_rangeq = self.sconn.query_range('price_ranges',
             self.range_bottom, self.range_top)
+        accel_range_rangeq_cons = self.sconn.query_range('price_ranges',
+            self.range_bottom, self.range_top, conservative=True)
         approx_range_rangeq = self.sconn.query_range('price_ranges',
             self.range_bottom, self.range_top, approx=True)
 
         t1, r1 = self.search_repeater(range_q)
         t2, r2 = self.search_repeater(text_q)
         t3, r3 = self.search_repeater(accel_range_q)
+        t4, r4 = self.search_repeater(accel_range_q_cons)
         self.check_equal_results(r1, r2, "range_q", "text_q")
         self.check_equal_results(r1, r3, "range_q", "accel_range_q")
+        self.check_equal_results(r1, r4, "range_q", "accel_range_q_cons")
 
-        t4, r4 = self.search_repeater(range_rangeq)
-        t5, r5 = self.search_repeater(text_rangeq)
-        t6, r6 = self.search_repeater(accel_range_rangeq)
-        t7, r7 = self.search_repeater(approx_range_rangeq)
-        self.check_equal_results(r4, r5, "range_rangeq", "text_q")
-        self.check_equal_results(r4, r6, "range_rangeq", "accel_range_q")
-        self.check_equal_results(r4, r7, "range_rangeq", "approx_range_q")
+        t5, r5 = self.search_repeater(range_rangeq)
+        t6, r6 = self.search_repeater(text_rangeq)
+        t7, r7 = self.search_repeater(accel_range_rangeq)
+        t8, r8 = self.search_repeater(accel_range_rangeq_cons)
+        t9, r9 = self.search_repeater(approx_range_rangeq)
+        self.check_equal_results(r5, r6, "range_rangeq", "text_rangeq")
+        self.check_equal_results(r5, r7, "range_rangeq", "accel_range_rangeq")
+        self.check_equal_results(r5, r8, "range_rangeq",
+                                 "approx_range_rangeq_cons")
+
+        # The approx results aren't expected to be equal, because they're an
+        # approximation!
+        #self.check_equal_results(r5, r9, "range_rangeq", "approx_range_rangeq")
 
         return
-        print "range:             ", t1, range_q
-        print "text:              ", t2, text_q
-        print "accel_range:       ", t3, accel_range_q
+        print "range:                  ", t1, range_q
+        print "text:                   ", t2, text_q
+        print "accel_range:            ", t3, accel_range_q
+        print "accel_range_cons:       ", t4, accel_range_q_cons
 
-        print "text_range:        ", t5, text_rangeq
-        print "range_range:       ", t4, range_rangeq
-        print "accel_range_range: ", t6, accel_range_rangeq
-        print "approx_range_range:", t7, approx_range_rangeq
+        print "text_range:             ", t5, text_rangeq
+        print "range_range:            ", t6, range_rangeq
+        print "accel_range_range:      ", t7, accel_range_rangeq
+        print "accel_range_range_cons: ", t8, accel_range_rangeq_cons
+        print "APPROX_range_range:     ", t9, approx_range_rangeq
 
     def check_equal_results(self, r1, r2, name1, name2):
         r1_ids = set((x.id for x in r1))
@@ -133,3 +148,6 @@ class RangeTest(TestCase):
         for _ in xrange(self.repeats):
             r = query.search(0, self.results)
         return (time.time() - now) / self.repeats, r
+
+if __name__ == '__main__':
+    main()

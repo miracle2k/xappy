@@ -1,35 +1,48 @@
-#!/usr/bin/env python
+# Copyright (C) 2007,2008,2009 Lemur Consulting Ltd
 #
-# Copyright (C) 2007 Lemur Consulting Ltd
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 r"""fieldactions.py: Definitions and implementations of field actions.
 
 """
 __docformat__ = "restructuredtext en"
 
+import collections
+
 import _checkxapian
 import errors
 import fields
 import marshall
-from replaylog import log
 import xapian
+try:
+    import xapian.imgseek
+except ImportError:
+    pass
 import parsedate
 
-def _act_store_content(fieldname, doc, field, context):
+def _act_store_content(fieldname, doc, field, context, link_associations=True):
     """Perform the STORE_CONTENT action.
+
+    If link_associations is True, and the field has an associated value, store
+    information linking the associated value to the terms which are indexed.
+    This allows SearchResult.relevant_data() to return items which are relevant
+    based on the terms which are indexed, rather than on the associated value
+    which is stored.
 
     """
     try:
@@ -50,10 +63,10 @@ def _act_store_content(fieldname, doc, field, context):
         fielddata.append(toappend)
 
     # Store the index of the data.
-    if field.assoc is None:
-        context.currfield_assoc = None
-    else:
+    if link_associations and field.assoc is not None:
         context.currfield_assoc = idx
+    else:
+        context.currfield_assoc = None
 
     # Add the index of the data to the field group.
     if context.currfield_group is not None:
@@ -99,18 +112,9 @@ def _act_index_exact(fieldname, doc, field, context):
         add_field_assoc(doc, fieldname, context.currfield_assoc,
                         term=field.value, weight=field.weight)
 
-def _act_tag(fieldname, doc, field, context):
-    """Perform the TAG action.
-
-    """
-    doc.add_term(fieldname, field.value.lower(), 0)
-    if context.currfield_assoc is not None:
-        add_field_assoc(doc, fieldname, context.currfield_assoc,
-                        term=field.value.lower(), weight=field.weight)
-
 def convert_range_to_term(prefix, begin, end):
-    begin = log(xapian.sortable_serialise, begin)
-    end = log(xapian.sortable_serialise, end)
+    begin = xapian.sortable_serialise(begin)
+    end = xapian.sortable_serialise(end)
     return prefix + "%d" % len(begin) + begin + end
 
 def _add_range_terms_for_value(doc, value, ranges, prefix):
@@ -137,8 +141,8 @@ def _act_facet(fieldname, doc, field, context, type=None, ranges=None, _range_ac
         if context.currfield_assoc is not None:
             add_field_assoc(doc, fieldname, context.currfield_assoc,
                             term=value, weight=field.weight)
-        serialiser = log(xapian.StringListSerialiser,
-                          doc.get_value(fieldname, 'facet'))
+        serialiser = xapian.StringListSerialiser(
+            doc.get_value(fieldname, 'facet'))
         serialiser.append(value)
         doc.add_value(fieldname, serialiser.get(), 'facet')
     else:
@@ -158,8 +162,57 @@ def _act_weight(fieldname, doc, field, context, type=None):
 
     """
     value = float(field.value)
-    value = log(xapian.sortable_serialise, value)
+    value = xapian.sortable_serialise(value)
     doc.add_value(fieldname, value, 'weight')
+
+def _act_geolocation(fieldname, doc, field, context):
+    """Perform the GEOLOCATION action.
+
+    """
+    if field.value != '':
+        # FIXME - this is O(N*N) in the number of entries in the field.
+        coords = xapian.LatLongCoords.unserialise(doc.get_value(fieldname, 'loc'))
+        coord = xapian.LatLongCoord.parse_latlong(field.value)
+        coords.insert(coord)
+        doc.add_value(fieldname, coords.serialise(), 'loc')
+
+def _get_imgterms(conn, fieldname):
+    """Get an ImgTerms object for a given field.
+
+    The ImgTerms objects are created lazily, when one is first needed for each
+    field.
+
+    """
+    imgterms = conn._imgterms_cache.get(fieldname)
+    if not imgterms:
+        actions = conn._field_actions[fieldname]._actions
+        params = {}
+        for action, kwargslist in actions.iteritems():
+            if action == FieldActions.IMGSEEK:
+                params = kwargslist[0]
+                break
+        prefix = conn._field_mappings.get_prefix(fieldname)
+        # get the number of buckets - default to 250
+        buckets = int(params.get('buckets', 250))
+        imgterms = xapian.imgseek.ImgTerms(prefix, buckets)
+        conn._imgterms_cache[fieldname] = imgterms
+    return imgterms
+
+def _act_imgseek(fieldname, doc, field, context, terms=True, buckets=None):
+    """ Perform the IMGSEEK action.
+
+    """
+    if field.value:
+        import xapian.imgseek
+        imgsig = xapian.imgseek.ImgSig.register_Image(field.value)
+        if terms:
+            imgterms = _get_imgterms(context.conn, fieldname)
+            imgterms.AddTerms(doc._doc, imgsig)
+        else:
+            imgsigs = xapian.imgseek.ImgSigs.unserialise(
+                doc.get_value(fieldname, 'imgseek'))
+            imgsigs.insert(imgsig)
+            doc.add_value(fieldname, imgsigs.serialise(), 'imgseek')
 
 def _act_index_freetext(fieldname, doc, field, context, weight=1,
                         language=None, stop=None, spell=False,
@@ -169,15 +222,15 @@ def _act_index_freetext(fieldname, doc, field, context, weight=1,
     """Perform the INDEX_FREETEXT action.
 
     """
-    termgen = log(xapian.TermGenerator)
+    termgen = xapian.TermGenerator()
     if language is not None:
-        termgen.set_stemmer(log(xapian.Stem, language))
+        termgen.set_stemmer(xapian.Stem(language))
 
     if stop is not None:
-        stopper = log(xapian.SimpleStopper)
+        stopper = xapian.SimpleStopper()
         for term in stop:
-            stopper.add (term)
-        termgen.set_stopper (stopper)
+            stopper.add(term)
+        termgen.set_stopper(stopper)
 
     if spell and not context.readonly:
         termgen.set_database(context.index)
@@ -304,6 +357,10 @@ def _act_sort_and_collapse(fieldname, doc, field, context, type=None, ranges=Non
     doc.add_value(fieldname, marshalled_value, 'collsort')
     _range_accel_act(doc, field.value, ranges, _range_accel_prefix)
 
+def _act_colour(fieldname, doc, field, context):
+    doc.add_term(fieldname, field.value, 
+                 wdfinc=field.weight + xapian.ColourWeight.trigger)
+
 class ActionContext(object):
     """The context in which an action is performed.
 
@@ -315,8 +372,9 @@ class ActionContext(object):
     SearchConnection.process() method).
 
     """
-    def __init__(self, index, readonly=False):
-        self.index = index
+    def __init__(self, conn, readonly=False):
+        self.conn = conn
+        self.index = conn._index
         self.readonly = readonly
         self.current_language = None
         self.current_position = 0
@@ -385,12 +443,6 @@ class FieldActions(object):
       "collapse" result sets, such that only the highest result with each value
       of the field will be returned.
 
-    - `TAG`: the field contains tags; these are strings, which will be matched
-      in a case insensitive way, but otherwise must be exact matches.  Tag
-      fields can be searched for by making an explict query (ie, using
-      query_field(), but not with query_parse()).  A list of the most frequent
-      tags in a result set can also be accessed easily.
-
     - `FACET`: the field represents a classification facet; these are strings
       which will be matched exactly, but a list of all the facets present in
       the result set can also be accessed easily - in addition, a suitable
@@ -406,6 +458,27 @@ class FieldActions(object):
       search time as part of the ranking formula.  The values in the field
       should be (string representations of) floating point numbers.
 
+    - `GEOLOCATION`: index geolocation information.  Fields supplied should be
+      latitude-longitude values, and will be searchable by distance from the
+      point.
+
+    - `IMGSEEK`: Index an image for similarity searching. Fields
+      supplied must be a url that references the image data. The image
+      must be a JPEG or a format supported by the QImageIO
+      class. <http://doc.trolltech.com/3.3/qimageio.html>
+
+    - `COLOUR`: Index colours for colour searching. Values supplied
+      must be an iterable of (colourterm, frequency) pairs, indicating
+      the occurence of the colour represented by colourterm. The
+      colourterm itself has no inherent meaning to xappy, but see the
+      documentation relating to colour search for some utililty
+      functions to help with generating useful colourterms from RGB
+      colour data.
+
+      Internally the frequencies in a field for a given document are
+      normalised so that they sum to (approximately) 1000, so that
+      weights across different documents can be meaningfully compared.
+
     """
 
     # See the class docstring for the meanings of the following constants.
@@ -414,9 +487,11 @@ class FieldActions(object):
     INDEX_FREETEXT = 3
     SORTABLE = 4
     COLLAPSE = 5
-    TAG = 6
     FACET = 7
     WEIGHT = 8
+    GEOLOCATION = 9
+    IMGSEEK = 10
+    COLOUR = 11
 
     # Sorting and collapsing store the data in a value, but the format depends
     # on the sort type.  Easiest way to implement is to treat them as the same
@@ -425,12 +500,12 @@ class FieldActions(object):
 
     _unsupported_actions = []
 
-    if 'tags' in _checkxapian.missing_features:
-        _unsupported_actions.append(TAG)
     if 'facets' in _checkxapian.missing_features:
         _unsupported_actions.append(FACET)
     if 'valueweight' in _checkxapian.missing_features:
         _unsupported_actions.append(WEIGHT)
+    if 'imgseek' in _checkxapian.missing_features:
+        _unsupported_actions.append(IMGSEEK)
 
     def __init__(self, fieldname):
         # Dictionary of actions, keyed by type.
@@ -449,9 +524,11 @@ class FieldActions(object):
                           FieldActions.INDEX_FREETEXT,
                           FieldActions.SORTABLE,
                           FieldActions.COLLAPSE,
-                          FieldActions.TAG,
                           FieldActions.FACET,
                           FieldActions.WEIGHT,
+                          FieldActions.GEOLOCATION,
+                          FieldActions.IMGSEEK,
+                          FieldActions.COLOUR,
                          ):
             raise errors.IndexerError("Unknown field action: %r" % action)
 
@@ -571,12 +648,14 @@ class FieldActions(object):
         # Append the action to the list of actions
         self._actions[action].append(kwargs)
 
-    def perform(self, doc, field, context):
+    def perform(self, doc, field, context, store_only=False):
         """Perform the actions on the field.
 
         - `doc` is a ProcessedDocument to store the result of the actions in.
         - `field` is the field object to read the data for the actions from.
         - `context` is an ActionContext object used to keep state in.
+        - `store_only` is a boolean. If `True` the field will only be stored.
+           Otherwise, all actions will be performed.
 
         """
         context.currfield_assoc = None
@@ -589,6 +668,9 @@ class FieldActions(object):
             for kwargs in actionlist:
                 info[2](self._fieldname, doc, field, context, **kwargs)
 
+        if store_only:
+            return
+
         # Then do all the other actions.
         for actiontype, actionlist in self._actions.iteritems():
             if actiontype == FieldActions.STORE_CONTENT:
@@ -598,16 +680,17 @@ class FieldActions(object):
                 info[2](self._fieldname, doc, field, context, **kwargs)
 
     _action_info = {
-        STORE_CONTENT: ('STORE_CONTENT', (), _act_store_content, {}, ),
+        COLOUR: ('COLOUR', ('step_count',), _act_colour, {'prefix': True}, ),
+        STORE_CONTENT: ('STORE_CONTENT', ('link_associations', ), _act_store_content, {}, ),
         INDEX_EXACT: ('INDEX_EXACT', (), _act_index_exact, {'prefix': True}, ),
         INDEX_FREETEXT: ('INDEX_FREETEXT', ('weight', 'language', 'stop', 'spell', 'nopos', 'allow_field_specific', 'search_by_default', ),
             _act_index_freetext, {'prefix': True, }, ),
         SORTABLE: ('SORTABLE', ('type', 'ranges'), None, {'slot': 'collsort',}, ),
         COLLAPSE: ('COLLAPSE', (), None, {'slot': 'collsort',}, ),
-        TAG: ('TAG', (), _act_tag, {'prefix': True,}, ),
         FACET: ('FACET', ('type', 'ranges'), _act_facet, {'prefix': True, 'slot': 'facet',}, ),
         WEIGHT: ('WEIGHT', (), _act_weight, {'slot': 'weight',}, ),
-
+        GEOLOCATION: ('GEOLOCATION', (), _act_geolocation, {'slot': 'loc'}, ),
+        IMGSEEK: ('IMGSEEK', ('terms', 'buckets'), _act_imgseek, {'prefix': True, 'slot': 'imgseek',},),
         SORT_AND_COLLAPSE: ('SORT_AND_COLLAPSE', ('type', ), _act_sort_and_collapse, {'slot': 'collsort',}, ),
     }
 
@@ -636,7 +719,46 @@ class ActionSet(object):
     def __iter__(self):
         return iter(self.actions)
 
-    def perform(self, result, document, context):
+
+    def normalise_colour_frequencies(self, fields_or_groups):
+        """Modify all the weights specified for a field with the
+        COLOUR action so that they sum to 1000.
+
+        """
+        colour_vals = {}
+        
+        def get_fields(field_or_group):
+            if isinstance(field_or_group, fields.FieldGroup):
+                return field_or_group.fields
+            else:
+                return [field_or_group]
+
+        # loop once to find the total frequency for each colour field
+        for field_or_group in fields_or_groups:
+            fs = get_fields(field_or_group)
+            for field in fs:
+                try:
+                    actions = self.actions[field.name]
+                except KeyError:
+                    continue
+                if FieldActions.COLOUR in actions._actions:
+                    colour_vals[field.name] = \
+                        colour_vals.get(field.name, 0) + field.weight
+
+        # loop again to scale each frequency so that they sum to 1000
+        for field_or_group in fields_or_groups:
+            fs = get_fields(field_or_group)
+            for field in fs:
+                if field.name in colour_vals:
+                    proportion = ( float(field.weight) /
+                                   float(colour_vals[field.name]))
+                    field.weight = int(proportion * 
+                                       xapian.ColourWeight.colour_sum)
+
+    def perform(self, result, document, context, store_only=False):
+        if not isinstance(document.fields, list):
+            document.fields = tuple(document.fields)
+        self.normalise_colour_frequencies(document.fields)
         for field_or_group in document.fields:
             if isinstance(field_or_group, fields.FieldGroup):
                 context.currfield_group = []
@@ -646,9 +768,9 @@ class ActionSet(object):
                     except KeyError:
                         # If no actions are defined, just ignore the field.
                         continue
-                    actions.perform(result, field, context)
-                if len(context.currfield_group) > 1:
-                    # Have had more than one field for which data has been
+                    actions.perform(result, field, context, store_only)
+                if len(context.currfield_group) > 0:
+                    # Have had at least one field for which data has been
                     # stored.
                     result._get_groups().append(tuple(context.currfield_group))
                 context.currfield_group = None
@@ -659,9 +781,4 @@ class ActionSet(object):
             except KeyError:
                 # If no actions are defined, just ignore the field.
                 continue
-            actions.perform(result, field_or_group, context)
-
-
-if __name__ == '__main__':
-    import doctest, sys
-    doctest.testmod (sys.modules[__name__])
+            actions.perform(result, field_or_group, context, store_only)

@@ -2,8 +2,36 @@ Authors
 =======
 
 The Xappy module and accompanying documentation and testsuite (excluding
-coverage.py) is Copyright (C) 2007-2008 Lemur Consulting Ltd.  It is released
-under the GPL license; see the file COPYING_GPL in this directory for details.
+coverage.py) is Copyright (C) 2007-2009 Lemur Consulting Ltd.  It is released
+under the MIT license as described below, but note that it depends on software
+(notably Xapian) which is GPL licensed, so you will usually need to follow the
+terms of the GPL when developing code based on this; see the file COPYING_GPL
+in this directory for details of the GPL.
+
+
+Copyright (c) 2007,2008,2009 Lemur Consulting Ltd
+
+Permission is hereby granted, free of charge, to any person
+obtaining a copy of this software and associated documentation
+files (the "Software"), to deal in the Software without
+restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the
+Software is furnished to do so, subject to the following
+conditions:
+
+The above copyright notice and this permission notice shall be
+included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+OTHER DEALINGS IN THE SOFTWARE.
+
 
 Major code and design
 ---------------------
@@ -26,7 +54,7 @@ and small patches:
 
 Michael Elsdörfer (sort by multiple values test and prototype)
 Bruno Rezende
-
+Pablo Hoffman
 
 Third party code
 ----------------
@@ -52,3 +80,8 @@ or at your option, any later version. (see /usr/share/common-licenses/GPL).
 
 "testdata/query_sourcewords.txt" also contains a copy of the text of John
 Milton's "Paradise Lost", taken from Project Gutenberg.
+
+"xappy/colour_data.txt" contains a list of RGB values corresponding to various
+english colour names.  This data is taken from wikipedia, and is licensed under
+the Creative Commons Attribution-ShareAlike 3.0 license.  See
+http://en.wikipedia.org/wiki/List_of_colors

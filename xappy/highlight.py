@@ -1,20 +1,23 @@
-#!/usr/bin/env python
-#
 # Copyright (C) 2007 Lemur Consulting Ltd
+# Copyright (C) 2009 Richard Boulton
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 r"""highlight.py: Highlight and summarise text.
 
 """
@@ -22,6 +25,53 @@ __docformat__ = "restructuredtext en"
 
 import re
 import xapian
+import threading
+
+_tls = threading.local()
+def get_stemmer(language_code):
+    """Get a stemmer for a given language.
+
+    Using this method instead of instantiating a new CachedStemmer object
+    allows the caches in the stemmer to be reused.  Thread local storage is
+    used to ensure that the returned stemmer is specific to the current thread,
+    since stemmers (and the cache) aren't threadsafe.
+
+    """
+    try:
+        return _tls.stemmers[language_code]
+    except KeyError:
+        stemmer = CachedStemmer(language_code)
+        _tls.stemmers[language_code] = stemmer
+        return stemmer
+    except AttributeError:
+        stemmer = CachedStemmer(language_code)
+        _tls.stemmers = {language_code: stemmer}
+        return stemmer
+
+class CachedStemmer(object):
+    """A cached stemmer.
+
+    """
+    def __init__(self, language_code):
+        self._stem = xapian.Stem(language_code)
+        self._stemcache = {}
+
+    def __call__(self, word):
+        """Stem a word.
+
+        """
+        try:
+            return self._stemcache[word]
+        except KeyError:
+            stem = self._stem(word)
+
+            # Stop the stem cache growing indefinitely.
+            # FIXME - do something a bit nicer here.
+            if len(self._stemcache) > 10000:
+                self._stemcache = {}
+
+            self._stemcache[word] = stem
+            return stem
 
 class Highlighter(object):
     """Class for highlighting text and creating contextual summaries.
@@ -42,9 +92,14 @@ class Highlighter(object):
 
         """
         if stemmer is not None:
-            self.stem = stemmer
+            self._stem = stemmer
         else:
-            self.stem = xapian.Stem(language_code)
+            self._stem = get_stemmer(language_code)
+        self._terms = None
+        self._query = None
+
+    def stem(self, word):
+        return self._stem(word)
 
     def _split_text(self, text, strip_tags=False):
         """Split some text into words and non-words.
@@ -97,17 +152,21 @@ class Highlighter(object):
     def _query_to_stemmed_words(self, query):
         """Convert a query to a list of stemmed words.
 
+        Stores the resulting list in self._terms
+
         - `query` is the query to parse: it may be xapian.Query object, or a
           sequence of terms.
 
         """
+        if self._query is query:
+            return
         if isinstance(query, xapian.Query):
-            return [self._strip_prefix(t) for t in query]
+            self._terms = [self._strip_prefix(t) for t in query]
         elif hasattr(query, '_get_xapian_query'):
-            return [self._strip_prefix(t) for t in query._get_xapian_query()]
+            self._terms = [self._strip_prefix(t) for t in query._get_xapian_query()]
         else:
-            return [self.stem(q.lower()) for q in query]
-
+            self._terms = [self._stem(q.lower()) for q in query]
+        self._query = query
 
     def makeSample(self, text, query, maxlen=600, hl=None):
         """Make a contextual summary from the supplied text.
@@ -128,7 +187,7 @@ class Highlighter(object):
         maxlen = int(maxlen)
 
         words = self._split_text(text, True)
-        terms = self._query_to_stemmed_words(query)
+        self._query_to_stemmed_words(query)
 
         # build blocks delimited by puncuation, and count matching words in each block
         # blocks[n] is a block [firstword, endword, charcount, termcount, selected]
@@ -138,7 +197,7 @@ class Highlighter(object):
         while end < len(words):
             blockchars += len(words[end])
             if words[end].isalnum():
-                if self.stem(words[end].lower()) in terms:
+                if self._stem(words[end].lower()) in self._terms:
                     count += 1
                 end += 1
             elif words[end] in ',.;:?!\n':
@@ -188,7 +247,7 @@ class Highlighter(object):
         if hl is None:
             return ''.join(words2)
         else:
-            return self._hl(words2, terms, hl)
+            return self._hl(words2, hl)
 
     def highlight(self, text, query, hl, strip_tags=False):
         """Add highlights (string prefix/postfix) to a string.
@@ -207,20 +266,34 @@ class Highlighter(object):
 
         """
         words = self._split_text(text, strip_tags)
-        terms = self._query_to_stemmed_words(query)
-        return self._hl(words, terms, hl)
+        self._query_to_stemmed_words(query)
+        return self._hl(words, hl)
 
-    def _hl(self, words, terms, hl):
+    def _score_text(self, text, prefix, callback):
+        """Calculate a score for the text, assuming it was indexed with the
+        given prefix.  `callback` is a callable which returns a weight for a
+        term.
+
+        """
+        words = self._split_text(text, False)
+        score = 0
+        for w in words:
+            wl = w.lower()
+            score += callback(prefix + wl)
+            score += callback(prefix + self._stem(wl))
+        return score
+
+    def _hl(self, words, hl):
         """Add highlights to a list of words.
 
         `words` is the list of words and non-words to be highlighted..
-        `terms` is the list of stemmed words to look for.
 
         """
         for i, w in enumerate(words):
             # HACK - more forgiving about stemmed terms
             wl = w.lower()
-            if wl in terms or self.stem (wl) in terms:
+            if wl in self._terms or \
+               self._stem(wl) in self._terms:
                 words[i] = ''.join((hl[0], w, hl[1]))
 
         return ''.join(words)
@@ -310,7 +383,3 @@ __test__ = {
     ''',
 
 }
-
-if __name__ == '__main__':
-    import doctest, sys
-    doctest.testmod (sys.modules[__name__])

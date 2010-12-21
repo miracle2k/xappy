@@ -42,29 +42,9 @@ Open a connection for indexing:
 >>> iconn.add_field_action('facet7', FieldActions.FACET)
 >>> iconn.add_field_action('facet8', FieldActions.FACET, type='float')
 
->>> iconn.add_field_action('tag', FieldActions.TAG)
-
 # Add this, for a regression test.
 >>> iconn.add_field_action('facet9', FieldActions.FACET, type='float')
 >>> iconn.add_field_action('facet9', FieldActions.SORTABLE)
-
-
-A field can only be sorted according to one type:
->>> iconn.add_field_action('date', FieldActions.SORTABLE, type='float')
-Traceback (most recent call last):
-...
-IndexerError: Field 'date' is already marked for sorting, with a different sort type
-
-
-If we set the sort type to an unknown value, we get errors when it is used:
-
->>> iconn.add_field_action('price2', FieldActions.SORTABLE, type='unknown')
->>> doc = UnprocessedDocument()
->>> doc.fields.append(Field('price2', '1.0'))
->>> iconn.process(doc)
-Traceback (most recent call last):
-...
-IndexerError: Unknown sort type 'unknown' for field 'price2'
 
 
 Make another database which doesn't have any facet fields::
@@ -98,9 +78,6 @@ Add a set of documents, which dates and prices, to test sorting:
 ...     doc.fields.append(Field('facet8', '2001'))
 ...     doc.fields.append(Field('facet8', '%d' % (i % 2)))
 ...     doc.fields.append(Field('facet9', '%d' % (i // 5)))
-...     doc.fields.append(Field('tag', '%d' % (i % 5)))
-...     doc.fields.append(Field('tag', '%d' % (i % 9)))
-...     doc.fields.append(Field('tag', '%d' % (i // 5)))
 ...     id = iconn.add(doc)
 ...     id = iconn2.add(doc)
 
@@ -176,29 +153,6 @@ Remove the synonyms for the remaining tests:
 
 Now, parse a simple query.
 >>> q = sconn.query_parse('document')
->>> str(q)
-'Xapian::Query((Zdocument:(pos=1) AND_MAYBE document:(pos=1)))'
->>> results = sconn.search(q, 0, 30)
->>> [result.id for result in results]
-['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '1a', '1b', '1c', '1d']
-
->>> results = sconn.search(q, 0, 30, sortby="price")
->>> prev_price = results[0].data['price']
->>> for price in (result.data['price'] for result in results):
-...     assert(price >= prev_price)
-...     prev_price = price
->>> [int(result.id, 16) for result in results]
-[0, 70, 140, 1, 71, 141, 2, 72, 142, 3, 73, 143, 4, 74, 144, 5, 75, 145, 6, 76, 146, 7, 77, 147, 8, 78, 148, 9, 79, 149]
->>> [result.data['price'] for result in results]
-[['0.000000'], ['0.000000'], ['0.000000'], ['0.142857'], ['0.142857'], ['0.142857'], ['0.285714'], ['0.285714'], ['0.285714'], ['0.428571'], ['0.428571'], ['0.428571'], ['0.571429'], ['0.571429'], ['0.571429'], ['0.714286'], ['0.714286'], ['0.714286'], ['0.857143'], ['0.857143'], ['0.857143'], ['1.000000'], ['1.000000'], ['1.000000'], ['1.142857'], ['1.142857'], ['1.142857'], ['1.285714'], ['1.285714'], ['1.285714']]
-
->>> results = sconn.search(q, 0, 30, sortby="-price")
->>> prev_price = results[0].data['price']
->>> for price in (result.data['price'] for result in results):
-...     assert(price <= prev_price)
-...     prev_price = price
->>> [int(result.id, 16) for result in results]
-[69, 139, 68, 138, 67, 137, 66, 136, 65, 135, 64, 134, 63, 133, 62, 132, 61, 131, 60, 130, 59, 129, 199, 58, 128, 198, 57, 127, 197, 56]
 
 
 >>> results = sconn.search(q, 0, 30, sortby="date")
@@ -219,33 +173,31 @@ Now, parse a simple query.
 
 
 
-Get a list of the facets and tags relevant for the search
+Get a list of the facets relevant for the search
 >>> results2 = sconn.search(sconn.query_all(), 0, 30, checkatleast=200,
-...                         sortby="-date", gettags=('tag'), getfacets=True)
+...                         sortby="-date", getfacets=True)
 >>> [int(result.id, 16) for result in results2]
 [191, 179, 167, 155, 143, 131, 119, 107, 95, 83, 71, 59, 47, 35, 23, 11, 190, 178, 166, 154, 142, 130, 118, 106, 94, 82, 70, 58, 46, 34]
->>> results2.get_top_tags('tag', 8)
-[('0', 62), ('1', 62), ('3', 61), ('2', 60), ('4', 60), ('5', 27), ('7', 27), ('6', 26)]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=10)]
-[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('facet9', 4), ('price', 4), ('facet8', 2), ('facet3', 17), ('category', 20), ('facet5', 40)]
+[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('facet7', 4), ('facet9', 4), ('price', 4), ('facet8', 2), ('facet3', 17), ('category', 20)]
 >>> [(facet[0], facet[1]) for facet in results2.get_suggested_facets(maxfacets=5)]
-[('price3', [((0.0, 194.30000000000001), 30), ((201.0, 395.30000000000001), 30), ((402.0, 596.29999999999995), 30), ((603.0, 797.29999999999995), 30), ((804.0, 998.29999999999995), 30), ((1005.0, 1199.3), 30), ((1206.0, 1333.3), 20)]), ('facet1', [('0', 40), ('1', 40), ('2', 40), ('3', 40), ('4', 40)]), ('facet4', [((0.0, 4.0), 40), ((5.0, 9.0), 40), ((10.0, 14.0), 40), ((15.0, 19.0), 40), ((20.0, 24.0), 40)]), ('facet2', [('0', 20), ('1', 20), ('2', 20), ('3', 20), ('4', 20), ('5', 20), ('6', 20), ('7', 20), ('8', 20), ('9', 20)]), ('facet9', [((0.0, 9.0), 50), ((10.0, 19.0), 50), ((20.0, 29.0), 50), ((30.0, 39.0), 50)])]
+[('price3', (((0.0, 194.30000000000001), 30), ((201.0, 395.30000000000001), 30), ((402.0, 596.29999999999995), 30), ((603.0, 797.29999999999995), 30), ((804.0, 998.29999999999995), 30), ((1005.0, 1199.3), 30), ((1206.0, 1333.3), 20))), ('facet1', (('0', 40), ('1', 40), ('2', 40), ('3', 40), ('4', 40))), ('facet4', (((0.0, 4.0), 40), ((5.0, 9.0), 40), ((10.0, 14.0), 40), ((15.0, 19.0), 40), ((20.0, 24.0), 40))), ('facet2', (('0', 20), ('1', 20), ('2', 20), ('3', 20), ('4', 20), ('5', 20), ('6', 20), ('7', 20), ('8', 20), ('9', 20))), ('facet7', (('0', 100), ('1', 100), ('2000', 200), ('2001', 200)))]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets='price3')]
-[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('facet9', 4)]
+[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('facet7', 4)]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets='facet8')]
 [('price3', 7), ('facet1', 5), ('facet4', 5), ('facet2', 10), ('facet8', 2)]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets=('facet8', 'price', 'facet7'))]
-[('price3', 7), ('facet1', 5), ('price', 4), ('facet8', 2), ('facet7', 4)]
+[('price3', 7), ('facet1', 5), ('facet7', 4), ('price', 4), ('facet8', 2)]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets=('facet8', 'price', 'facet7', 'price3', 'facet1'))]
-[('price3', 7), ('facet1', 5), ('price', 4), ('facet8', 2), ('facet7', 4)]
+[('price3', 7), ('facet1', 5), ('facet7', 4), ('price', 4), ('facet8', 2)]
 
 >>> [(facet[0], len(facet[1])) for facet in results2.get_suggested_facets(maxfacets=5, required_facets=('facet8', 'price', 'facet7', 'price3', 'facet1', 'facet4'))]
-[('price3', 7), ('facet1', 5), ('facet4', 5), ('price', 4), ('facet8', 2), ('facet7', 4)]
+[('price3', 7), ('facet1', 5), ('facet4', 5), ('facet7', 4), ('price', 4), ('facet8', 2)]
 
 
 We can use a facet to restrict the search results:
@@ -264,13 +216,13 @@ Getting the list of facets when there is a facet restriction in place will
 return a different selection (based on the documents satisfying the
 restriction):
 
->>> [(facet[0], len(facet[1])) for facet in results3.get_suggested_facets(maxfacets=5)]
-[('facet5', 6), ('facet9', 6), ('price', 5), ('price3', 4), ('facet4', 4)]
+>>> [(facet[0], len(facet[1])) for facet in results3.get_suggested_facets(maxfacets=6)]
+[('facet5', 6), ('facet9', 6), ('price', 5), ('facet4', 4), ('facet7', 4), ('price3', 4)]
 
 The suggestions for the facet we've already restricted by are for sub-values
 within the range:
->>> results3.get_suggested_facets(maxfacets=5)[3]
-('price3', [((0.0, 46.899999999999999), 8), ((53.600000000000001, 93.799999999999997), 7), ((100.5, 147.40000000000001), 8), ((154.09999999999999, 194.30000000000001), 7)])
+>>> results3.get_suggested_facets(maxfacets=6)[5]
+('price3', (((0.0, 46.899999999999999), 8), ((53.600000000000001, 93.799999999999997), 7), ((100.5, 147.40000000000001), 8), ((154.09999999999999, 194.30000000000001), 7)))
 
 
 Regression test: this used to give an error
@@ -299,7 +251,7 @@ will be stored).  Therefore, we expect facet8 to _not_ include the 2000 and
 ...                         checkatleast=200, getfacets=True,
 ...                         allowfacets=('facet7', 'facet8'))
 >>> results3.get_suggested_facets()
-[('facet8', [((0.0, 0.0), 100), ((1.0, 1.0), 100)]), ('facet7', [('0', 100), ('1', 100), ('2000', 200), ('2001', 200)])]
+[('facet7', (('0', 100), ('1', 100), ('2000', 200), ('2001', 200))), ('facet8', (((0.0, 0.0), 100), ((1.0, 1.0), 100)))]
 
 
 Even if the database doesn't contain any facets, getting the list of suggested
@@ -438,30 +390,13 @@ Do a similarity search
 >>> len(ids)
 3
 >>> sconn.significant_terms(ids, maxterms=5)
-[('title', '8'), ('title', '5'), ('title', '2'), ('title', 'test'), ('title', 'document')]
+[('title', '8'), ('title', '5'), ('title', '2')]
 >>> q2 = sconn.query_similar(ids, simterms=5)
 >>> str(q2)
-'Xapian::Query((XB8 ELITE_SET 5 XB5 ELITE_SET 5 XB2 ELITE_SET 5 XBtest ELITE_SET 5 XBdocument))'
+'Xapian::Query((XB8 ELITE_SET 5 XB5 ELITE_SET 5 XB2))'
 >>> q2 = sconn.query_similar(ids, simterms=5, allow='text')
 >>> str(q2)
-'Xapian::Query((XDdocument ELITE_SET 5 XDthis ELITE_SET 5 XDtest ELITE_SET 5 XDmore ELITE_SET 5 XDis))'
-
-Try a search with various weight cutoff restrictions:
->>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date")
->>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
-[('7', 55, 326), ('8', 27, 163)]
->>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date", percentcutoff=30)
->>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
-[('7', 55, 326)]
->>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date", weightcutoff=20)
->>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
-[('7', 55, 326)]
->>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date", percentcutoff=56)
->>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
-[]
->>> results = sconn.search(sconn.query_parse('richard OR 7 OR 7 OR 8'), 0, 5, sortby="date", weightcutoff=33)
->>> [(result.id, result.percent, int(result.weight * 10)) for result in results]
-[]
+'Xapian::Query()'
 
 Do a similarity search with an ID which isn't in the database:
 >>> q2 = sconn.query_similar('foo', simterms=5)
@@ -471,7 +406,7 @@ Do a similarity search with an ID which isn't in the database:
 
 Check the expand decider used by similarity reordering of queries.
 >>> res = sconn.search(q2, 0, 5)
->>> ed = res._make_expand_decider('title')
+>>> ed = res._ordering._make_expand_decider('title')
 >>> ed('foo')
 False
 >>> ed('XBA:foo')
@@ -490,7 +425,7 @@ True
 
 Find the interesting terms in a set of documents:
 >>> [(docid, sconn.significant_terms(docid, 3)) for docid in sconn.iterids()][:3]
-[('0', [('title', '0'), ('title', 'test'), ('title', 'document')]), ('1', [('title', '1'), ('title', 'test'), ('title', 'document')]), ('10', [('title', '16'), ('title', 'test'), ('title', 'document')])]
+[('0', [('title', '0')]), ('1', [('title', '1')]), ('10', [('title', '16')])]
 
 
 Tidy up after ourselves:
@@ -502,5 +437,6 @@ Closing connection at path foo: Conn1
 >>> del result
 >>> del results
 >>> del results2
->>> del results3
+>>> import gc
+>>> del results3; gc.collect() and None
 Closing connection at path foo2: Conn2

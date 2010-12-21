@@ -35,7 +35,7 @@ class TestSpellCorrect(TestCase):
         query = 'brunore'
         self.assertEqual('bruno', self.sconn.spell_correct(query))
         query = 'brunore-brunore'
-        self.sconn.spell_correct(query)#will throw RuntimeError
+        self.assertEqual('bruno-bruno', self.sconn.spell_correct(query))
 
 if __name__ == '__main__':
     main()

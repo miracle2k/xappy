@@ -1,21 +1,24 @@
-
-#!/usr/bin/env python
+# Copyright (C) 2007,2008,2009 Lemur Consulting Ltd
+# Copyright (C) 2009 Pablo Hoffman
+# Copyright (C) 2009 Richard Boulton
 #
-# Copyright (C) 2007,2008 Lemur Consulting Ltd
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc.,
-# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
 r"""searchconnection.py: A connection to the search engine for searching.
 
 """
@@ -28,870 +31,21 @@ import math
 import inspect
 import itertools
 
-import xapian as _xapian
-from datastructures import *
+import xapian
+from cache_search_results import CacheResultOrdering
+import cachemanager
+from datastructures import UnprocessedDocument, ProcessedDocument
 from fieldactions import ActionContext, FieldActions, \
-         ActionSet, SortableMarshaller, convert_range_to_term
-import fieldmappings as _fieldmappings
-from fields import Field, FieldGroup
-import highlight as _highlight
-import errors as _errors
+         ActionSet, SortableMarshaller, convert_range_to_term, \
+         _get_imgterms
+import fieldmappings
+import errors
 from indexerconnection import IndexerConnection, PrefixedTermIter, \
          DocumentIter, SynonymIter, _allocate_id
-import re as _re
-from replaylog import log as _log
 from query import Query
-
-def add_to_dict_of_dicts(d, key, item, value):
-    """Add to an an entry to a dict of dicts.
-
-    """
-    try:
-        d[key][item] = d[key].get(item, 0) + value
-    except KeyError:
-        d[key] = {item: value}
-
-class SearchResult(ProcessedDocument):
-    """A result from a search.
-
-    As well as being a ProcessedDocument representing the document in the
-    database, the result has several members which may be used to get
-    information about how well the document matches the search:
-
-     - `rank`: The rank of the document in the search results, starting at 0
-       (ie, 0 is the "top" result, 1 is the second result, etc).
-
-     - `weight`: A floating point number indicating the weight of the result
-       document.  The value is only meaningful relative to other results for a
-       given search - a different search, or the same search with a different
-       database, may give an entirely different scale to the weights.  This
-       should not usually be displayed to users, but may be useful if trying to
-       perform advanced reweighting operations on search results.
-
-     - `percent`: A percentage value for the weight of a document.  This is
-       just a rescaled form of the `weight` member.  It doesn't represent any
-       kind of probability value; the only real meaning of the numbers is that,
-       within a single set of results, a document with a higher percentage
-       corresponds to a better match.  Because the percentage doesn't really
-       represent a probability, or a confidence value, it is probably unhelpful
-       to display it to most users, since they tend to place an over emphasis
-       on its meaning.  However, it is included because it may be useful
-       occasionally.
-
-    """
-    def __init__(self, msetitem, results):
-        ProcessedDocument.__init__(self, results._fieldmappings, msetitem.document)
-        self.rank = msetitem.rank
-        self.weight = msetitem.weight
-        self.percent = msetitem.percent
-        self._results = results
-
-        # termassocs is a map from a term to a list of tuples of (fieldname,
-        # offset, weight) of relevant data.
-        self._termassocs = None
-
-        # valueassocs is a map from a value slot to a list of values with
-        # associated (fieldname, offset) data.
-        self._valueassocs = None
-
-    def _get_language(self, field):
-        """Get the language that should be used for a given field.
-
-        Raises a KeyError if the field is not known.
-
-        """
-        actions = self._results._conn._field_actions[field]._actions
-        for action, kwargslist in actions.iteritems():
-            if action == FieldActions.INDEX_FREETEXT:
-                for kwargs in kwargslist:
-                    try:
-                        return kwargs['language']
-                    except KeyError:
-                        pass
-        return 'none'
-
-    def _add_termvalue_assocs(self, assocs):
-        """Add the associations found in assocs to those in self.
-
-        """
-        for fieldname, tvoffsetlist in assocs.iteritems():
-            for (tv, offset), weight in tvoffsetlist.iteritems():
-                if tv[0] == 'T':
-                    term = tv[1:]
-                    try:
-                        item = self._termassocs[term]
-                    except KeyError:
-                        item = []
-                        self._termassocs[term] = item
-                    item.append((fieldname, offset, weight))
-                elif tv[0] == 'V':
-                    slot, value = tv[1:].split(':', 1)
-                    slot = int(slot)
-                    try:
-                        item = self._valueassocs[slot]
-                    except KeyError:
-                        item = []
-                        self._valueassocs[slot] = item
-                    item.append((value, (fieldname, offset, weight)))
-                else:
-                    assert False
-
-
-    def _calc_termvalue_assocs(self):
-        """Calculate the term-value associations.
-
-        """
-        conn = self._results._conn
-        self._termassocs = {}
-        self._valueassocs = {}
-
-        # Iterate through the stored content, extracting the set of terms and
-        # values which are relevant to each piece.
-        for field, values in self.data.iteritems():
-            unpdoc = UnprocessedDocument()
-            for value in values:
-                unpdoc.fields.append(Field(field, value, value))
-            try:
-                pdoc = conn.process(unpdoc)
-            except errors.IndexerError:
-                # Ignore indexing errors - these can happen if the stored
-                # data isn't the original data (due to a field
-                # association), resulting in the wrong type of data being
-                # supplied to the indexing action.
-                continue
-            self._add_termvalue_assocs(pdoc._get_assocs())
-
-        # Merge in the terms and values from the stored field associations.
-        self._add_termvalue_assocs(self._get_assocs())
-
-    def relevant_data(self, allow=None, deny=None, query=None):
-        """Return field data which was relevant for this result.
-
-        This will return a tuple of fields which have data stored for them
-        which was relevant to the search, together with the data which was
-        relevant.  The returned tuple items will be tuples of (fieldname,
-        data), where data is a tuple of strings.
-        
-        In order to be returned the fields must have the STORE_CONTENT action,
-        but must also be included in the query (so must have other actions
-        specified too).  If there are multiple instances of a field, only those
-        which have some relevance will be returned.
-
-        If field associations were used when indexing the field (ie, the
-        "Field.assoc" member was set), the associated data will be returned,
-        but the original field data will be used to determine whether the
-        field should be returned or not.
-
-        By default, all fields will be considered by this function, but the
-        list of fields considered may be adjusted with the allow and deny
-        parameters.
-
-         - `allow`: A list of fields to consider for relevance.
-         - `deny`: A list of fields not to consider for relevance.
-
-        If `query` is supplied, it should contain a Query object, as returned
-        from SearchConnection.query_parse() or related methods, which will be
-        used as the basis of selecting relevant data rather than the query
-        which was used for the search.
- 
-        """
-        if query is None:
-            query = self._results._query
-        conn = self._results._conn
-
-        if self._termassocs is None:
-            self._calc_termvalue_assocs()
-
-        fieldscores = {}
-        fieldassocs = {}
-        # Iterate through the components of the query, looking for those terms
-        # and values which match it.
-        for term in query._get_terms():
-            assocs = self._termassocs.get(term)
-            if assocs is None:
-                continue
-            for field, offset, weight in assocs:
-                fieldscores[field] = fieldscores.get(field, 0) + 1
-                add_to_dict_of_dicts(fieldassocs, field, offset, weight)
-
-        # Iterate through the ranges in the query, checking them.
-        for slot, begin, end in query._get_ranges():
-            assocs = self._valueassocs.get(slot)
-            if assocs is None:
-                continue
-            for value, (field, offset, weight) in assocs:
-                if begin is None:
-                    if end is None:
-                        fieldscores[field] = fieldscores.get(field, 0) + 1
-                        add_to_dict_of_dicts(fieldassocs, field, offset, weight)
-                    elif value <= end:
-                        fieldscores[field] = fieldscores.get(field, 0) + 1
-                        add_to_dict_of_dicts(fieldassocs, field, offset, weight)
-                elif begin <= value:
-                    if end is None:
-                        fieldscores[field] = fieldscores.get(field, 0) + 1
-                        add_to_dict_of_dicts(fieldassocs, field, offset, weight)
-                    elif value <= end:
-                        fieldscores[field] = fieldscores.get(field, 0) + 1
-                        add_to_dict_of_dicts(fieldassocs, field, offset, weight)
-
-        # Convert the dict of fields and data offsets with scores to to a list
-        # of (field, data) item.  Sort in decreasing order of score, and
-        # increasing alphabetical order if the score is the same.
-        scoreditems = [(-score, field)
-                       for field, score in fieldscores.iteritems()]
-        scoreditems.sort()
-        result = []
-        for score, field in scoreditems:
-            fielddata = [(-weight, self.data[field][offset]) for offset, weight in fieldassocs[field].iteritems()]
-            fielddata.sort()
-            result.append((field, tuple(data for weight, data in fielddata)))
-        return tuple(result)
-
-    def summarise(self, field, maxlen=600, hl=('<b>', '</b>'), query=None):
-        """Return a summarised version of the field specified.
-
-        This will return a summary of the contents of the field stored in the
-        search result, with words which match the query highlighted.
-
-        The maximum length of the summary (in characters) may be set using the
-        maxlen parameter.
-
-        The return value will be a string holding the summary, with
-        highlighting applied.  If there are multiple instances of the field in
-        the document, the instances will be joined with a newline character.
-
-        To turn off highlighting, set hl to None.  Each highlight will consist
-        of the first entry in the `hl` list being placed before the word, and
-        the second entry in the `hl` list being placed after the word.
-
-        Any XML or HTML style markup tags in the field will be stripped before
-        the summarisation algorithm is applied.
-
-        If `query` is supplied, it should contain a Query object, as returned
-        from SearchConnection.query_parse() or related methods, which will be
-        used as the basis of the summarisation and highlighting rather than the
-        query which was used for the search.
-
-        Raises KeyError if the field is not known.
-
-        """
-        highlighter = _highlight.Highlighter(language_code=self._get_language(field))
-        field = self.data[field]
-        results = []
-        text = '\n'.join(field)
-        if query is None:
-            query = self._results._query
-        return highlighter.makeSample(text, query, maxlen, hl)
-
-    def highlight(self, field, hl=('<b>', '</b>'), strip_tags=False, query=None):
-        """Return a highlighted version of the field specified.
-
-        This will return all the contents of the field stored in the search
-        result, with words which match the query highlighted.
-
-        The return value will be a list of strings (corresponding to the list
-        of strings which is the raw field data).
-
-        Each highlight will consist of the first entry in the `hl` list being
-        placed before the word, and the second entry in the `hl` list being
-        placed after the word.
-
-        If `strip_tags` is True, any XML or HTML style markup tags in the field
-        will be stripped before highlighting is applied.
-
-        If `query` is supplied, it should contain a Query object, as returned
-        from SearchConnection.query_parse() or related methods, which will be
-        used as the basis of the summarisation and highlighting rather than the
-        query which was used for the search.
-
-        Raises KeyError if the field is not known.
-
-        """
-        highlighter = _highlight.Highlighter(language_code=self._get_language(field))
-        field = self.data[field]
-        results = []
-        if query is None:
-            query = self._results._query
-        for text in field:
-            results.append(highlighter.highlight(text, query, hl, strip_tags))
-        return results
-
-    def __repr__(self):
-        return ('<SearchResult(rank=%d, id=%r, data=%r)>' %
-                (self.rank, self.id, self.data))
-
-
-class SearchResultIter(object):
-    """An iterator over a set of results from a search.
-
-    """
-    def __init__(self, results, order):
-        self._results = results
-        self._order = order
-        if self._order is None:
-            self._iter = iter(results._mset)
-        else:
-            self._iter = iter(self._order)
-
-    def next(self):
-        if self._order is None:
-            msetitem = self._iter.next()
-        else:
-            index = self._iter.next()
-            msetitem = self._results._mset.get_hit(index)
-        return SearchResult(msetitem, self._results)
-
-
-def _get_significant_digits(value, lower, upper):
-    """Get the significant digits of value which are constrained by the
-    (inclusive) lower and upper bounds.
-
-    If there are no significant digits which are definitely within the
-    bounds, exactly one significant digit will be returned in the result.
-
-    >>> _get_significant_digits(15,15,15)
-    15
-    >>> _get_significant_digits(15,15,17)
-    20
-    >>> _get_significant_digits(4777,208,6000)
-    5000
-    >>> _get_significant_digits(4777,4755,4790)
-    4800
-    >>> _get_significant_digits(4707,4695,4710)
-    4700
-    >>> _get_significant_digits(4719,4717,4727)
-    4720
-    >>> _get_significant_digits(0,0,0)
-    0
-    >>> _get_significant_digits(9,9,10)
-    9
-    >>> _get_significant_digits(9,9,100)
-    9
-
-    """
-    assert(lower <= value)
-    assert(value <= upper)
-    diff = upper - lower
-
-    # Get the first power of 10 greater than the difference.
-    # This corresponds to the magnitude of the smallest significant digit.
-    if diff == 0:
-        pos_pow_10 = 1
-    else:
-        pos_pow_10 = int(10 ** math.ceil(math.log10(diff)))
-
-    # Special case for situation where we don't have any significant digits:
-    # get the magnitude of the most significant digit in value.
-    if pos_pow_10 > value:
-        if value == 0:
-            pos_pow_10 = 1
-        else:
-            pos_pow_10 = int(10 ** math.floor(math.log10(value)))
-
-    # Return the value, rounded to the nearest multiple of pos_pow_10
-    return ((value + pos_pow_10 // 2) // pos_pow_10) * pos_pow_10
-
-class SearchResults(object):
-    """A set of results of a search.
-
-    """
-    def __init__(self, conn, enq, query, mset, fieldmappings, tagspy,
-                 tagfields, facetspy, facetfields, facethierarchy,
-                 facetassocs):
-        self._conn = conn
-        self._enq = enq
-        self._query = query
-        self._mset = mset
-        self._mset_order = None
-        self._fieldmappings = fieldmappings
-        self._tagspy = tagspy
-        if tagfields is None:
-            self._tagfields = None
-        else:
-            self._tagfields = set(tagfields)
-        self._facetspy = facetspy
-        self._facetfields = facetfields
-        self._facethierarchy = facethierarchy
-        self._facetassocs = facetassocs
-        self._numeric_ranges_built = {}
-
-    def _cluster(self, num_clusters, maxdocs, fields=None):
-        """Cluster results based on similarity.
-
-        Note: this method is experimental, and will probably disappear or
-        change in the future.
-
-        The number of clusters is specified by num_clusters: unless there are
-        too few results, there will be exaclty this number of clusters in the
-        result.
-
-        """
-        clusterer = _xapian.ClusterSingleLink()
-        xapclusters = _xapian.ClusterAssignments()
-        docsim = _xapian.DocSimCosine()
-        source = _xapian.MSetDocumentSource(self._mset, maxdocs)
-
-        if fields is None:
-            clusterer.cluster(self._conn._index, xapclusters, docsim, source, num_clusters)
-        else:
-            decider = self._make_expand_decider(fields)
-            clusterer.cluster(self._conn._index, xapclusters, docsim, source, decider, num_clusters)
-
-        newid = 0
-        idmap = {}
-        clusters = {}
-        for item in self._mset:
-            docid = item.docid
-            clusterid = xapclusters.cluster(docid)
-            if clusterid not in idmap:
-                idmap[clusterid] = newid
-                newid += 1
-            clusterid = idmap[clusterid]
-            if clusterid not in clusters:
-                clusters[clusterid] = []
-            clusters[clusterid].append(item.rank)
-        return clusters
-
-    def _reorder_by_clusters(self, clusters):
-        """Reorder the mset based on some clusters.
-
-        """
-        if self.startrank != 0:
-            raise _errors.SearchError("startrank must be zero to reorder by clusters")
-        reordered = False
-        tophits = []
-        nottophits = []
-
-        clusterstarts = dict(((c[0], None) for c in clusters.itervalues()))
-        for i in xrange(self.endrank):
-            if i in clusterstarts:
-                tophits.append(i)
-            else:
-                nottophits.append(i)
-        self._mset_order = tophits
-        self._mset_order.extend(nottophits)
-
-    def _make_expand_decider(self, fields):
-        """Make an expand decider which accepts only terms in the specified
-        field.
-
-        """
-        prefixes = {}
-        if isinstance(fields, basestring):
-            fields = [fields]
-        for field in fields:
-            try:
-                actions = self._conn._field_actions[field]._actions
-            except KeyError:
-                continue
-            for action, kwargslist in actions.iteritems():
-                if action == FieldActions.INDEX_FREETEXT:
-                    prefix = self._conn._field_mappings.get_prefix(field)
-                    prefixes[prefix] = None
-                    prefixes['Z' + prefix] = None
-                if action in (FieldActions.INDEX_EXACT,
-                              FieldActions.TAG,
-                              FieldActions.FACET,):
-                    prefix = self._conn._field_mappings.get_prefix(field)
-                    prefixes[prefix] = None
-        prefix_re = _re.compile('|'.join([_re.escape(x) + '[^A-Z]' for x in prefixes.keys()]))
-        class decider(_xapian.ExpandDecider):
-            def __call__(self, term):
-                return prefix_re.match(term) is not None
-        return decider()
-
-    def _reorder_by_similarity(self, count, maxcount, max_similarity,
-                               fields=None):
-        """Reorder results based on similarity.
-
-        The top `count` documents will be chosen such that they are relatively
-        dissimilar.  `maxcount` documents will be considered for moving around,
-        and `max_similarity` is a value between 0 and 1 indicating the maximum
-        similarity to the previous document before a document is moved down the
-        result set.
-
-        Note: this method is experimental, and will probably disappear or
-        change in the future.
-
-        """
-        if self.startrank != 0:
-            raise _errors.SearchError("startrank must be zero to reorder by similiarity")
-        ds = _xapian.DocSimCosine()
-        ds.set_termfreqsource(_xapian.DatabaseTermFreqSource(self._conn._index))
-
-        if fields is not None:
-            ds.set_expand_decider(self._make_expand_decider(fields))
-
-        tophits = []
-        nottophits = []
-        full = False
-        reordered = False
-
-        sim_count = 0
-        new_order = []
-        end = min(self.endrank, maxcount)
-        for i in xrange(end):
-            if full:
-                new_order.append(i)
-                continue
-            hit = self._mset.get_hit(i)
-            if len(tophits) == 0:
-                tophits.append(hit)
-                continue
-
-            # Compare each incoming hit to tophits
-            maxsim = 0.0
-            for tophit in tophits[-1:]:
-                sim_count += 1
-                sim = ds.similarity(hit.document, tophit.document)
-                if sim > maxsim:
-                    maxsim = sim
-
-            # If it's not similar to an existing hit, add to tophits.
-            if maxsim < max_similarity:
-                tophits.append(hit)
-            else:
-                nottophits.append(hit)
-                reordered = True
-
-            # If we're full of hits, append to the end.
-            if len(tophits) >= count:
-                for hit in tophits:
-                    new_order.append(hit.rank)
-                for hit in nottophits:
-                    new_order.append(hit.rank)
-                full = True
-        if not full:
-            for hit in tophits:
-                new_order.append(hit.rank)
-            for hit in nottophits:
-                new_order.append(hit.rank)
-        if end != self.endrank:
-            new_order.extend(range(end, self.endrank))
-        assert len(new_order) == self.endrank
-        if reordered:
-            self._mset_order = new_order
-        else:
-            assert new_order == range(self.endrank)
-
-    def __repr__(self):
-        return ("<SearchResults(startrank=%d, "
-                "endrank=%d, "
-                "more_matches=%s, "
-                "matches_lower_bound=%d, "
-                "matches_upper_bound=%d, "
-                "matches_estimated=%d, "
-                "estimate_is_exact=%s)>" %
-                (
-                 self.startrank,
-                 self.endrank,
-                 self.more_matches,
-                 self.matches_lower_bound,
-                 self.matches_upper_bound,
-                 self.matches_estimated,
-                 self.estimate_is_exact,
-                ))
-
-    def _get_more_matches(self):
-        # This check relies on us having asked for at least one more result
-        # than retrieved to be checked.
-        return (self.matches_lower_bound > self.endrank)
-    more_matches = property(_get_more_matches, doc=
-    """Check whether there are further matches after those in this result set.
-
-    """)
-
-    def _get_startrank(self):
-        return self._mset.get_firstitem()
-    startrank = property(_get_startrank, doc=
-    """Get the rank of the first item in the search results.
-
-    This corresponds to the "startrank" parameter passed to the search() method.
-
-    """)
-
-    def _get_endrank(self):
-        return self._mset.get_firstitem() + len(self._mset)
-    endrank = property(_get_endrank, doc=
-    """Get the rank of the item after the end of the search results.
-
-    If there are sufficient results in the index, this corresponds to the
-    "endrank" parameter passed to the search() method.
-
-    """)
-
-    def _get_lower_bound(self):
-        return self._mset.get_matches_lower_bound()
-    matches_lower_bound = property(_get_lower_bound, doc=
-    """Get a lower bound on the total number of matching documents.
-
-    """)
-
-    def _get_upper_bound(self):
-        return self._mset.get_matches_upper_bound()
-    matches_upper_bound = property(_get_upper_bound, doc=
-    """Get an upper bound on the total number of matching documents.
-
-    """)
-
-    def _get_human_readable_estimate(self):
-        lower = self._mset.get_matches_lower_bound()
-        upper = self._mset.get_matches_upper_bound()
-        est = self._mset.get_matches_estimated()
-        return _get_significant_digits(est, lower, upper)
-    matches_human_readable_estimate = property(_get_human_readable_estimate,
-                                               doc=
-    """Get a human readable estimate of the number of matching documents.
-
-    This consists of the value returned by the "matches_estimated" property,
-    rounded to an appropriate number of significant digits (as determined by
-    the values of the "matches_lower_bound" and "matches_upper_bound"
-    properties).
-
-    """)
-
-    def _get_estimated(self):
-        return self._mset.get_matches_estimated()
-    matches_estimated = property(_get_estimated, doc=
-    """Get an estimate for the total number of matching documents.
-
-    """)
-
-    def _estimate_is_exact(self):
-        return self._mset.get_matches_lower_bound() == \
-               self._mset.get_matches_upper_bound()
-    estimate_is_exact = property(_estimate_is_exact, doc=
-    """Check whether the estimated number of matching documents is exact.
-
-    If this returns true, the estimate given by the `matches_estimated`
-    property is guaranteed to be correct.
-
-    If this returns false, it is possible that the actual number of matching
-    documents is different from the number given by the `matches_estimated`
-    property.
-
-    """)
-
-    def get_hit(self, index):
-        """Get the hit with a given index.
-
-        """
-        if self._mset_order is None:
-            msetitem = self._mset.get_hit(index)
-        else:
-            msetitem = self._mset.get_hit(self._mset_order[index])
-        return SearchResult(msetitem, self)
-
-    def __getitem__(self, index_or_slice):
-        """Get an item, or slice of items.
-
-        """
-        if isinstance(index_or_slice, slice):
-            start, stop, step = index_or_slice.indices(len(self._mset))
-            return map(self.get_hit, xrange(start, stop, step))
-        else:
-            return self.get_hit(index_or_slice)
-
-    def __iter__(self):
-        """Get an iterator over the hits in the search result.
-
-        The iterator returns the results in increasing order of rank.
-
-        """
-        return SearchResultIter(self, self._mset_order)
-
-    def __len__(self):
-        """Get the number of hits in the search result.
-
-        Note that this is not (usually) the number of matching documents for
-        the search.  If startrank is non-zero, it's not even the rank of the
-        last document in the search result.  It's simply the number of hits
-        stored in the search result.
-
-        It is, however, the number of items returned by the iterator produced
-        by calling iter() on this SearchResults object.
-
-        """
-        return len(self._mset)
-
-    def get_top_tags(self, field, maxtags):
-        """Get the most frequent tags in a given field.
-
-         - `field` - the field to get tags for.  This must have been specified
-           in the "gettags" argument of the search() call.
-         - `maxtags` - the maximum number of tags to return.
-
-        Returns a sequence of 2-item tuples, in which the first item in the
-        tuple is the tag, and the second is the frequency of the tag in the
-        matches seen (as an integer).
-
-        """
-        if 'tags' in _checkxapian.missing_features:
-            raise errors.SearchError("Tags unsupported with this release of xapian")
-        if self._tagspy is None or field not in self._tagfields:
-            raise _errors.SearchError("Field %r was not specified for getting tags" % field)
-        prefix = self._conn._field_mappings.get_prefix(field)
-        items = self._tagspy.get_top_terms(prefix, maxtags)
-        # Workaround an old bug in tagspy: used to accept terms from different
-        # prefixes, if the start of the prefix was right.
-        okitems = []
-        for item in items:
-            firstchar = item[0]
-            if firstchar >= 'A' and firstchar <= 'Z':
-                continue
-            okitems.append(item)
-        return okitems
-
-    def get_suggested_facets(self, maxfacets=5, desired_num_of_categories=7,
-                             required_facets=None):
-        """Get a suggested set of facets, to present to the user.
-
-        This returns a list, in descending order of the usefulness of the
-        facet, in which each item is a tuple holding:
-
-         - fieldname of facet.
-         - sequence of 2-tuples holding the suggested values or ranges for that
-           field:
-
-           For facets of type 'string', the first item in the 2-tuple will
-           simply be the string supplied when the facet value was added to its
-           document.  For facets of type 'float', it will be a 2-tuple, holding
-           floats giving the start and end of the suggested value range.
-
-           The second item in the 2-tuple will be the frequency of the facet
-           value or range in the result set.
-
-        If required_facets is not None, it must be a field name, or a sequence
-        of field names.  Any field names mentioned in required_facets will be
-        returned if there are any facet values at all in the search results for
-        that field.  The facet will only be omitted if there are no facet
-        values at all for the field.
-
-        The value of maxfacets will be respected as far as possible; the
-        exception is that if there are too many fields listed in
-        required_facets with at least one value in the search results, extra
-        facets will be returned (ie, obeying the required_facets parameter is
-        considered more important than the maxfacets parameter).
-
-        If facet_hierarchy was indicated when search() was called, and the
-        query included facets, then only subfacets of those query facets and
-        top-level facets will be included in the returned list.  Furthermore
-        top-level facets will only be returned if there are remaining places
-        in the list after it has been filled with subfacets.  Note that
-        required_facets is still respected regardless of the facet hierarchy.
-
-        If a query type was specified when search() was called, and the query
-        included facets, then facets with an association of Never to the
-        query type are never returned, even if mentioned in required_facets.
-        Facets with an association of Preferred are listed before others in
-        the returned list.
-
-        """
-        if 'facets' in _checkxapian.missing_features:
-            raise errors.SearchError("Facets unsupported with this release of xapian")
-        if self._facetspy is None:
-            raise _errors.SearchError("Facet selection wasn't enabled when the search was run")
-        if isinstance(required_facets, basestring):
-            required_facets = [required_facets]
-        scores = []
-        facettypes = {}
-        for field, slot, kwargslist in self._facetfields:
-            type = None
-            for kwargs in kwargslist:
-                type = kwargs.get('type', None)
-                if type is not None: break
-            if type is None: type = 'string'
-
-            if type == 'float':
-                if field not in self._numeric_ranges_built:
-                    self._facetspy.build_numeric_ranges(slot, desired_num_of_categories)
-                    self._numeric_ranges_built[field] = None
-            facettypes[field] = type
-            score = self._facetspy.score_categorisation(slot, desired_num_of_categories)
-            scores.append((score, field, slot))
-
-        # Sort on whether facet is top-level ahead of score (use subfacets first),
-        # and on whether facet is preferred for the query type ahead of anything else
-        if self._facethierarchy:
-            # Note, tuple[-2] is the value of 'field' in a scores tuple
-            scores = [(tuple[-2] not in self._facethierarchy,) + tuple for tuple in scores]
-        if self._facetassocs:
-            preferred = IndexerConnection.FacetQueryType_Preferred
-            scores = [(self._facetassocs.get(tuple[-2]) != preferred,) + tuple for tuple in scores]
-        scores.sort()
-        if self._facethierarchy:
-            index = 1
-        else:
-            index = 0
-        if self._facetassocs:
-            index += 1
-        if index > 0:
-            scores = [tuple[index:] for tuple in scores]
-
-        results = []
-        required_results = []
-        for score, field, slot in scores:
-            # Check if the facet is required
-            required = False
-            if required_facets is not None:
-                required = field in required_facets
-
-            # If we've got enough facets, and the field isn't required, skip it
-            if not required and len(results) + len(required_results) >= maxfacets:
-                continue
-
-            # Get the values
-            values = self._facetspy.get_values_as_dict(slot)
-            if field in self._numeric_ranges_built:
-                if '' in values:
-                    del values['']
-
-            # Required facets must occur at least once, other facets must occur
-            # at least twice.
-            if required:
-                if len(values) < 1:
-                    continue
-            else:
-                if len(values) <= 1:
-                    continue
-
-            newvalues = []
-            if facettypes[field] == 'float':
-                # Convert numbers to python numbers, and number ranges to a
-                # python tuple of two numbers.
-                for value, frequency in values.iteritems():
-                    if len(value) <= 9:
-                        value1 = _log(_xapian.sortable_unserialise, value)
-                        value2 = value1
-                    else:
-                        value1 = _log(_xapian.sortable_unserialise, value[:9])
-                        value2 = _log(_xapian.sortable_unserialise, value[9:])
-                    newvalues.append(((value1, value2), frequency))
-            else:
-                for value, frequency in values.iteritems():
-                    newvalues.append((value, frequency))
-
-            newvalues.sort()
-            if required:
-                required_results.append((score, field, newvalues))
-            else:
-                results.append((score, field, newvalues))
-
-        # Throw away any excess results if we have more required_results to
-        # insert.
-        maxfacets = maxfacets - len(required_results)
-        if maxfacets <= 0:
-            results = required_results
-        else:
-            results = results[:maxfacets]
-            results.extend(required_results)
-            results.sort()
-
-        # Throw away the scores because they're not meaningful outside this
-        # algorithm.
-        results = [(field, newvalues) for (score, field, newvalues) in results]
-        return results
+from searchresults import SearchResults, SearchResultContext
+from mset_search_results import FacetResults, NoFacetResults, \
+         MSetResultOrdering, ResultStats, MSetTermWeightGetter
 
 class ExternalWeightSource(object):
     """A source of extra weight information for searches.
@@ -917,13 +71,18 @@ class SearchConnection(object):
     The connection will access a view of the database.
 
     """
-    _qp_flags_base = _xapian.QueryParser.FLAG_LOVEHATE
-    _qp_flags_phrase = _xapian.QueryParser.FLAG_PHRASE
-    _qp_flags_synonym = (_xapian.QueryParser.FLAG_AUTO_SYNONYMS |
-                         _xapian.QueryParser.FLAG_AUTO_MULTIWORD_SYNONYMS)
-    _qp_flags_bool = _xapian.QueryParser.FLAG_BOOLEAN
+    _qp_flags_wildcard = xapian.QueryParser.FLAG_WILDCARD
+    _qp_flags_base = xapian.QueryParser.FLAG_LOVEHATE
+    _qp_flags_phrase = xapian.QueryParser.FLAG_PHRASE
+    _qp_flags_synonym = (xapian.QueryParser.FLAG_AUTO_SYNONYMS |
+                         xapian.QueryParser.FLAG_AUTO_MULTIWORD_SYNONYMS)
+    _qp_flags_bool = xapian.QueryParser.FLAG_BOOLEAN
 
     _index = None
+
+    # Slots after this number are used for the cache manager.
+    # FIXME - don't hard-code this - put it in the settings instead?
+    _cache_manager_slot_start = 10000
 
     def __init__(self, indexpath):
         """Create a new connection to the index for searching.
@@ -935,15 +94,19 @@ class SearchConnection(object):
         If the database doesn't exist, an exception will be raised.
 
         """
+        self.cache_manager = None
         self._indexpath = indexpath
         self._close_handlers = []
-        self._index = _log(_xapian.Database, indexpath)
+        self._index = xapian.Database(indexpath)
         try:
             # Read the actions.
             self._load_config()
         except:
+            if hasattr(self._index, 'close'):
+                self._index.close()
             self._index = None
             raise
+        self._imgterms_cache = {}
 
     def __del__(self):
         self.close()
@@ -984,12 +147,11 @@ class SearchConnection(object):
         Returns a sequence of 2-tuples, (fieldname, searchbydefault)
 
         """
-        for field, actions in self._field_actions.iteritems():
+        for field, actions in self._field_actions.actions.iteritems():
             for action, kwargslist in actions.iteritems():
                 if action == FieldActions.INDEX_FREETEXT:
                     for kwargs in kwargslist:
                         return kwargs['type']
-        
 
     def _load_config(self):
         """Load the configuration for the database.
@@ -999,10 +161,17 @@ class SearchConnection(object):
         # class.  Move it to a shared location.
         assert self._index is not None
 
-        config_str = _log(self._index.get_metadata, '_xappy_config')
+        while True:
+            try:
+                config_str = self._index.get_metadata('_xappy_config')
+                break
+            except xapian.DatabaseModifiedError, e:
+                # Don't call self.reopen() since that calls _load_config()!
+                self._index.reopen()
+
         if len(config_str) == 0:
             self._field_actions = ActionSet()
-            self._field_mappings = _fieldmappings.FieldMappings()
+            self._field_mappings = fieldmappings.FieldMappings()
             self._next_docid = 0
             self._facet_hierarchy = {}
             self._facet_query_table = {}
@@ -1031,7 +200,14 @@ class SearchConnection(object):
             self._field_actions.actions = actions
             self._facet_hierarchy = {}
             self._facet_query_table = {}
-        self._field_mappings = _fieldmappings.FieldMappings(mappings)
+        self._field_mappings = fieldmappings.FieldMappings(mappings)
+
+        if self._index.get_metadata('_xappy_hascache'):
+            self.cache_manager = cachemanager.XapianCacheManager(self._indexpath)
+            # Make the cache manager use the same index connection as this
+            # index, since it's subordinate to it.
+            self.cache_manager.db = self._index
+            self.cache_manager.writable = False
 
     def reopen(self):
         """Reopen the connection.
@@ -1041,7 +217,7 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         self._index.reopen()
         # Re-read the actions.
         self._load_config()
@@ -1066,19 +242,24 @@ class SearchConnection(object):
         # Remember the index path
         indexpath = self._indexpath
 
-        # There is currently no "close()" method for xapian databases, so
-        # we have to rely on the garbage collector.  Since we never copy
-        # the _index property out of this class, there should be no cycles,
-        # so the standard python implementation should garbage collect
-        # _index straight away.  A close() method is planned to be added to
-        # xapian at some point - when it is, we should call it here to make
-        # the code more robust.
-        # FIXME - add a call to xapian's close method (and also do that in the
-        # exception handler in __init__)
+        try:
+            self._index.close()
+        except AttributeError:
+            # Xapian versions earlier than 1.1.0 didn't have a close()
+            # method, so we just had to rely on the garbage collector to
+            # clean up.  Ignore the exception that occurs if we're using
+            # 1.0.x.
+            # FIXME - remove this special case when we no longer support
+            # the 1.0.x release series.  Also remove the equivalent special
+            # case in __init__.
+            pass
         self._index = None
         self._indexpath = None
         self._field_actions = None
         self._field_mappings = None
+
+        if self.cache_manager is not None:
+            self.cache_manager.close()
 
         # Call the close handlers.
         for handler, userdata in self._close_handlers:
@@ -1106,7 +287,7 @@ class SearchConnection(object):
             raise errors.SearchError("SearchConnection has been closed")
         result = ProcessedDocument(self._field_mappings)
         result.id = document.id
-        context = ActionContext(self._index, readonly=True)
+        context = ActionContext(self, readonly=True)
 
         self._field_actions.perform(result, document, context)
 
@@ -1120,7 +301,7 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         return self._index.get_doccount()
 
     OP_AND = Query.OP_AND
@@ -1133,7 +314,7 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         return Query.compose(operator, list(queries))
 
     def query_multweight(self, query, multiplier):
@@ -1151,7 +332,7 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         return Query(query) * multiplier
 
     def query_filter(self, query, filter, exclude=False):
@@ -1176,14 +357,14 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         try:
             if exclude:
                 return query.and_not(filter)
             else:
                 return query.filter(filter)
         except TypeError:
-            raise _errors.SearchError("Filter must be a Xapian Query object")
+            raise errors.SearchError("Filter must be a Xapian Query object")
 
     def query_adjust(self, primary, secondary):
         """Adjust the weights of one query with a secondary query.
@@ -1196,16 +377,137 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         return primary.adjust(secondary)
+
+    _RANGE_EXACT = 0 # A query exactly matching the range.
+    _RANGE_SUBSET = 1 # A query matching only a subset of the range.
+    _RANGE_SUPERSET = 2 # A query matching a superset of the range.
+    _RANGE_NONE = 3 # A query matching a none of the range.
+
+    def _build_range_query(self, prefix, ranges, query_ranges):
+        """Build a range query by converting each range into a term, and ORing
+        them together.
+
+        """
+        queries = []
+        for r in ranges:
+            term = convert_range_to_term(prefix, r[0], r[1])
+            queries.append(Query(xapian.Query(term), _conn=self,
+                                 _ranges=query_ranges))
+        return Query.compose(xapian.Query.OP_OR, queries)
+
+    def _build_range_query_cons(self, prefix, begin, end, ranges, query_ranges):
+        """Build an approximate range query for the given range which matches
+        a maximal subset of the range.
+
+        """
+        # Make test_fn to check if fully in range
+        if begin is not None and end is not None:
+            test_fn = lambda r: begin <= r[0] and r[1] <= end
+        elif begin is not None:
+            test_fn = (lambda r: begin <= r[0])
+        else:
+            assert end is not None
+            test_fn = (lambda r: r[1] <= end)
+        valid_ranges = filter(test_fn, ranges)
+        if len(valid_ranges) == 0:
+            return Query(_conn=self, _ranges=query_ranges) * 0, \
+                   self._RANGE_NONE
+
+        q = self._build_range_query(prefix, valid_ranges, query_ranges) * 0
+
+        min_r = min(r[0] for r in valid_ranges)
+        max_r = max(r[1] for r in valid_ranges)
+        if min_r == begin and max_r == end:
+            return q, self._RANGE_EXACT
+
+        return q, self._RANGE_SUBSET
+
+    def _build_range_query_noncons(self, prefix, begin, end, ranges, query_ranges):
+        """Build an approximate range query for the given range which matches
+        a minimal superset of the range.
+
+        Note that this is a difficult problem to solve in general, and the
+        current algorithm will often not generate the best possible set of
+        terms, if there are overlapping ranges stored.
+
+        """
+        if begin is None or end is None:
+            # Currently, don't support openended ranges here.
+            return Query(_conn=self, _ranges=query_ranges), self._RANGE_NONE
+
+        ranges = list(ranges)
+        ranges.sort(key=lambda r: (r[0], -r[1]))
+
+        curr_top = None
+        chosen_ranges = []
+        for r in ranges:
+            if end <= r[0] or begin >= r[1]:
+                continue
+            if curr_top is None:
+                chosen_ranges.append(r)
+                if begin < r[0]:
+                    # Don't have full coverage.
+                    return Query(_conn=self, _ranges=query_ranges), self._RANGE_NONE
+                curr_top = r[1]
+                continue
+
+            if r[0] <= begin and chosen_ranges[0][0] <= begin:
+                # Restart, with a tighter starting point (we know it's tighter,
+                # because the starting points are in sorted ascending order).
+                chosen_ranges = [r]
+                curr_top = r[1]
+                continue
+
+            if curr_top <= r[1]:
+                if curr_top < r[0]:
+                    # Don't have full coverage.
+                    return Query(_conn=self, _ranges=query_ranges), self._RANGE_NONE
+                chosen_ranges.append(r)
+                curr_top = r[1]
+                continue
+
+        if len(chosen_ranges) == 0:
+            return Query(_conn=self, _ranges=query_ranges), self._RANGE_NONE
+
+        q = self._build_range_query(prefix, chosen_ranges, query_ranges)
+        if chosen_ranges[0][0] == begin and chosen_ranges[-1][1] == end:
+            return q, self._RANGE_EXACT
+        return q, self._RANGE_SUPERSET
 
     def _range_accel_query(self, field, begin, end, prefix, ranges,
                            conservative, query_ranges):
         """Construct a range acceleration query.
 
-        Returns a query consisting of all range terms that fall within 'begin'
-        and 'end'.  If 'conservative', ranges must fall completely within
-        'begin' and 'end', otherwise they may merely overlap.
+        Returns a 2-tuple containing:
+
+         - a query consisting of a set of range terms approximating the range
+           'begin' to 'end'.
+         - One of _RANGE_EXACT, _RANGE_SUBSET, _RANGE_SUPERSET and _RANGE_NONE
+           to indicate whether the returned query matches the range exactly,
+           matches a (strict) subset of the range, or matches a (strict)
+           superset of the range.
+
+        If possible, an exact range will always be returned, with _RANGE_EXACT.
+
+        Otherwise, if 'conservative' is False, an attempt to build a query
+        which completely covers the specified range is performed.  If this
+        succeeds, this query will be returned, with _RANGE_SUPERSET.
+
+        If 'conservative' is True, or the attempt to cover the range fails, an
+        attempt to build a query which matches as much as possible of the
+        range, but is fully contained within the range, is performed, with
+        _RANGE_SUBSET.
+
+        If all these attempts fail (ie, the only query possible matching a
+        subset of the range is the empty query), an empty query will be
+        returned, together with _RANGE_NONE.
+
+        `query_ranges` is a description of the slot number, start and end of
+        the range search.  This is stored in a hidden attribute of the
+        generated query, and used in relevant_data() to check if a document
+        matches the range.
 
         """
         if begin is not None:
@@ -1213,35 +515,29 @@ class SearchConnection(object):
         if end is not None:
             end = float(end)
 
-        if begin is not None and end is not None:
-            if conservative:
-                test_fn = lambda r: begin <= r[0] and r[1] <= end
-            else:
-                test_fn = lambda r: begin <= r[1] and r[0] <= end
-        elif begin is not None:
-            if conservative:
-                test_fn = (lambda r: begin <= r[0])
-            else:
-                test_fn = (lambda r: begin <= r[1])
-        elif end is not None:
-            if conservative:
-                test_fn = (lambda r: r[1] <= end)
-            else:
-                test_fn = (lambda r: r[0] <= end)
+        if begin is None and end is None:
+            # No range restriction - return a match-all query, with
+            # RANGE_EXACT.
+            return Query(xapian.Query(''), _conn=self,
+                         _serialised=self._make_parent_func_repr("query_all"),
+                         _ranges=query_ranges) * 0, self._RANGE_EXACT
+
+        if conservative:
+            return self._build_range_query_cons(prefix, begin, end,
+                                                ranges, query_ranges)
         else:
-            return self.query_none()
-
-        valid_ranges = filter(test_fn, ranges)
-
-        queries = []
-        for r in valid_ranges:
-            term = convert_range_to_term(prefix, r[0], r[1])
-            queries.append(Query(_xapian.Query(term), _conn=self,
-                                 _ranges=query_ranges))
-        return Query.compose(_xapian.Query.OP_OR, queries)
+            q, q_type = self._build_range_query_noncons(prefix, begin, end,
+                                                        ranges, query_ranges)
+            if q_type == self._RANGE_NONE:
+                return self._build_range_query_cons(prefix, begin, end,
+                                                    ranges, query_ranges)
+            return q * 0, q_type
 
     def _get_approx_params(self, field, action):
-        action_params = self._field_actions[field]._actions[action][0]
+        try:
+            action_params = self._field_actions[field]._actions[action][0]
+        except KeyError:
+            return None, None
         ranges = action_params.get('ranges')
         if ranges is None:
             return None, None
@@ -1265,9 +561,12 @@ class SearchConnection(object):
             if defaultargs is None:
                 defaultargs = ()
             args = []
-            for argname in argnames[1:-len(defaultargs)]:
-                args.append(repr(values[argname]))
-            if len(defaultargs) > 0:
+            if len(defaultargs) == 0:
+                for argname in argnames[1:]:
+                    args.append(repr(values[argname]))
+            else:
+                for argname in argnames[1:-len(defaultargs)]:
+                    args.append(repr(values[argname]))
                 for i, argname in enumerate(argnames[-len(defaultargs):]):
                     val = values[argname]
                     if val != defaultargs[i]:
@@ -1277,7 +576,7 @@ class SearchConnection(object):
             del frame
 
     def query_range(self, field, begin, end, approx=False,
-                    conservative=True, accelerate=True):
+                    conservative=False, accelerate=True):
         """Create a query for a range search.
 
         This creates a query which matches only those documents which have a
@@ -1300,11 +599,12 @@ class SearchConnection(object):
         defined.  It is an error to set 'approx' to true if no 'ranges' were
         specified at indexing time.
 
-        The 'conservative' parameter is used only if approx is True - if True,
-        the approximation will only return items which are within the range
-        (but may fail to return other items which are within the range).  If
-        False, the approximation will always include all items which are within
-        the range, but may also return others which are outside the range.
+        The 'conservative' parameter controls what kind of approximation is
+        attempted - if True, the approximation will only return items which are
+        within the range (but may fail to return other items which are within
+        the range).  If False, the approximation will always include all items
+        which are within the range, but may also return others which are
+        outside the range.
 
         The 'accelerate' parameter is used only if approx is False.  If true,
         the resulting query will be an exact range search, but will attempt to
@@ -1312,17 +612,20 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
 
         ranges, range_accel_prefix = \
             self._get_approx_params(field, FieldActions.SORT_AND_COLLAPSE)
+        if ranges is None:
+            ranges, range_accel_prefix = \
+                self._get_approx_params(field, FieldActions.FACET)
 
         serialised = self._make_parent_func_repr("query_range")
         try:
             slot = self._field_mappings.get_slot(field, 'collsort')
         except KeyError:
             # Return a "match nothing" query
-            return Query(_log(_xapian.Query), _conn=self,
+            return Query(xapian.Query(), _conn=self,
                          _serialised=serialised)
 
         if begin is None and end is None:
@@ -1332,9 +635,7 @@ class SearchConnection(object):
             # FIXME - this can probably be done more efficiently when streamed
             # values are stored in the database, but I don't think Xapian
             # exposes a useful interface for this currently.
-            return Query(_log(_xapian.Query,
-                              _xapian.Query.OP_VALUE_GE, slot,
-                              '\x00'),
+            return Query(xapian.Query(xapian.Query.OP_VALUE_GE, slot, '\x00'),
                          _conn=self, _serialised=serialised,
                          _ranges=((slot, None, None),))
 
@@ -1355,12 +656,6 @@ class SearchConnection(object):
         # that this query is searching for.
         query_ranges = ((slot, marshalled_begin, marshalled_end),)
 
-        if accelerate and ranges is not None:
-            accel_query = self._range_accel_query(field, begin, end,
-                                                  range_accel_prefix, ranges,
-                                                  True, query_ranges)
-        else:
-            accel_query = None
 
         if approx:
             if ranges is None:
@@ -1371,31 +666,44 @@ class SearchConnection(object):
             # so we multiply the result of this query by 0, to let Xapian know
             # that it never returns a weight other than 0.  This allows Xapian
             # to apply boolean-specific optimisations.
-            result = self._range_accel_query(field, begin, end,
-                                             range_accel_prefix, ranges,
-                                             conservative, query_ranges) * 0
-            result._set_serialised(serialised)
-            return result
+            accel_query, accel_type = \
+                self._range_accel_query(field, begin, end, range_accel_prefix,
+                                        ranges, conservative, query_ranges)
+            accel_query._set_serialised(serialised)
+            return accel_query
+
+        if accelerate and ranges is not None:
+            accel_query, accel_type = \
+                self._range_accel_query(field, begin, end, range_accel_prefix,
+                                        ranges, conservative, query_ranges)
+        else:
+            accel_type = self._RANGE_NONE
+
+        if accel_type == self._RANGE_EXACT:
+            accel_query._set_serialised(serialised)
+            return accel_query
 
         if marshalled_begin is None:
-            result = Query(_log(_xapian.Query,
-                                _xapian.Query.OP_VALUE_LE, slot,
-                                marshalled_end),
+            result = Query(xapian.Query(xapian.Query.OP_VALUE_LE, slot,
+                                         marshalled_end),
                            _conn=self, _ranges=query_ranges)
         elif marshalled_end is None:
-            result = Query(_log(_xapian.Query,
-                                _xapian.Query.OP_VALUE_GE, slot,
-                                marshalled_begin),
+            result = Query(xapian.Query(xapian.Query.OP_VALUE_GE, slot,
+                                         marshalled_begin),
                            _conn=self, _ranges=query_ranges)
         else:
-            result = Query(_log(_xapian.Query,
-                                _xapian.Query.OP_VALUE_RANGE, slot,
-                                marshalled_begin, marshalled_end),
+            result = Query(xapian.Query(xapian.Query.OP_VALUE_RANGE, slot,
+                                         marshalled_begin, marshalled_end),
                            _conn=self, _ranges=query_ranges)
-        if accel_query is not None:
+
+        if accel_type == self._RANGE_SUBSET:
             result = accel_query | result
-        result = result * 0
+        if accel_type == self._RANGE_SUPERSET:
+            result = accel_query & result
+
         # As before - multiply result weights by 0 to help Xapian optimise.
+        result = result * 0
+
         result._set_serialised(serialised)
         return result
 
@@ -1423,16 +731,16 @@ class SearchConnection(object):
 
         def make_query(scale, low_val, hi_val):
             term = convert_range_to_term(prefix, low_val, hi_val)
-            postingsource = _xapian.FixedWeightPostingSource(self._index, scale)
-            fixedwt_query = Query(_log(_xapian.Query, postingsource),
+            postingsource = xapian.FixedWeightPostingSource(scale)
+            fixedwt_query = Query(xapian.Query(postingsource),
                            _refs=[postingsource], _conn=self)
-            return fixedwt_query.filter(Query(_xapian.Query(term), _conn = self))
+            return fixedwt_query.filter(Query(xapian.Query(term), _conn = self))
 
 
         queries = [make_query(scale, low_val, hi_val) for
                    scale, low_val, hi_val in scales_and_ranges]
 
-        return Query.compose(_xapian.Query.OP_OR, queries)
+        return Query.compose(xapian.Query.OP_OR, queries)
 
     def query_difference(self, field, val, purpose, approx=False, num=None,
                          difference_func="abs(x - y)"):
@@ -1474,12 +782,12 @@ class SearchConnection(object):
         ignored.
 
         """
+        if self._index is None:
+            raise errors.SearchError("SearchConnection has been closed")
+        serialised = self._make_parent_func_repr("query_difference")
 
         actions_map = {'collsort': FieldActions.SORT_AND_COLLAPSE,
                        'facet': FieldActions.FACET}
-
-        if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
 
         if approx:
             #accelerate with ranges.
@@ -1488,25 +796,179 @@ class SearchConnection(object):
             if not ranges:
                 errors.SearchError("Cannot do approximate difference search "
                                    "on fields with no ranges")
-            difference_func = eval('lambda x, y: ' + difference_func)
-            return self._difference_accel_query(ranges, range_accel_prefix,
-                                                val, difference_func, num)
+            if isinstance(difference_func, basestring):
+                difference_func = eval('lambda x, y: ' + difference_func)
+            result = self._difference_accel_query(ranges, range_accel_prefix,
+                                                  val, difference_func, num)
+            result._set_serialised(serialised)
+            return result
         else:
             # not approx
             # NOTE - very slow: needs to be implemented in C++.
-            difference_func = eval('lambda x, y: ' + difference_func)
+            if isinstance(difference_func, basestring):
+                difference_func = eval('lambda x, y: ' + difference_func)
             class DifferenceWeight(ExternalWeightSource):
                 " An exteral weighting source for differences"
                 def get_maxweight(self):
                     return 1.0
 
                 def get_weight(self, doc):
-                    doc_val = _xapian.sortable_unserialise(
+                    doc_val = xapian.sortable_unserialise(
                             doc.get_value(field, purpose))
                     difference = difference_func(val, doc_val)
                     return 1.0 / (abs(difference) + 1.0)
 
-            return self.query_external_weight(DifferenceWeight())
+            result = self.query_external_weight(DifferenceWeight())
+            result._set_serialised(serialised)
+            return result
+
+    @staticmethod
+    def calc_distance(location1, location2):
+        """Calculate the distance, in metres, between two points.
+
+        `location1` and `location2` are the locations to measure the distance
+        between.  They should each be a string holding a single latlong
+        coordinate, or a list of strings holding latlong coordinates.
+
+        The closest distance between a point in location1 and in location2 will
+        be returned.
+
+        """
+        coords1 = xapian.LatLongCoords()
+        if isinstance(location1, basestring):
+            coords1.insert(xapian.LatLongCoord.parse_latlong(location1))
+        else:
+            for coord in location1:
+                coords1.insert(xapian.LatLongCoord.parse_latlong(coord))
+
+        coords2 = xapian.LatLongCoords()
+        if isinstance(location2, basestring):
+            coords2.insert(xapian.LatLongCoord.parse_latlong(location2))
+        else:
+            for coord in location2:
+                coords2.insert(xapian.LatLongCoord.parse_latlong(coord))
+
+        metric = xapian.GreatCircleMetric()
+        return metric(coords1, coords2)
+
+    def query_distance(self, field, centre, max_range=0.0, k1=1000.0, k2=1.0):
+        """Create a query which returns documents in order of distance.
+
+        `field` is the field to get coordinates from, and must have been
+        indexed with the GEOSPATIAL field action.
+
+        `centre` is the center of the search - it may either be a string
+        holding a latlong pair, or an iterable of strings containing latlong
+        pairs.  If multiple points are specified, the closest distance from one
+        of these points to the coordinates stored in the document will be used
+        for the search.
+
+        `max_range` is the maximum range, in metres, to use in the search: no
+        items at a greater distance than this will be returned.
+
+        `k1` and `k2` control how the weights varies with distance.
+
+        """
+        if self._index is None:
+            raise errors.SearchError("SearchConnection has been closed")
+
+        serialised = self._make_parent_func_repr("query_distance")
+
+        metric = xapian.GreatCircleMetric()
+
+        # Build the list of coordinates
+        coords = xapian.LatLongCoords()
+        if isinstance(centre, basestring):
+            coords.insert(xapian.LatLongCoord.parse_latlong(centre))
+        else:
+            for coord in centre:
+                coords.insert(xapian.LatLongCoord.parse_latlong(coord))
+
+        # Get the slot
+        try:
+            slot = self._field_mappings.get_slot(field, 'loc')
+        except KeyError:
+            # Return a "match nothing" query
+            return Query(xapian.Query(), _conn=self,
+                         _serialised=serialised)
+
+        # Make the posting source
+        postingsource = xapian.LatLongDistancePostingSource(
+            slot, coords, metric, max_range, k1, k2)
+
+        result = Query(xapian.Query(postingsource),
+                       _refs=[postingsource, coords, metric],
+                       _conn=self)
+        result._set_serialised(serialised)
+        return result
+
+    def query_image_similarity(self, field, image=None, docid=None, xapid=None):
+        """Create an image similarity query.
+        
+        This query returns documents in order of similarity to the supplied
+        image.
+
+        `field` is the field to get image similarity data from and must have
+        been indexed with the IMGSEEK field action.
+
+        Exactly one of `image`, `docid`, `xapid` must be supplied, to indicate the
+        target of the similarity search.
+        
+         - If `image` is supplied, it should be the path to an image file.
+         - If `docid` is supplied, it should be a document ID in the database.
+         - If `xapid` is supplied, it should be the xapian document ID in the
+           database (as would be supplied to get_document()).
+
+        If multiple images are referenced by the specified field in the target
+        document or searched documents, the best match is used.
+
+        """
+        serialised = self._make_parent_func_repr("query_image_similarity")
+        import xapian.imgseek
+
+        if len(filter(lambda x: x is not None, (image, docid, xapid))) != 1:
+            raise errors.SearchError(
+                "Exactly one of image, docid or xapid is required for"
+                " query_image_similarity().")
+
+        actions =  self._field_actions[field]._actions
+        terms = actions[FieldActions.IMGSEEK][0]['terms']
+        if image:
+            # Build a signature from an image.
+            try:
+                sig = xapian.imgseek.ImgSig.register_Image(image)
+            except xapian.InvalidArgumentError:
+                raise errors.SearchError(
+                    'Invalid or unsupported image file passed to '
+                    'query_image_similarity(): ' + image)
+            if terms:
+                imgterms = _get_imgterms(self, field)
+                return Query(imgterms.querySimilarSig(sig), _conn=self)
+            else:
+                sigs = xapian.imgseek.ImgSigs(sig)
+
+        else:
+            # Build a signature from a stored document.
+            doc = self.get_document(docid=docid, xapid=xapid)
+            if terms:
+                imgterms = _get_imgterms(self, field)
+                return Query(imgterms.querySimilarDoc(doc._doc),
+                             _conn = self)
+            else:
+                val = doc.get_value(field, 'imgseek')
+                sigs = xapian.imgseek.ImgSigs.unserialise(val)
+
+        try:
+            slot = self._field_mappings.get_slot(field, 'imgseek')
+        except KeyError:
+            return Query(xapian.Query(), _conn=self,
+                         _serialised=serialised)
+
+        ps = xapian.imgseek.ImgSigSimilarityPostingSource(sigs, slot)
+        result = Query(xapian.Query(ps),
+                       _refs=[ps],
+                       _conn=self)
+        return result
 
     def query_facet(self, field, val, approx=False,
                     conservative=True, accelerate=True):
@@ -1542,7 +1004,7 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         if 'facets' in _checkxapian.missing_features:
             raise errors.SearchError("Facets unsupported with this release of xapian")
 
@@ -1568,7 +1030,7 @@ class SearchConnection(object):
             try:
                 slot = self._field_mappings.get_slot(field, 'facet')
             except KeyError:
-                return Query(_log(_xapian.Query), _conn=self,
+                return Query(xapian.Query(), _conn=self,
                              _serialised=serialised)
 
             # FIXME - check that sorttype == self._get_sort_type(field)
@@ -1581,30 +1043,40 @@ class SearchConnection(object):
             query_ranges = ((slot, marshalled_begin, marshalled_end),)
             ranges, range_accel_prefix = \
                 self._get_approx_params(field, FieldActions.FACET)
+            if ranges is None:
+                ranges, range_accel_prefix = \
+                    self._get_approx_params(field, FieldActions.SORT_AND_COLLAPSE)
             if approx:
                 if ranges is None:
-                    errors.SearchError("Cannot do approximate range search on fields with no ranges")
-                result = self._range_accel_query(field, val[0], val[1],
-                                                 range_accel_prefix, ranges,
-                                                 conservative, query_ranges) * 0
-                result._set_serialised(serialised)
-                return result
+                    raise errors.SearchError("Cannot do approximate range search on fields with no ranges")
+                accel_query, accel_type = \
+                    self._range_accel_query(field, val[0], val[1],
+                                            range_accel_prefix, ranges,
+                                            conservative, query_ranges)
+                accel_query._set_serialised(serialised)
+                return accel_query
 
             if accelerate and ranges is not None:
-                accel_query = self._range_accel_query(field, val[0], val[1],
-                                                      range_accel_prefix,
-                                                      ranges, True,
-                                                      query_ranges)
+                accel_query, accel_type = \
+                    self._range_accel_query(field, val[0], val[1],
+                                            range_accel_prefix,
+                                            ranges, conservative,
+                                            query_ranges)
             else:
-                accel_query = None
+                accel_type = self._RANGE_NONE
 
-            result = Query(_log(_xapian.Query,
-                                _xapian.Query.OP_VALUE_RANGE, slot,
-                                marshalled_begin, marshalled_end),
+            if accel_type == self._RANGE_EXACT:
+                accel_query._set_serialised(serialised)
+                return accel_query
+
+            result = Query(xapian.Query(xapian.Query.OP_VALUE_RANGE, slot,
+                                         marshalled_begin, marshalled_end),
                            _conn=self, _ranges=query_ranges)
 
-            if accel_query is not None:
+            if accel_type == self._RANGE_SUBSET:
                 result = accel_query | result
+            if accel_type == self._RANGE_SUPERSET:
+                result = accel_query & result
 
             result = result * 0
             result._set_serialised(serialised)
@@ -1612,7 +1084,7 @@ class SearchConnection(object):
         else:
             assert(facettype == 'string' or facettype is None)
             prefix = self._field_mappings.get_prefix(field)
-            result = Query(_log(_xapian.Query, prefix + val.lower()), _conn=self) * 0
+            result = Query(xapian.Query(prefix + val.lower()), _conn=self) * 0
             result._set_serialised(serialised)
             return result
 
@@ -1623,7 +1095,7 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
 
         if isinstance(allow, basestring):
             allow = (allow, )
@@ -1634,7 +1106,7 @@ class SearchConnection(object):
         if deny is not None and len(deny) == 0:
             deny = None
         if allow is not None and deny is not None:
-            raise _errors.SearchError("Cannot specify both `allow` and `deny` "
+            raise errors.SearchError("Cannot specify both `allow` and `deny` "
                                       "(got %r and %r)" % (allow, deny))
 
         if isinstance(default_allow, basestring):
@@ -1646,10 +1118,10 @@ class SearchConnection(object):
         if default_deny is not None and len(default_deny) == 0:
             default_deny = None
         if default_allow is not None and default_deny is not None:
-            raise _errors.SearchError("Cannot specify both `default_allow` and `default_deny` "
+            raise errors.SearchError("Cannot specify both `default_allow` and `default_deny` "
                                       "(got %r and %r)" % (default_allow, default_deny))
 
-        qp = _log(_xapian.QueryParser)
+        qp = xapian.QueryParser()
         qp.set_database(self._index)
         qp.set_default_op(default_op)
 
@@ -1678,7 +1150,7 @@ class SearchConnection(object):
                     for kwargs in kwargslist:
                         try:
                             lang = kwargs['language']
-                            my_stemmer = _log(_xapian.Stem, lang)
+                            my_stemmer = xapian.Stem(lang)
                             qp.my_stemmer = my_stemmer
                             qp.set_stemmer(my_stemmer)
                             qp.set_stemming_strategy(qp.STEM_SOME)
@@ -1711,25 +1183,29 @@ class SearchConnection(object):
         else:
             return qp.parse_query(string, flags, prefix)
 
-    def _query_parse_with_fallback(self, qp, string, prefix=None):
+    def _query_parse_with_fallback(self, qp, string, allow_wildcards,
+                                   prefix=None):
         """Parse a query with various flags.
 
         If the initial boolean pass fails, fall back to not using boolean
         operators.
 
         """
+        base_flags = self._qp_flags_base
+        if allow_wildcards:
+            base_flags |= self._qp_flags_wildcard 
         try:
             q1 = self._query_parse_with_prefix(qp, string,
-                                               self._qp_flags_base |
+                                               base_flags |
                                                self._qp_flags_phrase |
                                                self._qp_flags_synonym |
                                                self._qp_flags_bool,
                                                prefix)
-        except _xapian.QueryParserError, e:
+        except xapian.QueryParserError, e:
             # If we got a parse error, retry without boolean operators (since
             # these are the usual cause of the parse error).
             q1 = self._query_parse_with_prefix(qp, string,
-                                               self._qp_flags_base |
+                                               base_flags |
                                                self._qp_flags_phrase |
                                                self._qp_flags_synonym,
                                                prefix)
@@ -1737,21 +1213,20 @@ class SearchConnection(object):
         qp.set_stemming_strategy(qp.STEM_NONE)
         try:
             q2 = self._query_parse_with_prefix(qp, string,
-                                               self._qp_flags_base |
+                                               base_flags |
                                                self._qp_flags_bool,
                                                prefix)
-        except _xapian.QueryParserError, e:
+        except xapian.QueryParserError, e:
             # If we got a parse error, retry without boolean operators (since
             # these are the usual cause of the parse error).
-            q2 = self._query_parse_with_prefix(qp, string,
-                                               self._qp_flags_base,
-                                               prefix)
+            q2 = self._query_parse_with_prefix(qp, string, base_flags, prefix)
 
-        return Query(_log(_xapian.Query, _xapian.Query.OP_AND_MAYBE, q1, q2),
+        return Query(xapian.Query(xapian.Query.OP_AND_MAYBE, q1, q2),
                      _conn=self)
 
     def query_parse(self, string, allow=None, deny=None, default_op=OP_AND,
-                    default_allow=None, default_deny=None):
+                    default_allow=None, default_deny=None,
+                    allow_wildcards=False):
         """Parse a query string.
 
         This is intended for parsing queries entered by a user.  If you wish to
@@ -1803,17 +1278,18 @@ class SearchConnection(object):
         """
         qp = self._prepare_queryparser(allow, deny, default_op, default_allow,
                                        default_deny)
-        result = self._query_parse_with_fallback(qp, string)
+        result = self._query_parse_with_fallback(qp, string, allow_wildcards)
         serialised = self._make_parent_func_repr("query_parse")
         result._set_serialised(serialised)
         return result
 
-    def query_field(self, field, value=None, default_op=OP_AND):
+    def query_field(self, field, value=None, default_op=OP_AND,
+                    allow_wildcards=False):
         """A query for a single field.
 
-        If field is an exact field, a tag field, or a facet, the resulting
-        query will return only those documents which have the exact value
-        supplied in the `value` parameter in the field.
+        If field is an exact field or a facet, the resulting query will return
+        only those documents which have the exact value supplied in the `value`
+        parameter in the field.
 
         If field is a freetext field, the resulting query will return documents
         with field contents relevant to the text supplied in the `value`
@@ -1823,7 +1299,7 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         try:
             actions = self._field_actions[field]._actions
         except KeyError:
@@ -1833,47 +1309,48 @@ class SearchConnection(object):
         # need to check on field type, and stem / split as appropriate
         for action, kwargslist in actions.iteritems():
             if action in (FieldActions.INDEX_EXACT,
-                          FieldActions.TAG,
                           FieldActions.FACET,):
                 if value is None:
-                    raise _errors.SearchError("Supplied value must not be None")
+                    raise errors.SearchError("Supplied value must not be None")
                 prefix = self._field_mappings.get_prefix(field)
                 if len(value) > 0:
                     chval = ord(value[0])
                     if chval >= ord('A') and chval <= ord('Z'):
                         prefix = prefix + ':'
-                # WDF of INDEX_EXACT, TAG or FACET terms is always 0, so the
+                # WDF of INDEX_EXACT or FACET terms is always 0, so the
                 # weight of such terms is also always zero.  However, Xapian
                 # doesn't know this, so can't take advantage of the fact when
                 # performing its optimisations.  We multiply the weight by 0 to
                 # make Xapian know that the weight is always zero.  This means
                 # that Xapian won't bother to ask the query for weights, and
                 # can optimise in various ways.
-                result = Query(_log(_xapian.Query, prefix + value), _conn=self) * 0
+                result = Query(xapian.Query(prefix + value), _conn=self) * 0
                 result._set_serialised(serialised)
                 return result
             if action == FieldActions.INDEX_FREETEXT:
                 if value is None:
-                    raise _errors.SearchError("Supplied value must not be None")
-                qp = _log(_xapian.QueryParser)
+                    raise errors.SearchError("Supplied value must not be None")
+                qp = xapian.QueryParser()
                 qp.set_default_op(default_op)
                 prefix = self._field_mappings.get_prefix(field)
                 for kwargs in kwargslist:
                     try:
                         lang = kwargs['language']
-                        qp.set_stemmer(_log(_xapian.Stem, lang))
+                        qp.set_stemmer(xapian.Stem(lang))
                         qp.set_stemming_strategy(qp.STEM_SOME)
                     except KeyError:
                         pass
-                result = self._query_parse_with_fallback(qp, value, prefix)
+                result = self._query_parse_with_fallback(qp, value,
+                                                         allow_wildcards,
+                                                         prefix)
                 result._set_serialised(serialised)
                 return result
             if action == FieldActions.WEIGHT:
                 if value is not None:
-                    raise _errors.SearchError("Value supplied for a WEIGHT field must be None")
+                    raise errors.SearchError("Value supplied for a WEIGHT field must be None")
                 slot = self._field_mappings.get_slot(field, 'weight')
-                postingsource = _xapian.ValueWeightPostingSource(self._index, slot)
-                result = Query(_log(_xapian.Query, postingsource),
+                postingsource = xapian.ValueWeightPostingSource(slot)
+                result = Query(xapian.Query(postingsource),
                                _refs=[postingsource], _conn=self)
                 result._set_serialised(serialised)
                 return result
@@ -1922,7 +1399,7 @@ class SearchConnection(object):
 
         # Use the "elite set" operator, which chooses the terms with the
         # highest query weight to use.
-        q = _log(_xapian.Query, _xapian.Query.OP_ELITE_SET, xapterms, numterms)
+        q = xapian.Query(xapian.Query.OP_ELITE_SET, xapterms, numterms)
         return Query(q, _conn=self, _serialised=serialised)
 
     def significant_terms(self, ids, maxterms=10, allow=None, deny=None):
@@ -1974,9 +1451,9 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         if allow is not None and deny is not None:
-            raise _errors.SearchError("Cannot specify both `allow` and `deny`")
+            raise errors.SearchError("Cannot specify both `allow` and `deny`")
 
         if isinstance(ids, (basestring, ProcessedDocument, UnprocessedDocument)):
             ids = (ids, )
@@ -2022,9 +1499,11 @@ class SearchConnection(object):
 
                 # Add the document to the temporary database, and then reset
                 # its docid.
-                doc.prepare()
-                tempdb.add_document(doc._doc)
-                doc.id = orig_docid
+                try:
+                    doc.prepare()
+                    tempdb.add_document(doc._doc)
+                finally:
+                    doc.id = orig_docid
                 newids.append(temp_docid)
             else:
                 newids.append(doc)
@@ -2035,13 +1514,13 @@ class SearchConnection(object):
             try:
                 eterms = self._perform_expand(ids, prefixes, simterms, tempdb)
                 break;
-            except _xapian.DatabaseModifiedError, e:
+            except xapian.DatabaseModifiedError, e:
                 self.reopen()
         return eterms, prefixes
 
-    class _ExpandDecider(_xapian.ExpandDecider):
+    class _ExpandDecider(xapian.ExpandDecider):
         def __init__(self, prefixes):
-            _xapian.ExpandDecider.__init__(self)
+            xapian.ExpandDecider.__init__(self)
             self._prefixes = prefixes
 
         def __call__(self, term):
@@ -2062,7 +1541,7 @@ class SearchConnection(object):
         """
         # Set idquery to be a query which returns the documents listed in
         # "ids".
-        idquery = _log(_xapian.Query, _xapian.Query.OP_OR, ['Q' + id for id in ids])
+        idquery = xapian.Query(xapian.Query.OP_OR, ['Q' + id for id in ids])
 
         if tempdb is not None:
             combined_db = xapian.Database()
@@ -2070,9 +1549,9 @@ class SearchConnection(object):
             combined_db.add_database(tempdb)
         else:
             combined_db = self._index
-        enq = _log(_xapian.Enquire, combined_db)
+        enq = xapian.Enquire(combined_db)
         enq.set_query(idquery)
-        rset = _log(_xapian.RSet)
+        rset = xapian.RSet()
         for id in ids:
             # Note: might be more efficient to make a single postlist and
             # use skip_to() on it.  Note that this will require "ids" to be in
@@ -2084,7 +1563,7 @@ class SearchConnection(object):
             except StopIteration:
                 pass
 
-        expanddecider = _log(self._ExpandDecider, prefixes)
+        expanddecider = self._ExpandDecider(prefixes)
         # The USE_EXACT_TERMFREQ gets the term frequencies from the combined
         # database, not from the database which the relevant document is found
         # in.  This has a performance penalty, but this should be minimal in
@@ -2109,7 +1588,7 @@ class SearchConnection(object):
 
         """
         serialised = self._make_parent_func_repr("query_external_weight")
-        class ExternalWeightPostingSource(_xapian.PostingSource):
+        class ExternalWeightPostingSource(xapian.PostingSource):
             """A xapian posting source reading from an ExternalWeightSource.
 
             """
@@ -2118,8 +1597,12 @@ class SearchConnection(object):
                 self.conn = conn
                 self.wtsource = wtsource
 
-            def reset(self):
-                self.alldocs = self.conn._index.postlist('')
+            def init(self, xapdb):
+                self.alldocs = xapdb.postlist('')
+
+            def reset(self, xapdb):
+                # backwards compatibility
+                self.init(xapdb)
 
             def get_termfreq_min(self): return 0
             def get_termfreq_est(self): return self.conn._index.get_doccount()
@@ -2152,15 +1635,28 @@ class SearchConnection(object):
                 return self.wtsource.get_weight(doc)
 
         postingsource = ExternalWeightPostingSource(self, source)
-        return Query(_log(_xapian.Query, postingsource),
+        return Query(xapian.Query(postingsource),
                      _refs=[postingsource], _conn=self, _serialised=serialised)
 
-    def query_all(self):
+    def query_all(self, weight=None):
         """A query which matches all the documents in the database.
 
+        Such a query will normally return a weight of 0 for each document.
+        However, it can be made to return a specific, fixed, weight by passing
+        in a `weight` parameter.
+
         """
-        return Query(_log(_xapian.Query, ''), _conn=self,
-                     _serialised = self._make_parent_func_repr("query_all"))
+        serialised = self._make_parent_func_repr("query_all")
+        all_query = Query(xapian.Query(''), _conn=self,
+                          _serialised = serialised)
+        if weight is not None and weight > 0:
+            postingsource = xapian.FixedWeightPostingSource(weight)
+            fixedwt_query = Query(xapian.Query(postingsource),
+                           _refs=[postingsource], _conn=self)
+            result = fixedwt_query.filter(all_query)
+            result._set_serialised(serialised)
+            return result
+        return all_query
 
     def query_none(self):
         """A query which matches no documents in the database.
@@ -2170,6 +1666,27 @@ class SearchConnection(object):
         """
         return Query(_conn=self,
                      _serialised = self._make_parent_func_repr("query_none"))
+
+    def query_id(self, docid):
+        """A query which matches documents with the specified ids.
+
+        `docid` contains the xappy document ID to search for.  It may be a
+        single document ID, or an iterator returning a list of IDs.  In the
+        latter case, documents with any of the IDs listed will be returned.
+
+        Note that it is not recommended to use a large number of document IDs
+        (for example, over 100) with this method, since it will not produce a
+        particularly efficient query.
+
+        """
+        if isinstance(docid, basestring):
+            terms = ['Q' + docid]
+        else:
+            terms = ['Q' + docid for docid in docid]
+
+        return Query(xapian.Query(xapian.Query.OP_OR, terms),
+                     _conn=self,
+                     _serialised = self._make_parent_func_repr("query_id"))
 
     def query_from_evalable(self, serialised):
         """Create a query from an serialised evalable repr string.
@@ -2183,11 +1700,13 @@ class SearchConnection(object):
 
         """
         import xappy
-        vars = {'conn': self, 'xappy': xappy, 'xapian': xapian}
-        return eval(serialised, vars)
+        vars = {'conn': self, 'xappy': xappy, 'xapian': xapian,
+                'Query': xappy.Query}
+        return xappy.Query(eval(serialised, vars), _conn=self)
 
     def spell_correct(self, querystr, allow=None, deny=None, default_op=OP_AND,
-                      default_allow=None, default_deny=None):
+                      default_allow=None, default_deny=None,
+                      allow_wildcards=False):
         """Correct a query spelling.
 
         This returns a version of the query string with any misspelt words
@@ -2217,18 +1736,19 @@ class SearchConnection(object):
         """
         qp = self._prepare_queryparser(allow, deny, default_op, default_allow,
                                        default_deny)
+        base_flags = (self._qp_flags_base |
+                      self._qp_flags_phrase |
+                      self._qp_flags_synonym)
+        if allow_wildcards:
+            base_flags |= self._qp_flags_wildcard 
         try:
             qp.parse_query(querystr,
-                           self._qp_flags_base |
-                           self._qp_flags_phrase |
-                           self._qp_flags_synonym |
+                           base_flags |
                            self._qp_flags_bool |
                            qp.FLAG_SPELLING_CORRECTION)
-        except _xapian.QueryParserError:
+        except xapian.QueryParserError:
             qp.parse_query(querystr,
-                           self._qp_flags_base |
-                           self._qp_flags_phrase |
-                           self._qp_flags_synonym |
+                           base_flags |
                            qp.FLAG_SPELLING_CORRECTION)
         corrected = qp.get_corrected_query_string()
         if len(corrected) == 0:
@@ -2244,7 +1764,7 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         try:
             self._field_mappings.get_slot(field, 'collsort')
         except KeyError:
@@ -2256,7 +1776,7 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         try:
             self._field_mappings.get_slot(field, 'collsort')
         except KeyError:
@@ -2320,7 +1840,10 @@ class SearchConnection(object):
             min_normlen = weight_params.get('min_normlen', 0.5)
             if min_normlen < 0:
                 raise ValueError("min_normlen must be >= 0")
-            wt = xapian.BM25Weight(k1, k2, k3, b, min_normlen)
+            try:
+                wt = xapian.ColourWeight_(k1, k2, k3, b, min_normlen)
+            except AttributeError:
+                wt = xapian.BM25Weight(k1, k2, k3, b, min_normlen)
             enq.set_weighting_scheme(wt)
             enq._wt = wt # Ensure that wt isn't dereferenced too soon.
 
@@ -2355,8 +1878,8 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
-        enq = _log(_xapian.Enquire, self._index)
+            raise errors.SearchError("SearchConnection has been closed")
+        enq = xapian.Enquire(self._index)
 
         if isinstance(query, xapian.Query):
             enq.set_query(query)
@@ -2371,7 +1894,7 @@ class SearchConnection(object):
             try:
                 mset = enq.get_mset(0, 0)
                 break
-            except _xapian.DatabaseModifiedError, e:
+            except xapian.DatabaseModifiedError, e:
                 self.reopen()
         return mset.get_max_possible()
 
@@ -2391,21 +1914,206 @@ class SearchConnection(object):
         try:
             slotnum = self._field_mappings.get_slot(slotspec, 'collsort')
         except KeyError:
-            raise _errors.SearchError("Field %r was not indexed for sorting" % slotspec)
+            raise errors.SearchError("Field %r was not indexed for sorting" % slotspec)
 
         # Note: we invert the "asc" parameter, because xapian treats
         # "ascending" as meaning "higher values are better"; in other
         # words, it considers "ascending" to mean return results in
         # descending order.  See xapian bug #311
         # (http://trac.xapian.org/ticket/311)
-        return slotnum, not asc
+        result = [slotnum, not asc]
+
+        if asc:
+            # Add default value
+            try:
+                ubound = self._index.get_value_upper_bound(slotnum) + '\xff'
+            except xapian.UnimplementedError:
+                ubound = '\xff' * 256
+            result.append(ubound)
+        return result
+
+    class SortByGeolocation(object):
+        def __init__(self, fieldname, centre):
+            self.fieldname = fieldname
+            self.centre = centre
+
+    def set_cache_manager(self, cache_manager):
+        """Set the cache manager.
+
+        To remove the cache manager, pass None as the cache_manager parameter.
+
+        Once the cache manager has been set, the cached query results can be
+        used to affect search results.
+
+        """
+        self.cache_manager = cache_manager
+
+    def query_cached(self, cached_queryid):
+        """Create a query which returns the cached set of results for the given
+        query ID, weighted such that the difference in weight between all cached documents is at
+        least 1.
+
+        This will typically be used by combining it with an existing query with
+        the OR operator, having normalised the existing query to ensure that
+        none of its weights are greater than 1 (so they cannot override the
+        cached weights).
+
+        """
+        serialised = self._make_parent_func_repr("query_cached")
+
+        slot = cached_queryid + self._cache_manager_slot_start
+        ps = xapian.ValueWeightPostingSource(slot)
+        return Query(xapian.Query(ps), _refs=[ps], _conn=self, _serialised=serialised,
+                     _queryid=cached_queryid)
+
+    @staticmethod
+    def _field_type_from_kwargslist(kwargslist):
+        for kwargs in kwargslist:
+            fieldtype = kwargs.get('type', None)
+            if fieldtype is not None:
+                return fieldtype
+        return 'string'
+
+    def _calc_facet_fields(self, query, allowfacets, denyfacets,
+                               usesubfacets, query_type):
+        facetfieldnames = []
+
+        if allowfacets is not None and denyfacets is not None:
+            raise errors.SearchError("Cannot specify both `allowfacets` and `denyfacets`")
+        if allowfacets is None:
+            allowfacets = [key for key in self._field_actions]
+        if denyfacets is not None:
+            allowfacets = [key for key in allowfacets if key not in denyfacets]
+
+        # include None in queryfacets so a top-level facet will
+        # satisfy self._facet_hierarchy.get(field) in queryfacets
+        # (i.e. always include top-level facets)
+        queryfacets = set([None])
+        if usesubfacets:
+            # add facets used in the query to queryfacets
+            for term in query._get_xapian_query():
+                prefix = self._get_prefix_from_term(term)
+                field = self._field_mappings.get_fieldname_from_prefix(prefix)
+                if field and FieldActions.FACET in self._field_actions[field]._actions:
+                    queryfacets.add(field)
+
+        for field in allowfacets:
+            try:
+                actions = self._field_actions[field]._actions
+            except KeyError:
+                actions = {}
+            for action, kwargslist in actions.iteritems():
+                if action == FieldActions.FACET:
+                    # filter out non-top-level facets that aren't subfacets
+                    # of a facet in the query
+                    if usesubfacets:
+                        is_subfacet = False
+                        for parent in self._facet_hierarchy.get(field, [None]):
+                            if parent in queryfacets:
+                                is_subfacet = True
+                        if not is_subfacet:
+                            continue
+                    # filter out facets that should never be returned for the query type
+                    if self._facet_query_never(field, query_type):
+                        continue
+                    facetfieldnames.append(field)
+        return facetfieldnames
+
+    def _make_facet_matchspies(self, facetfieldnames):
+        # Set facetspies to {}, even if no facet fields are found, to
+        # distinguish from no facet calculation being performed.  (This
+        # will prevent an error being thrown when the list of suggested
+        # facets is requested - instead, an empty list will be returned.)
+        facetspies = {}
+        facetfields = []
+
+        for field in facetfieldnames:
+            try:
+                actions = self._field_actions[field]._actions
+            except KeyError:
+                continue
+            for action, kwargslist in actions.iteritems():
+                if action == FieldActions.FACET:
+                    slot = self._field_mappings.get_slot(field, 'facet')
+                    facettype = self._field_type_from_kwargslist(kwargslist)
+                    if facettype == 'string':
+                        facetspy = xapian.MultiValueCountMatchSpy(slot)
+                    else:
+                        facetspy = xapian.ValueCountMatchSpy(slot)
+                    facetspies[slot] = facetspy
+                    facetfields.append((field, slot, facettype))
+        return facetspies, facetfields
+
+    def _make_enquire(self, query):
+        if not isinstance(query, xapian.Query):
+            xapq = query._get_xapian_query()
+        else:
+            xapq = query
+        enq = xapian.Enquire(self._index)
+        enq.set_query(xapq)
+        enq.set_docid_order(enq.DONT_CARE)
+        return enq
+
+    def _apply_sort_parameters(self, enq, sortby):
+        if isinstance(sortby, basestring):
+            params = self._get_sort_slot_and_dir(sortby)
+            if len(params) == 2:
+                enq.set_sort_by_value_then_relevance(*params)
+                return
+            sortby = [sortby]
+        if isinstance(sortby, self.SortByGeolocation):
+            # Get the slot
+            try:
+                slot = self._field_mappings.get_slot(sortby.fieldname, 'loc')
+            except KeyError:
+                raise errors.SearchError("Field %r was not indexed for geolocation sorting" % slotspec)
+
+            # Get the coords
+            coords = xapian.LatLongCoords()
+            if isinstance(sortby.centre, basestring):
+                coords.insert(xapian.LatLongCoord.parse_latlong(sortby.centre))
+            else:
+                for coord in sortby.centre:
+                    coords.insert(xapian.LatLongCoord.parse_latlong(coord))
+
+            # Make and use the keymaker
+            metric = xapian.GreatCircleMetric()
+            keymaker = xapian.LatLongDistanceKeyMaker(slot, coords, metric)
+            enq.set_sort_by_key_then_relevance(keymaker, False)
+            enq._keymaker = keymaker
+            enq._metric = metric
+        else:
+            keymaker = xapian.MultiValueKeyMaker()
+            for field in sortby:
+                params = self._get_sort_slot_and_dir(field)
+                try:
+                    keymaker.add_value(*params)
+                except NotImplementedError:
+                    # backwards compatibility
+                    params = params[:2]
+                    keymaker.add_value(*params)
+            enq.set_sort_by_key_then_relevance(keymaker, False)
+            enq._keymaker = keymaker
+
+    def _apply_collapse_parameters(self, enq, collapse, collapse_max):
+        try:
+            collapse_slotnum = self._field_mappings.get_slot(collapse, 'collsort')
+        except KeyError:
+            raise errors.SearchError("Field %r was not indexed for collapsing" % collapse)
+        if collapse_max == 1:
+            # Backwards compatibility - only this form existed before 1.1.0
+            enq.set_collapse_key(collapse_slotnum)
+        else:
+            enq.set_collapse_key(collapse_slotnum, collapse_max)
+        return collapse_slotnum
 
     def search(self, query, startrank, endrank,
                checkatleast=0, sortby=None, collapse=None,
-               gettags=None,
                getfacets=None, allowfacets=None, denyfacets=None, usesubfacets=None,
                percentcutoff=None, weightcutoff=None,
-               query_type=None, weight_params=None):
+               query_type=None, weight_params=None, collapse_max=1,
+               stats_checkatleast=0, facet_checkatleast=0,
+               facet_desired_num_of_categories=7):
         """Perform a search, for documents matching a query.
 
         - `query` is the query to perform.
@@ -2415,12 +2123,14 @@ class SearchConnection(object):
         - `endrank` is the rank at the end of the range of matching documents
           to return.  This is exclusive, so the result with this rank will not
           be returned.
-        - `checkatleast` is the minimum number of results to check for: the
-          estimate of the total number of matches will always be exact if
-          the number of matches is less than `checkatleast`.  A value of ``-1``
-          can be specified for the checkatleast parameter - this has the
-          special meaning of "check all matches", and is equivalent to passing
-          the result of get_doccount().
+        - `checkatleast` is the minimum number of results to check for when
+          doing a normal (non facet) search: the estimate of the total number
+          of matches will always be exact if the number of matches is less than
+          `checkatleast`.  A value of ``-1`` can be specified for the
+          checkatleast parameter - this has the special meaning of "check all
+          matches", and is equivalent to passing the result of get_doccount().
+        - `facet_checkatleast` is the minimum number of results to check for
+          when doing a facet search.
         - `sortby` is the name of a field to sort by.  It may be preceded by a
           '+' or a '-' to indicate ascending or descending order
           (respectively).  If the first character is neither '+' or '-', the
@@ -2431,10 +2141,10 @@ class SearchConnection(object):
           key, and use subsequent fields only when all the earlier fields have
           the same value in each document.
         - `collapse` is the name of a field to collapse the result documents
-          on.  If this is specified, there will be at most one result in the
-          result set for each value of the field.
-        - `gettags` is the name of a field to count tag occurrences in, or a
-          list of fields to do so.
+          on.  If this is specified, there will be at most `collapse_max`
+          results in the result set for each value of the field.
+        - `collapse_max` is the maximum number of items to allow in each
+          collapse category.
         - `getfacets` is a boolean - if True, the matching documents will be
           examined to build up a list of the facet values contained in them.
         - `allowfacets` is a list of the fieldnames of facets to consider.
@@ -2447,189 +2157,180 @@ class SearchConnection(object):
           returned.
         - `weightcutoff` is the minimum weight a result must have to be
           returned.
-        - `query_type` is a value indicating the type of query being
-          performed.  If not None, the value is used to influence which facets
-          are be returned by the get_suggested_facets() function.  If the
-          value of `getfacets` is False, it has no effect.
+        - `query_type` is a value indicating the type of query being performed.
+          If not None, the value is used to influence which facets are be
+          returned by the get_suggested_facets() function.  If the value of
+          `getfacets` is False, it has no effect.
         - `weight_params` is a dictionary (from string to number) of named
-          parameters to pass to the weighting function.  Currently, the
-          defined names are "k1", "k2", "k3", "b", "min_normlen".  Any
-          unrecognised names will be ignored.  For documentation of the
-          parameters, see the docs/weighting.rst document.
+          parameters to pass to the weighting function.  Currently, the defined
+          names are "k1", "k2", "k3", "b", "min_normlen".  Any unrecognised
+          names will be ignored.  For documentation of the parameters, see the
+          docs/weighting.rst document.
 
         If neither 'allowfacets' or 'denyfacets' is specified, all fields
         holding facets will be considered (but see 'usesubfacets').
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
-        if 'facets' in _checkxapian.missing_features:
-            if getfacets is not None or \
-               allowfacets is not None or \
-               denyfacets is not None or \
-               usesubfacets is not None or \
-               query_type is not None:
-                raise errors.SearchError("Facets unsupported with this release of xapian")
-        if 'tags' in _checkxapian.missing_features:
-            if gettags is not None:
-                raise errors.SearchError("Tags unsupported with this release of xapian")
+            raise errors.SearchError("SearchConnection has been closed")
+
         if checkatleast == -1:
             checkatleast = self._index.get_doccount()
+        if stats_checkatleast == -1:
+            stats_checkatleast = self._index.get_doccount()
+        if facet_checkatleast == -1:
+            facet_checkatleast = self._index.get_doccount()
 
-        enq = _log(_xapian.Enquire, self._index)
-        if isinstance(query, xapian.Query):
-            enq.set_query(query)
-        else:
-            enq.set_query(query._get_xapian_query())
+        # Check if we've got a cached query.
+        queryid = None
+        uncached_query = query
+        if self.cache_manager is not None:
+            if hasattr(query, '_get_queryid'):
+                queryid = query._get_queryid()
+                uncached_query = query._get_original_query()
 
-        if sortby is not None:
-            if isinstance(sortby, basestring):
-                enq.set_sort_by_value_then_relevance(
-                    *self._get_sort_slot_and_dir(sortby))
-            else:
-                sorter = xapian.MultiValueSorter()
-                for field in sortby:
-                    sorter.add(*self._get_sort_slot_and_dir(field))
-                enq.set_sort_by_key_then_relevance(sorter)
-
-        if collapse is not None:
-            try:
-                slotnum = self._field_mappings.get_slot(collapse, 'collsort')
-            except KeyError:
-                raise _errors.SearchError("Field %r was not indexed for collapsing" % collapse)
-            enq.set_collapse_key(slotnum)
-
-        maxitems = max(endrank - startrank, 0)
-        # Always check for at least one more result, so we can report whether
-        # there are more matches.
-        checkatleast = max(checkatleast, endrank + 1)
-
-        # Build the matchspy.
-        matchspies = []
-
-        # First, add a matchspy for any gettags fields
-        if isinstance(gettags, basestring):
-            if len(gettags) != 0:
-                gettags = [gettags]
-        tagspy = None
-        if gettags is not None and len(gettags) != 0:
-            tagspy = _log(_xapian.TermCountMatchSpy)
-            for field in gettags:
-                try:
-                    prefix = self._field_mappings.get_prefix(field)
-                    tagspy.add_prefix(prefix)
-                except KeyError:
-                    raise _errors.SearchError("Field %r was not indexed for tagging" % field)
-            matchspies.append(tagspy)
-
-        # add a matchspy for facet selection here.
-        facetspy = None
-        facetfields = []
+        # Prepare the facet spies.
         if getfacets:
-            if allowfacets is not None and denyfacets is not None:
-                raise _errors.SearchError("Cannot specify both `allowfacets` and `denyfacets`")
-            if allowfacets is None:
-                allowfacets = [key for key in self._field_actions]
-            if denyfacets is not None:
-                allowfacets = [key for key in allowfacets if key not in denyfacets]
-
-            # include None in queryfacets so a top-level facet will
-            # satisfy self._facet_hierarchy.get(field) in queryfacets
-            # (i.e. always include top-level facets)
-            queryfacets = set([None])
-            if usesubfacets:
-                # add facets used in the query to queryfacets
-                for term in query._get_xapian_query():
-                    prefix = self._get_prefix_from_term(term)
-                    field = self._field_mappings.get_fieldname_from_prefix(prefix)
-                    if field and FieldActions.FACET in self._field_actions[field]._actions:
-                        queryfacets.add(field)
-
-            for field in allowfacets:
-                try:
-                    actions = self._field_actions[field]._actions
-                except KeyError:
-                    actions = {}
-                for action, kwargslist in actions.iteritems():
-                    if action == FieldActions.FACET:
-                        # filter out non-top-level facets that aren't subfacets
-                        # of a facet in the query
-                        if usesubfacets:
-                            is_subfacet = False
-                            for parent in self._facet_hierarchy.get(field, [None]):
-                                if parent in queryfacets:
-                                    is_subfacet = True
-                            if not is_subfacet:
-                                continue
-                        # filter out facets that should never be returned for the query type
-                        if self._facet_query_never(field, query_type):
-                            continue
-                        slot = self._field_mappings.get_slot(field, 'facet')
-                        if facetspy is None:
-                            facetspy = _log(_xapian.CategorySelectMatchSpy)
-                        facettype = None
-                        for kwargs in kwargslist:
-                            facettype = kwargs.get('type', None)
-                            if facettype is not None:
-                                break
-                        if facettype is None or facettype == 'string':
-                            facetspy.add_slot(slot, True)
-                        else:
-                            facetspy.add_slot(slot)
-                        facetfields.append((field, slot, kwargslist))
-
-            if facetspy is None:
-                # Set facetspy to False, to distinguish from no facet
-                # calculation being performed.  (This will prevent an
-                # error being thrown when the list of suggested facets is
-                # requested - instead, an empty list will be returned.)
-                facetspy = False
-            else:
-                matchspies.append(facetspy)
-
-
-        # Finally, build a single matchspy to pass to get_mset().
-        if len(matchspies) == 0:
-            matchspy = None
-        elif len(matchspies) == 1:
-            matchspy = matchspies[0]
+            if 'facets' in _checkxapian.missing_features:
+                raise errors.SearchError("Facets unsupported with this release of xapian")
+            facetfieldnames = set(self._calc_facet_fields(query,
+                allowfacets, denyfacets, usesubfacets, query_type))
         else:
-            matchspy = _log(_xapian.MultipleMatchDecider)
-            for spy in matchspies:
-                matchspy.append(spy)
+            facetfieldnames = set()
 
-        enq.set_docid_order(enq.DONT_CARE)
+        # Get whatever information we can from the cache.
+        cache_hits, cache_stats, cache_facets = None, (None, None, None), None
+        if queryid is not None:
+            if sortby is None and collapse is None:
+                # Get the ordering of the requested hits.  Ask for one more, so
+                # we can tell if there are further hits.
+                cache_hits = self.cache_manager.get_hits(queryid, startrank, endrank + 1)
+                if len(cache_hits) < endrank - startrank:
+                    # Drop the cached hits if we don't have enough from the
+                    # pure cache lookup - we'll need to do a combined search
+                    # instead.
+                    cache_hits = None
 
-        # Set percentage and weight cutoffs
-        if percentcutoff is not None or weightcutoff is not None:
-            if percentcutoff is None:
-                percentcutoff = 0
-            if weightcutoff is None:
-                weightcutoff = 0
-            enq.set_cutoff(percentcutoff, weightcutoff)
+                # Get statistics on the number of matches.
+                cache_stats = self.cache_manager.get_stats(queryid)
 
-        # Set weighting scheme
-        self.__set_weight_params(enq, weight_params)
+                # Get the stored facet values.
+                if len(facetfieldnames) != 0:
+                    cache_facets = self.cache_manager.get_facets(queryid)
+                    if cache_facets is not None:
+                        for fieldname, valfreqs in cache_facets:
+                            facetfieldnames.remove(fieldname)
 
-        # Repeat the search until we don't get a DatabaseModifiedError
-        while True:
-            try:
-                if matchspy is None:
-                    mset = enq.get_mset(startrank, maxitems, checkatleast)
-                else:
-                    mset = enq.get_mset(startrank, maxitems, checkatleast,
-                                        None, None, matchspy)
-                break
-            except _xapian.DatabaseModifiedError, e:
-                self.reopen()
-        facet_hierarchy = None
-        if usesubfacets:
-            facet_hierarchy = self._facet_hierarchy
+        if getfacets:
+            facetspies, facetfields = \
+                self._make_facet_matchspies(facetfieldnames)
+        else:
+            facetspies, facetfields = None, []
 
-        return SearchResults(self, enq, query, mset, self._field_mappings,
-                             tagspy, gettags, facetspy, facetfields,
-                             facet_hierarchy,
-                             self._facet_query_table.get(query_type))
+        # Work out how many results we need.
+        real_maxitems = 0
+        need_to_search = False
+
+        if cache_hits is None:
+            real_maxitems = max(endrank - startrank, 0)
+            # Always check for at least one more result, so we can report
+            # whether there are more matches.
+            checkatleast = max(checkatleast, endrank + 1)
+            need_to_search = True
+        else:
+            # We have cached hits, so don't need to run the search to get the
+            # ordering.  Therefore, no need for the query which is combined
+            # with the cache.
+            query = uncached_query
+
+        if (cache_stats[0] is None or
+            cache_stats[1] is None or
+            cache_stats[2] is None):
+            # Need to get basic statistics from the search, but we'll just do a
+            # 0-document search for this if we don't need anything else.
+            need_to_search = True
+            checkatleast = max(checkatleast, stats_checkatleast)
+
+        if len(facetfields) != 0:
+            checkatleast = max(checkatleast, facet_checkatleast)
+            need_to_search = True
+
+        # FIXME - we currently always need to search to get an mset object for
+        # getting term weights
+        need_to_search = True
+
+        if need_to_search:
+            # Build up the xapian enquire object
+            enq = self._make_enquire(query)
+            if sortby is not None:
+                self._apply_sort_parameters(enq, sortby)
+            if collapse is not None:
+                collapse_slotnum = self._apply_collapse_parameters(enq, collapse, collapse_max)
+            if getfacets:
+                for facetspy in facetspies.itervalues():
+                    enq.add_matchspy(facetspy)
+
+            # Set percentage and weight cutoffs
+            if percentcutoff is not None or weightcutoff is not None:
+                if percentcutoff is None:
+                    percentcutoff = 0
+                if weightcutoff is None:
+                    weightcutoff = 0
+                enq.set_cutoff(percentcutoff, weightcutoff)
+
+            # Set weighting scheme
+            self.__set_weight_params(enq, weight_params)
+
+            # Repeat the search until we don't get a DatabaseModifiedError
+            while True:
+                try:
+                    mset = enq.get_mset(startrank, real_maxitems, checkatleast)
+                    break
+                except xapian.DatabaseModifiedError, e:
+                    self.reopen()
+        else:
+            mset = None
+
+        # Build the search results:
+        if getfacets:
+            # The facet results don't depend on anything else.
+            facet_hierarchy = None
+            if usesubfacets:
+                facet_hierarchy = self._facet_hierarchy
+            facets = FacetResults(facetspies, facetfields, facet_hierarchy,
+                                  self._facet_query_table.get(query_type),
+                                  facet_desired_num_of_categories,
+                                  cache_facets)
+        else:
+            facets = NoFacetResults()
+
+        if need_to_search:
+            weightgetter = MSetTermWeightGetter(mset)
+        else:
+            # FIXME - Need a way to get term weights, for calculating relevant
+            # data.
+            weightgetter = FIXME
+
+        # The context is supplied to each SearchResult.
+        context = SearchResultContext(self, self._field_mappings, weightgetter, query)
+
+        if cache_hits is None:
+            # Use the ordering returned by the MSet.
+            ordering = MSetResultOrdering(mset, context, self)
+            if collapse is not None:
+                ordering.collapse_slotnum = collapse_slotnum
+                ordering.collapse_max = collapse_max
+        else:
+            # Use the ordering returned by the Cache.
+            ordering = CacheResultOrdering(context,
+                                           cache_hits[:endrank-startrank],
+                                           startrank)
+
+        # Statistics on the number of matching documents.
+        stats = ResultStats(mset, cache_stats)
+
+        return SearchResults(self, query, self._field_mappings,
+                             facets, ordering, stats, context)
 
     def iterids(self):
         """Get an iterator which returns all the ids in the database.
@@ -2645,7 +2346,7 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         return PrefixedTermIter('Q', self._index.allterms())
 
     def iter_documents(self):
@@ -2662,7 +2363,7 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         return DocumentIter(self, self._index.postlist(''))
 
     def get_document(self, docid=None, xapid=None):
@@ -2683,13 +2384,13 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
+        if docid is not None and xapid is not None:
+            raise errors.SearchError("Only one of docid and xapid "
+                                      "should be set")
         while True:
             try:
                 if docid is not None:
-                    if xapid is not None:
-                        raise _errors.SearchError("Only one of docid and xapid"
-                                                  " should be set")
                     postlist = self._index.postlist('Q' + docid)
                     try:
                         plitem = postlist.next()
@@ -2698,21 +2399,21 @@ class SearchConnection(object):
                         raise KeyError('Unique ID %r not found' % docid)
                     try:
                         postlist.next()
-                        raise _errors.IndexerError("Multiple documents "
-                                                   "found with same unique ID")
+                        raise errors.IndexerError("Multiple documents "
+                                                   "found with same unique ID: %r" % docid)
                     except StopIteration:
                         # Only one instance of the unique ID found, as it
                         # should be.
                         pass
                     xapid = plitem.docid
                 if xapid is None:
-                    raise _errors.SearchError("Either docid or xapid must be "
+                    raise errors.SearchError("Either docid or xapid must be "
                                               "set")
 
                 result = ProcessedDocument(self._field_mappings)
                 result._doc = self._index.get_document(xapid)
                 return result
-            except _xapian.DatabaseModifiedError, e:
+            except xapian.DatabaseModifiedError, e:
                 self.reopen()
 
     def iter_synonyms(self, prefix=""):
@@ -2741,7 +2442,7 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.SearchError("SearchConnection has been closed")
+            raise errors.SearchError("SearchConnection has been closed")
         return SynonymIter(self._index, self._field_mappings, prefix)
 
     def get_metadata(self, key):
@@ -2754,13 +2455,16 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("SearchConnection has been closed")
+            raise errors.IndexerError("SearchConnection has been closed")
         if not hasattr(self._index, 'get_metadata'):
-            raise _errors.IndexerError("Version of xapian in use does not support metadata")
-        return _log(self._index.get_metadata, key)
+            raise errors.IndexerError("Version of xapian in use does not support metadata")
+        while True:
+            try:
+                return self._index.get_metadata(key)
+            except xapian.DatabaseModifiedError, e:
+                self.reopen()
 
-
-    def iter_terms_for_field(self, field):
+    def iter_terms_for_field(self, field, starts_with=''):
         """Return an iterator over the terms that a field has in the index.
 
         Values are returned in sorted order (sorted by lexicographical binary
@@ -2768,10 +2472,34 @@ class SearchConnection(object):
 
         """
         if self._index is None:
-            raise _errors.IndexerError("SearchConnection has been closed")
+            raise errors.IndexerError("SearchConnection has been closed")
         prefix = self._field_mappings.get_prefix(field)
-        return PrefixedTermIter(prefix, self._index.allterms(prefix))
+        trimlen = len(starts_with)
+        return PrefixedTermIter(prefix, self._index.allterms(prefix), trimlen)
 
-if __name__ == '__main__':
-    import doctest, sys
-    doctest.testmod(sys.modules[__name__])
+    def query_valuemap(self, field, weightmap, default_weight=None):
+        """Return a query consisting of a value map posting source.
+
+         - `field` should have been indexed with field action SORTABLE.
+         - `weightmap` is a dict of value strings to weights.
+         - `default_weight` is the weight to return if the document's value has
+           no mapping, and defaults to 0.0.
+
+        """
+        serialised = self._make_parent_func_repr("query_valuemap")
+        slot = self._field_mappings.get_slot(field, 'collsort')
+
+        # Construct a posting source
+        ps = xapian.ValueMapPostingSource(slot)
+        if default_weight is not None:
+            if default_weight < 0:
+                raise ValueError("default_weight must be >= 0")
+            ps.set_default_weight(default_weight)
+        for k, v in weightmap.items():
+            if v < 0:
+                raise ValueError("weights in weightmap must be >= 0")
+            ps.add_mapping(k, v)
+
+        return Query(xapian.Query(ps),
+                     _refs=[ps], _conn=self,
+                     _serialised=serialised)
